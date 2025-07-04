@@ -1,0 +1,122 @@
+your_project/
+│
+├── config/                            # Django settings, WSGI/ASGI, URLs
+│   ├── settings/
+│   │   ├── base.py
+│   │   ├── dev.py
+│   │   ├── staging.py
+│   │   └── prod.py
+│   ├── urls.py
+│   ├── wsgi.py
+│   └── asgi.py
+│
+├── common/                            # Shared logic, split by concern
+│   ├── core/                          # app registry, middleware, signals
+│   ├── security/                      # encryption, tokens, rate‐limiting
+│   ├── utils/                         # pure helper functions
+│   ├── validators/                    # custom Django/DRF validators
+│   └── mixins/                        # reusable model/view/serializer mixins
+│
+├── apps/                              # Feature/domain apps
+│
+│   ├── users/
+│   │   ├── models.py                  # User model
+│   │   ├── api.py
+│   │   ├── views.py
+│   │   ├── urls.py
+│   │   ├── serializers.py
+│   │   ├── forms.py
+│   │   ├── permissions.py
+│   │   └── tests/
+│   │
+│   ├── auth/                          # authentication flows
+│   │   ├── login/
+│   │   │   ├── views.py
+│   │   │   ├── urls.py
+│   │   │   ├── serializers.py
+│   │   │   └── tests/
+│   │   ├── logout/
+│   │   │   ├── views.py
+│   │   │   ├── urls.py
+│   │   │   └── tests/
+│   │   ├── signup/
+│   │   │   ├── views.py
+│   │   │   ├── urls.py
+│   │   │   └── tests/
+│   │   ├── reset/
+│   │   │   ├── models.py             # PasswordResetToken
+│   │   │   ├── views.py
+│   │   │   ├── urls.py
+│   │   │   ├── serializers.py
+│   │   │   └── tests/
+│   │   └── api.py
+│   │
+│   ├── organizations/
+│   │   ├── models.py                 # Organization model
+│   │   ├── views.py
+│   │   ├── urls.py
+│   │   ├── serializers.py
+│   │   ├── api.py
+│   │   └── tests/
+│   │
+│   ├── documents/
+│   │   ├── models.py                 # Document model
+│   │   ├── views.py
+│   │   ├── urls.py
+│   │   ├── serializers.py
+│   │   ├── tasks.py                  # async processing, indexing
+│   │   ├── services/                 # processing engines, format validators
+│   │   └── tests/
+│   │
+│   ├── chatbot/
+│   │   ├── models.py                 # Chatbot model
+│   │   ├── views.py
+│   │   ├── urls.py
+│   │   ├── serializers.py
+│   │   ├── prompts/                  # system prompts, tone templates
+│   │   ├── api.py
+│   │   └── tests/
+│   │
+│   ├── chatbot_provider/
+│   │   ├── models.py                 # ChatbotProvider model
+│   │   ├── views.py
+│   │   ├── urls.py
+│   │   ├── services.py               # abstraction over OpenAI, Gemini etc.
+│   │   ├── serializers.py
+│   │   ├── api.py
+│   │   └── tests/
+│   │
+│   └── api_keys/
+│       ├── models.py                 # APIKey model
+│       ├── views.py
+│       ├── urls.py
+│       ├── serializers.py
+│       ├── validators.py             # scope, quota, revocation logic
+│       ├── permissions.py
+│       └── tests/
+│
+├── templates/                         # per-app template dirs
+│   ├── chatbot/
+│   ├── documents/
+│   └── auth/
+│
+├── static/                            # static assets
+│
+├── docs/                              # architecture docs, ADRs, API specs
+├── scripts/                           # helper scripts (migrations, seeds, etc.)
+│
+├── Dockerfile                         # multi-stage dev/prod build
+├── docker-compose.yml                 # local dev & prod compose setup
+├── Makefile                           # dev/test/lint/typecheck targets
+│
+├── requirements/                      # pinned dependency files
+│   ├── base.txt
+│   ├── dev.txt
+│   └── prod.txt
+│
+├── .github/                           # CI/CD pipelines
+│   └── workflows/
+│       └── ci.yml
+│
+├── manage.py
+└── venv/                              # in-project virtualenv for isolation
