@@ -10,5 +10,3 @@ elif env == "dev":
     from config.environments.dev import *
 else:
     raise ValueError(f"Invalid DJANGO_ENV: {env}")
-
-print(f"[Django] Using DJANGO_ENV = {env}, DEBUG = {DEBUG}, ALLOWED_HOSTS = {ALLOWED_HOSTS}")
