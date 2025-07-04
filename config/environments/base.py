@@ -26,7 +26,7 @@ SECRET_KEY = "django-insecure-)1o(=sq(!efghy_#6ly)v_dctmmcvtxg(!+$d90^hs4k!*abn2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -38,6 +38,16 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'apps.api_keys.apps.ApiKeysConfig',
+    'apps.auth.login.apps.LoginConfig',
+    'apps.auth.logout.apps.LogoutConfig',
+    'apps.auth.reset.apps.ResetConfig',
+    'apps.auth.signup.apps.SignupConfig',
+    'apps.chatbot.apps.ChatbotConfig',
+    'apps.chatbot_provider.apps.ChatbotProviderConfig',
+    'apps.documents.apps.DocumentsConfig',
+    'apps.organizations.apps.OrganizationsConfig',
+    'apps.users.apps.UsersConfig',
 ]
 
 MIDDLEWARE = [
