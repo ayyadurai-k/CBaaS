@@ -1,122 +1,133 @@
-your_project/
-│
-├── config/                            # Django settings, WSGI/ASGI, URLs
-│   ├── settings/
-│   │   ├── base.py
-│   │   ├── dev.py
-│   │   ├── staging.py
-│   │   └── prod.py
-│   ├── urls.py
-│   ├── wsgi.py
-│   └── asgi.py
-│
-├── common/                            # Shared logic, split by concern
-│   ├── core/                          # app registry, middleware, signals
-│   ├── security/                      # encryption, tokens, rate‐limiting
-│   ├── utils/                         # pure helper functions
-│   ├── validators/                    # custom Django/DRF validators
-│   └── mixins/                        # reusable model/view/serializer mixins
-│
-├── apps/                              # Feature/domain apps
-│
-│   ├── users/
-│   │   ├── models.py                  # User model
-│   │   ├── api.py
-│   │   ├── views.py
-│   │   ├── urls.py
-│   │   ├── serializers.py
-│   │   ├── forms.py
-│   │   ├── permissions.py
-│   │   └── tests/
-│   │
-│   ├── auth/                          # authentication flows
-│   │   ├── login/
-│   │   │   ├── views.py
-│   │   │   ├── urls.py
-│   │   │   ├── serializers.py
-│   │   │   └── tests/
-│   │   ├── logout/
-│   │   │   ├── views.py
-│   │   │   ├── urls.py
-│   │   │   └── tests/
-│   │   ├── signup/
-│   │   │   ├── views.py
-│   │   │   ├── urls.py
-│   │   │   └── tests/
-│   │   ├── reset/
-│   │   │   ├── models.py             # PasswordResetToken
-│   │   │   ├── views.py
-│   │   │   ├── urls.py
-│   │   │   ├── serializers.py
-│   │   │   └── tests/
-│   │   └── api.py
-│   │
-│   ├── organizations/
-│   │   ├── models.py                 # Organization model
-│   │   ├── views.py
-│   │   ├── urls.py
-│   │   ├── serializers.py
-│   │   ├── api.py
-│   │   └── tests/
-│   │
-│   ├── documents/
-│   │   ├── models.py                 # Document model
-│   │   ├── views.py
-│   │   ├── urls.py
-│   │   ├── serializers.py
-│   │   ├── tasks.py                  # async processing, indexing
-│   │   ├── services/                 # processing engines, format validators
-│   │   └── tests/
-│   │
-│   ├── chatbot/
-│   │   ├── models.py                 # Chatbot model
-│   │   ├── views.py
-│   │   ├── urls.py
-│   │   ├── serializers.py
-│   │   ├── prompts/                  # system prompts, tone templates
-│   │   ├── api.py
-│   │   └── tests/
-│   │
-│   ├── chatbot_provider/
-│   │   ├── models.py                 # ChatbotProvider model
-│   │   ├── views.py
-│   │   ├── urls.py
-│   │   ├── services.py               # abstraction over OpenAI, Gemini etc.
-│   │   ├── serializers.py
-│   │   ├── api.py
-│   │   └── tests/
-│   │
-│   └── api_keys/
-│       ├── models.py                 # APIKey model
-│       ├── views.py
-│       ├── urls.py
-│       ├── serializers.py
-│       ├── validators.py             # scope, quota, revocation logic
-│       ├── permissions.py
-│       └── tests/
-│
-├── templates/                         # per-app template dirs
-│   ├── chatbot/
-│   ├── documents/
-│   └── auth/
-│
-├── static/                            # static assets
-│
-├── docs/                              # architecture docs, ADRs, API specs
-├── scripts/                           # helper scripts (migrations, seeds, etc.)
-│
-├── Dockerfile                         # multi-stage dev/prod build
-├── docker-compose.yml                 # local dev & prod compose setup
-├── Makefile                           # dev/test/lint/typecheck targets
-│
-├── requirements/                      # pinned dependency files
-│   ├── base.txt
-│   ├── dev.txt
-│   └── prod.txt
-│
-├── .github/                           # CI/CD pipelines
-│   └── workflows/
-│       └── ci.yml
-│
-├── manage.py
-└── venv/                              # in-project virtualenv for isolation
+.
+├── .gitignore: Specifies intentionally untracked files for Git to ignore.
+├── docker-compose.yml: Defines and configures multi-container Docker applications.
+├── Dockerfile: Contains instructions for building a Docker image for the application.
+├── manage.py: Django's command-line utility for administrative tasks.
+├── apps/: Contains individual Django applications, promoting modularity.
+│   ├── api_keys/: Django app for managing API keys.
+│   │   ├── __init__.py: Marks `api_keys` as a Python package.
+│   │   ├── admin.py: Registers `api_keys` models with the Django admin interface.
+│   │   ├── apps.py: Contains application-specific configuration for `api_keys`.
+│   │   ├── models.py: Defines database models for API keys.
+│   │   ├── tests.py: Contains tests for the `api_keys` application.
+│   │   ├── urls.py: Defines URL patterns specific to the `api_keys` app.
+│   │   ├── views.py: Handles HTTP requests and responses for API keys.
+│   │   └── migrations/: Stores database schema changes for `api_keys`.
+│   │       └── __init__.py: Marks `migrations` as a Python package.
+│   ├── auth/: Django app for user authentication and authorization.
+│   │   ├── login/: Handles user login functionality.
+│   │   │   ├── __init__.py: Marks `login` as a Python package.
+│   │   │   ├── admin.py: Registers `login` models with the Django admin interface.
+│   │   │   ├── apps.py: Contains application-specific configuration for `login`.
+│   │   │   ├── models.py: Defines database models for login.
+│   │   │   ├── tests.py: Contains tests for the `login` application.
+│   │   │   ├── urls.py: Defines URL patterns specific to the `login` app.
+│   │   │   └── views.py: Handles HTTP requests and responses for login.
+│   │   │   └── migrations/: Stores database schema changes for `login`.
+│   │   │       └── __init__.py: Marks `migrations` as a Python package.
+│   │   ├── logout/: Handles user logout functionality.
+│   │   │   ├── __init__.py: Marks `logout` as a Python package.
+│   │   │   ├── admin.py: Registers `logout` models with the Django admin interface.
+│   │   │   ├── apps.py: Contains application-specific configuration for `logout`.
+│   │   │   ├── models.py: Defines database models for logout.
+│   │   │   ├── tests.py: Contains tests for the `logout` application.
+│   │   │   ├── urls.py: Defines URL patterns specific to the `logout` app.
+│   │   │   └── views.py: Handles HTTP requests and responses for logout.
+│   │   │   └── migrations/: Stores database schema changes for `logout`.
+│   │   │       └── __init__.py: Marks `migrations` as a Python package.
+│   │   ├── reset/: Handles password reset functionality.
+│   │   │   ├── __init__.py: Marks `reset` as a Python package.
+│   │   │   ├── admin.py: Registers `reset` models with the Django admin interface.
+│   │   │   ├── apps.py: Contains application-specific configuration for `reset`.
+│   │   │   ├── models.py: Defines database models for reset.
+│   │   │   ├── tests.py: Contains tests for the `reset` application.
+│   │   │   ├── urls.py: Defines URL patterns specific to the `reset` app.
+│   │   │   └── views.py: Handles HTTP requests and responses for reset.
+│   │   │   └── migrations/: Stores database schema changes for `reset`.
+│   │   │       └── __init__.py: Marks `migrations` as a Python package.
+│   │   └── signup/: Handles user registration (signup) functionality.
+│   │       ├── __init__.py: Marks `signup` as a Python package.
+│   │       ├── admin.py: Registers `signup` models with the Django admin interface.
+│   │       ├── apps.py: Contains application-specific configuration for `signup`.
+│   │       ├── models.py: Defines database models for signup.
+│   │       ├── tests.py: Contains tests for the `signup` application.
+│   │       ├── urls.py: Defines URL patterns specific to the `signup` app.
+│   │       └── views.py: Handles HTTP requests and responses for signup.
+│   │       └── migrations/: Stores database schema changes for `signup`.
+│   │           └── __init__.py: Marks `migrations` as a Python package.
+│   ├── chatbot/: Django app for core chatbot functionalities.
+│   │   ├── __init__.py: Marks `chatbot` as a Python package.
+│   │   ├── admin.py: Registers `chatbot` models with the Django admin interface.
+│   │   ├── apps.py: Contains application-specific configuration for `chatbot`.
+│   │   ├── models.py: Defines database models for the chatbot.
+│   │   ├── tests.py: Contains tests for the `chatbot` application.
+│   │   ├── urls.py: Defines URL patterns specific to the `chatbot` app.
+│   │   ├── views.py: Handles HTTP requests and responses for the chatbot.
+│   │   └── migrations/: Stores database schema changes for `chatbot`.
+│   │       └── __init__.py: Marks `migrations` as a Python package.
+│   ├── chatbot_provider/: Django app for integrating with external chatbot services.
+│   │   ├── __init__.py: Marks `chatbot_provider` as a Python package.
+│   │   ├── admin.py: Registers `chatbot_provider` models with the Django admin interface.
+│   │   ├── apps.py: Contains application-specific configuration for `chatbot_provider`.
+│   │   ├── models.py: Defines database models for chatbot providers.
+│   │   ├── tests.py: Contains tests for the `chatbot_provider` application.
+│   │   ├── urls.py: Defines URL patterns specific to the `chatbot_provider` app.
+│   │   ├── views.py: Handles HTTP requests and responses for chatbot providers.
+│   │   └── migrations/: Stores database schema changes for `chatbot_provider`.
+│   │       └── __init__.py: Marks `migrations` as a Python package.
+│   ├── documents/: Django app for managing documents.
+│   │   ├── __init__.py: Marks `documents` as a Python package.
+│   │   ├── admin.py: Registers `documents` models with the Django admin interface.
+│   │   ├── apps.py: Contains application-specific configuration for `documents`.
+│   │   ├── models.py: Defines database models for documents.
+│   │   ├── tests.py: Contains tests for the `documents` application.
+│   │   ├── urls.py: Defines URL patterns specific to the `documents` app.
+│   │   ├── views.py: Handles HTTP requests and responses for documents.
+│   │   └── migrations/: Stores database schema changes for `documents`.
+│   │       └── __init__.py: Marks `migrations` as a Python package.
+│   ├── organizations/: Django app for managing organizational structures.
+│   │   ├── __init__.py: Marks `organizations` as a Python package.
+│   │   ├── admin.py: Registers `organizations` models with the Django admin interface.
+│   │   ├── apps.py: Contains application-specific configuration for `organizations`.
+│   │   ├── models.py: Defines database models for organizations.
+│   │   ├── tests.py: Contains tests for the `organizations` application.
+│   │   ├── urls.py: Defines URL patterns specific to the `organizations` app.
+│   │   ├── views.py: Handles HTTP requests and responses for organizations.
+│   │   └── migrations/: Stores database schema changes for `organizations`.
+│   │       └── __init__.py: Marks `migrations` as a Python package.
+│   └── users/: Django app for managing user profiles and data.
+│       ├── __init__.py: Marks `users` as a Python package.
+│       ├── admin.py: Registers `users` models with the Django admin interface.
+│       ├── apps.py: Contains application-specific configuration for `users`.
+│       ├── models.py: Defines database models for users.
+│       ├── tests.py: Contains tests for the `users` application.
+│       ├── urls.py: Defines URL patterns specific to the `users` app.
+│       ├── views.py: Handles HTTP requests and responses for users.
+│       └── migrations/: Stores database schema changes for `users`.
+│           └── __init__.py: Marks `migrations` as a Python package.
+├── common/: Contains shared, reusable code components across the project.
+│   ├── mixins/: Contains reusable mixin classes for specific functionalities.
+│   ├── security/: Stores security-related utilities or configurations.
+│   ├── utils/: Contains general utility functions or helper classes.
+│   └── validators/: Holds custom data validation logic.
+├── config/: Main project configuration directory for the Django project.
+│   ├── __init__.py: Marks `config` as a Python package.
+│   ├── asgi.py: Entry point for ASGI-compatible web servers.
+│   ├── settings.py: Primary configuration file for the entire Django project.
+│   ├── urls.py: Main URL dispatcher for the project.
+│   ├── wsgi.py: Entry point for WSGI-compatible web servers.
+│   └── environments/: Manages environment-specific settings.
+│       ├── __init__.py: Marks `environments` as a Python package.
+│       ├── base.py: Contains common settings shared across all environments.
+│       ├── dev.py: Contains settings specific to the development environment.
+│       ├── prod.py: Contains settings specific to the production environment.
+│       └── staging.py: Contains settings specific to the staging environment.
+├── docs/: Directory for project documentation.
+│   ├── __init__.py: Marks `docs` as a Python package.
+│   └── folder_strcuture.txt: Likely explains the project's folder structure.
+├── requirements/: Manages Python package dependencies for the project.
+│   ├── base.txt: Lists core Python package dependencies.
+│   ├── dev.txt: Lists additional Python package dependencies for development.
+│   └── prod.txt: Lists Python package dependencies for production.
+└── scripts/: Contains custom scripts for automation or one-off tasks.
+    └── __init__.py: Marks `scripts` as a Python package.
