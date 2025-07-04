@@ -1,0 +1,133 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+pip-selfcheck.json
+
+# Django stuff
+*.log
+*.pot
+*.pyc
+*.pyo
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+static/
+
+# Django migration files (optional to ignore if in version control)
+# **/migrations/
+# !*/migrations/__init__.py
+
+# VS Code, PyCharm, etc.
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+__MACOSX/
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# pytest
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
+
+# Environments
+.env
+.env.*
+*.env
+*.env.*
+
+# Secrets / configs
+secrets.json
+config/settings/local.py
+config/settings/dev.py
+
+# Docker-related
+*.pid
+*.pid.lock
+celerybeat-schedule
+*.sock
+*.log
+*.pid
+
+# Systemd / gunicorn artifacts (optional)
+*.service
+gunicorn.pid
+gunicorn.sock
+
+# Node (if using for front-end)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Tests cache / profiler dumps
+.prof
+*.prof
+
+# Backup files
+*.bak
+*.swp
+*.tmp
+
+# JetBrains
+.idea/
+*.iml
+
+# Database dumps
+*.dump
+*.sql
+*.psql
