@@ -2,19 +2,8 @@ from .base import *
 
 DEBUG = True # Often True for staging, but can be False
 
-ALLOWED_HOSTS = ['your-staging-domain.com', 'www.your-staging-domain.com']
+ALLOWED_HOSTS = ['your-staging-domain.com', 'www.your-staging-domain.com', '127.0.0.1', 'localhost']
 
-# Staging database settings (example for PostgreSQL)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'staging_db',
-#         'USER': 'staging_user',
-#         'PASSWORD': 'staging_password',
-#         'HOST': 'localhost',
-#         'PORT': '',
-#     }
-# }
 
 # Static files (CSS, JavaScript, Images)
 # Example for local static files or a staging-specific CDN

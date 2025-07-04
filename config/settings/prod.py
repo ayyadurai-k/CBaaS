@@ -2,19 +2,8 @@ from .base import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = ['your-production-domain.com', 'www.your-production-domain.com']
+ALLOWED_HOSTS = ['your-production-domain.com', 'www.your-production-domain.com', '127.0.0.1', 'localhost']
 
-# Production database settings (example for PostgreSQL)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'prod_db',
-#         'USER': 'prod_user',
-#         'PASSWORD': 'prod_password',
-#         'HOST': 'localhost',
-#         'PORT': '',
-#     }
-# }
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/

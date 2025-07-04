@@ -93,7 +93,6 @@ dmypy.json
 # Secrets / configs
 secrets.json
 config/settings/local.py
-config/settings/dev.py
 
 # Docker-related
 *.pid

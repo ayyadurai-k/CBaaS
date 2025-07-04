@@ -1,10 +1,14 @@
+# config/settings.py
+
 import os
-from config.settings.base import *
 
-# Determine the environment
-DJANGO_ENV = os.environ.get('DJANGO_ENV', 'development')
+DJANGO_ENV = os.environ.get("DJANGO_ENV", "dev").lower()
 
-if DJANGO_ENV == 'production':
+if DJANGO_ENV == "prod":
     from config.settings.prod import *
-elif DJANGO_ENV == 'staging':
+elif DJANGO_ENV == "staging":
     from config.settings.staging import *
+elif DJANGO_ENV == "dev":
+    from config.settings.dev import *
+else:
+    raise ValueError(f"Invalid DJANGO_ENV: {DJANGO_ENV}")
