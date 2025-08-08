@@ -3,32 +3,38 @@ from datetime import timedelta
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-change")
 DEBUG = False
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
 INSTALLED_APPS = [
+    # Django
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+
+    # Third-party
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "django_filters",
     "drf_spectacular",
-    "pgvector", 
-    # domain apps
+    "pgvector",
+
+    # Domain apps
     "apps.users",
     "apps.organizations",
     "apps.documents",
     "apps.chatbot",
     "apps.chatbot_provider",
     "apps.api_keys",
-    "apps.chat", 
+    "apps.chat",
     "apps.search",
-    # auth sub‑apps
+
+    # Auth sub-apps
     "apps.auth.signup",
     "apps.auth.login",
     "apps.auth.logout",
@@ -75,11 +81,16 @@ DATABASES = {
     }
 }
 
+# Static/Media
 STATIC_URL = "/static/"
-DEFAULT_FILE_STORAGE = os.environ.get("DEFAULT_FILE_STORAGE", "django.core.files.storage.FileSystemStorage")
+DEFAULT_FILE_STORAGE = os.environ.get(
+    "DEFAULT_FILE_STORAGE",
+    "django.core.files.storage.FileSystemStorage",
+)
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_URL = "/media/"
 
+# DRF
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -108,6 +119,7 @@ REST_FRAMEWORK = {
     },
 }
 
+# JWT
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
@@ -117,9 +129,10 @@ SIMPLE_JWT = {
     "ALGORITHM": "HS256",
 }
 
+# OpenAPI
 SPECTACULAR_SETTINGS = {"TITLE": "Org Chatbot API", "VERSION": "0.1.0"}
 
-# Celery
+# Celery / Redis
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
 
@@ -127,13 +140,32 @@ CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6
 ENCRYPTION_SECRET_KEY = os.environ.get("ENCRYPTION_SECRET_KEY", "")
 
 # Email
-EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@example.com")
 
+# ---- LLM / Chat ----
 LLM_CHAT_TIMEOUT_S = int(os.environ.get("LLM_CHAT_TIMEOUT_S", 30))
+
+# ---- RAG / retrieval ----
 EMBEDDING_PROVIDER = os.environ.get("EMBEDDING_PROVIDER", "openai")
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
-MAX_CONTEXT_CHARS = int(os.environ.get("MAX_CONTEXT_CHARS", 12000))
+# MUST match your embedding model; 1536 is correct for OpenAI text-embedding-3-small
+EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", 1536))
+
 TOP_K = int(os.environ.get("TOP_K", 6))
+MAX_CONTEXT_CHARS = int(os.environ.get("MAX_CONTEXT_CHARS", 12000))
+
+# ---- chunking ----
+CHUNK_SIZE_CHARS = int(os.environ.get("CHUNK_SIZE_CHARS", 1500))
+CHUNK_OVERLAP_CHARS = int(os.environ.get("CHUNK_OVERLAP_CHARS", 200))
+
+# ---- Idempotency / SSE ----
 IDEMPOTENCY_REDIS_URL = os.environ.get("IDEMPOTENCY_REDIS_URL", CELERY_BROKER_URL)
 IDEMPOTENCY_TTL_S = int(os.environ.get("IDEMPOTENCY_TTL_S", 3600))
+
+# Timezone (explicit; Django defaults to UTC with USE_TZ=True)
+TIME_ZONE = os.environ.get("TIME_ZONE", "UTC")
+USE_TZ = True
