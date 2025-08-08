@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from common.security.permissions import IsOwnerOrAdmin
 from apps.chatbot.models import Chatbot
-from .models import ChatbotProvider
+from apps.chatbot_provider.models import ChatbotProvider
 from apps.chatbot_provider.serializers import (
     ProviderSerializer,
     ProviderUpsertSerializer,

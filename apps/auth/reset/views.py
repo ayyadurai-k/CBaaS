@@ -4,7 +4,7 @@ from rest_framework import permissions, throttling
 from django.utils import timezone
 from django.core.mail import send_mail
 from apps.users.models import User
-from .models import PasswordResetToken
+from apps.auth.reset.models import PasswordResetToken
 from apps.auth.reset.serializers import ForgotSerializer, VerifySerializer, ResetSerializer
 
 class ScopedThrottle(throttling.ScopedRateThrottle):

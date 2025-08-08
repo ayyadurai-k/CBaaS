@@ -1,7 +1,7 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from common.security.permissions import IsOwnerOrAdmin
-from .models import APIKey
+from apps.api_keys.models import APIKey
 from apps.api_keys.serializers import APIKeySerializer, APIKeyCreateSerializer
 
 class APIKeyListCreateView(generics.ListCreateAPIView):
