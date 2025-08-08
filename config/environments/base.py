@@ -26,8 +26,8 @@ INSTALLED_APPS = [
     "apps.chatbot",
     "apps.chatbot_provider",
     "apps.api_keys",
-    # "apps.chat", 
-    # "apps.search"
+    "apps.chat", 
+    "apps.search",
     # auth sub‑apps
     "apps.auth.signup",
     "apps.auth.login",
