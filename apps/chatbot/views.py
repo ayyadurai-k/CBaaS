@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from common.security.permissions import IsOwnerOrAdmin
 from .models import Chatbot
-from .serializers import ChatbotSerializer, ChatbotUpdateSerializer
+from apps.chatbot.serializers import ChatbotSerializer, ChatbotUpdateSerializer
 
 class ChatbotView(APIView):
     permission_classes = [IsOwnerOrAdmin]

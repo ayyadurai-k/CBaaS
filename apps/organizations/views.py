@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from common.security.permissions import IsOwnerOrAdmin
 from .models import Organization
-from .serializers import UpdateOrganizationSerializer
+from apps.organizations.serializers import UpdateOrganizationSerializer
 
 class OrganizationView(APIView):
     permission_classes = [IsOwnerOrAdmin]

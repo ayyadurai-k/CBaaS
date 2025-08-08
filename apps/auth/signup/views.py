@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, throttling
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import SignupSerializer
+from apps.auth.signup.serializers import SignupSerializer
 
 class ScopedThrottle(throttling.ScopedRateThrottle):
     scope = None

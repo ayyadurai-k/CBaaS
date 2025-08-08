@@ -9,7 +9,23 @@ from apps.chat.serializers import ChatRequestSerializer, ChatResponseSerializer
 from apps.chat.services import chat_completion, chat_stream
 from common.utils.idempotency import reserve_idempotency_key, save_idempotent_result, get_idempotent_result
 from common.utils.sse import sse_event
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse
 
+@extend_schema(
+    request=ChatRequestSerializer,
+    responses={200: ChatResponseSerializer},
+    examples=[
+        OpenApiExample(
+            "Chat request",
+            value={
+              "messages":[{"role":"user","content":"What is our refund policy?"}],
+              "max_tokens":512,"temperature":0.2,"top_k":6
+            },
+        )
+    ],
+    description="Synchronous chat completion with org-scoped retrieval (RAG). "
+                "Requires Authorization (JWT) or X-API-Key and Idempotency-Key header.",
+)
 class ChatCompletionsView(APIView):
     """
     POST /api/chat/completions
@@ -47,6 +63,11 @@ class ChatCompletionsView(APIView):
         except Exception as e:
             return Response({"detail": str(e)}, status=500)
 
+@extend_schema(
+    request=ChatRequestSerializer,
+    responses={200: OpenApiResponse(description="SSE stream (text/event-stream) of deltas")},
+    description="Streaming chat completion via SSE. Emits events: message_start, citation, delta, message_end, error.",
+)
 class ChatStreamView(APIView):
     """
     POST /api/chat/stream  (SSE)

@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions
 from common.security.permissions import ReadOnlyOrOwnerAdmin
 from .models import Document
-from .serializers import DocumentSerializer, DocumentUploadSerializer
+from apps.documents.serializers import DocumentSerializer, DocumentUploadSerializer
 
 class DocumentListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
