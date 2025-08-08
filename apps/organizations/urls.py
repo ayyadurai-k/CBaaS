@@ -1,6 +1,4 @@
 from django.urls import path
-from apps.organizations.views import hello_world
+from .views import OrganizationView
 
-urlpatterns = [
-    path('hello/', hello_world, name='hello_world'),
-]
+urlpatterns = [path("user/organization", OrganizationView.as_view())]

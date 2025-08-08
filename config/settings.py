@@ -1,12 +1,8 @@
 import os
-
-env = os.environ.get("DJANGO_ENV", "dev").lower()
-
-if env == "prod":
-    from config.environments.prod import *
-elif env == "staging":
-    from config.environments.staging import *
-elif env == "dev":
-    from config.environments.dev import *
+DJANGO_ENV = os.environ.get("DJANGO_ENV", "dev").lower()
+if DJANGO_ENV == "prod":
+    from .environments.prod import *  # noqa
+elif DJANGO_ENV == "staging":
+    from .environments.staging import *  # noqa
 else:
-    raise ValueError(f"Invalid DJANGO_ENV: {env}")
+    from .environments.dev import *  # noqa

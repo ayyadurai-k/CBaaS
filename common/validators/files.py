@@ -1,0 +1,1 @@
+ALLOWED_EXTS = {"pdf", "docx", "txt", "md", "csv"}

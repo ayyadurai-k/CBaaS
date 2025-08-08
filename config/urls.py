@@ -1,33 +1,25 @@
-"""
-URL configuration for config project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api_keys/', include('apps.api_keys.urls')),
-    path('auth/login/', include('apps.auth.login.urls')),
-    path('auth/logout/', include('apps.auth.logout.urls')),
-    path('auth/reset/', include('apps.auth.reset.urls')),
-    path('auth/signup/', include('apps.auth.signup.urls')),
-    path('chatbot/', include('apps.chatbot.urls')),
-    path('chatbot_provider/', include('apps.chatbot_provider.urls')),
-    path('documents/', include('apps.documents.urls')),
-    path('organizations/', include('apps.organizations.urls')),
-    path('users/', include('apps.users.urls')),
+    path("admin/", admin.site.urls),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema")),
+
+    # Auth flows
+    path("api/", include("apps.auth.signup.urls")),
+    path("api/", include("apps.auth.login.urls")),
+    path("api/", include("apps.auth.logout.urls")),
+    path("api/", include("apps.auth.reset.urls")),
+
+    # User/org
+    path("api/", include("apps.users.urls")),
+    path("api/", include("apps.organizations.urls")),
+
+    # Domain
+    path("api/", include("apps.documents.urls")),
+    path("api/", include("apps.chatbot.urls")),
+    path("api/", include("apps.chatbot_provider.urls")),
+    path("api/", include("apps.api_keys.urls")),
 ]

@@ -1,6 +1,6 @@
 from django.urls import path
-from apps.documents.views import hello_world
-
+from .views import DocumentListCreateView, DocumentDetailView
 urlpatterns = [
-    path('hello/', hello_world, name='hello_world'),
+    path("documents", DocumentListCreateView.as_view()),
+    path("documents/<uuid:pk>", DocumentDetailView.as_view()),
 ]

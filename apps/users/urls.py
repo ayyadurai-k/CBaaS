@@ -1,6 +1,4 @@
 from django.urls import path
-from apps.users.views import hello_world
+from .views import ProfileView
 
-urlpatterns = [
-    path('hello/', hello_world, name='hello_world'),
-]
+urlpatterns = [path("user/profile", ProfileView.as_view())]

@@ -1,4 +1,22 @@
-from django.http import HttpResponse
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from common.security.permissions import IsOwnerOrAdmin
+from .models import Organization
+from rest_framework import serializers
 
-def hello_world(request):
-    return HttpResponse("Hello from organizations!")
+class UpdateOrganizationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ["name", "logo_url"]
+
+class OrganizationView(APIView):
+    permission_classes = [IsOwnerOrAdmin]
+    def put(self, request):
+        org = request.user.organization
+        s = UpdateOrganizationSerializer(org, data=request.data, partial=True)
+        s.is_valid(raise_exception=True)
+        s.save()
+        return Response(s.data)
+    def delete(self, request):
+        request.user.organization.delete()
+        return Response(status=204)

@@ -1,6 +1,8 @@
 from django.urls import path
-from apps.api_keys.views import hello_world
+from .views import APIKeyListCreateView, APIKeyRevokeView, APIKeyDeleteView
 
 urlpatterns = [
-    path('hello/', hello_world, name='hello_world'),
+    path("keys", APIKeyListCreateView.as_view()),
+    path("keys/<uuid:pk>/revoke", APIKeyRevokeView.as_view()),
+    path("keys/<uuid:pk>", APIKeyDeleteView.as_view()),
 ]
