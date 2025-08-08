@@ -2,12 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from common.security.permissions import IsOwnerOrAdmin
 from .models import Organization
-from rest_framework import serializers
-
-class UpdateOrganizationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Organization
-        fields = ["name", "logo_url"]
+from .serializers import UpdateOrganizationSerializer
 
 class OrganizationView(APIView):
     permission_classes = [IsOwnerOrAdmin]

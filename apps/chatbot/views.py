@@ -1,18 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from common.security.permissions import IsOwnerOrAdmin
-from rest_framework import serializers
 from .models import Chatbot
-
-class ChatbotSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Chatbot
-        fields = ["id","name","tone","system_instructions","created_at","updated_at"]
-
-class ChatbotUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Chatbot
-        fields = ["name","tone","system_instructions"]
+from .serializers import ChatbotSerializer, ChatbotUpdateSerializer
 
 class ChatbotView(APIView):
     permission_classes = [IsOwnerOrAdmin]

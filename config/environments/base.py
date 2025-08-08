@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "django_filters",
     "drf_spectacular",
+    "pgvector", 
     # domain apps
     "apps.users",
     "apps.organizations",
@@ -25,6 +26,8 @@ INSTALLED_APPS = [
     "apps.chatbot",
     "apps.chatbot_provider",
     "apps.api_keys",
+    "apps.chat", 
+    "apps.search"
     # auth sub‑apps
     "apps.auth.signup",
     "apps.auth.login",
@@ -126,3 +129,11 @@ ENCRYPTION_SECRET_KEY = os.environ.get("ENCRYPTION_SECRET_KEY", "")
 # Email
 EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@example.com")
+
+LLM_CHAT_TIMEOUT_S = int(os.environ.get("LLM_CHAT_TIMEOUT_S", 30))
+EMBEDDING_PROVIDER = os.environ.get("EMBEDDING_PROVIDER", "openai")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
+MAX_CONTEXT_CHARS = int(os.environ.get("MAX_CONTEXT_CHARS", 12000))
+TOP_K = int(os.environ.get("TOP_K", 6))
+IDEMPOTENCY_REDIS_URL = os.environ.get("IDEMPOTENCY_REDIS_URL", CELERY_BROKER_URL)
+IDEMPOTENCY_TTL_S = int(os.environ.get("IDEMPOTENCY_TTL_S", 3600))

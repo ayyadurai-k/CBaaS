@@ -1,21 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import permissions, throttling, serializers
-from django.contrib.auth import authenticate
+from rest_framework import permissions, throttling
 from rest_framework_simplejwt.tokens import RefreshToken
+from .serializers import LoginSerializer
 
 class ScopedThrottle(throttling.ScopedRateThrottle):
     scope = None
-
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
-    def validate(self, data):
-        user = authenticate(email=data["email"], password=data["password"])
-        if not user or not user.is_active:
-            raise serializers.ValidationError("Invalid credentials")
-        data["user"] = user
-        return data
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
