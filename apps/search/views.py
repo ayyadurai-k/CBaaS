@@ -30,4 +30,7 @@ class SearchView(APIView):
         if fts := filters.get("file_types"):
             qs = qs.filter(document__file_type__in=fts)
         rows = list(qs.values("document_id", "chunk_index", "content", "score")[: s.validated_data["top_k"]])
+        api_key = getattr(request, "auth_api_key", None)
+        if api_key:
+            type(api_key).objects.filter(pk=api_key.pk).update(usage_count=F("usage_count") + 1)
         return Response({"results": rows})

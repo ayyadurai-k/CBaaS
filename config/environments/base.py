@@ -169,3 +169,5 @@ IDEMPOTENCY_TTL_S = int(os.environ.get("IDEMPOTENCY_TTL_S", 3600))
 # Timezone (explicit; Django defaults to UTC with USE_TZ=True)
 TIME_ZONE = os.environ.get("TIME_ZONE", "UTC")
 USE_TZ = True
+
+API_KEY_HMAC_SECRET = os.environ.get("API_KEY_HMAC_SECRET", ENCRYPTION_SECRET_KEY)

@@ -58,6 +58,10 @@ class ChatCompletionsView(APIView):
         try:
             result = chat_completion(org=org, payload=s.validated_data)
             out = ChatResponseSerializer(result).data
+            # usage++
+            api_key = getattr(request, "auth_api_key", None)
+            if api_key:
+                type(api_key).objects.filter(pk=api_key.pk).update(usage_count=F("usage_count") + 1)
             save_idempotent_result(idem_key, out)
             return Response(out)
         except Exception as e:
