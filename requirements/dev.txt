@@ -1,4 +1,4 @@
  
 -r base.txt
-pytest>=8.3
-pytest-django>=4.8
+pytest
+pytest-django
