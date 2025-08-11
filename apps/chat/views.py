@@ -1,12 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status
-from django.conf import settings
-from django.utils.timezone import now
+from rest_framework.permissions import IsAuthenticated
 from django.http import StreamingHttpResponse
 from apps.chat.serializers import ChatRequestSerializer, ChatResponseSerializer
-from apps.chat.services import chat_completion, chat_strea
+from apps.chat.services import chat_completion, chat_stream
 from common.security.throttles import ChatRateThrottle # Import ChatRateThrottle
 from common.utils.idempotency import reserve_idempotency_key, save_idempotent_result, get_idempotent_result
 from common.utils.sse import sse_event

@@ -1,10 +1,10 @@
-import os
 import mimetypes
 from io import BytesIO
 
 import magic
 from pypdf import PdfReader
 from docx import Document
+
 
 def sniff_mime(file_bytes: bytes) -> tuple[str, str]:
     """
@@ -17,7 +17,7 @@ def sniff_mime(file_bytes: bytes) -> tuple[str, str]:
         if ext:
             return mime, ext
     except Exception:
-        pass # Fallback to mimetypes if magic fails
+        pass  # Fallback to mimetypes if magic fails
 
     # Fallback: try to guess from common extensions if magic fails or no extension found
     # This part is more for conceptual completeness as the prompt implies magic is primary.
@@ -38,7 +38,11 @@ def extract_text_from_bytes(file_type: str, raw: bytes, caps: dict) -> str:
     if len(raw) > max_upload_mb * 1024 * 1024:
         raise ValueError(f"File size exceeds {max_upload_mb}MB limit.")
 
-    if file_type == "text/plain" or file_type == "text/markdown" or file_type == "text/csv":
+    if (
+        file_type == "text/plain"
+        or file_type == "text/markdown"
+        or file_type == "text/csv"
+    ):
         try:
             return raw.decode("utf-8")
         except UnicodeDecodeError:
@@ -54,7 +58,10 @@ def extract_text_from_bytes(file_type: str, raw: bytes, caps: dict) -> str:
             return text
         except Exception as e:
             raise ValueError(f"Failed to extract text from PDF: {e}")
-    elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    elif (
+        file_type
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ):
         try:
             doc = Document(BytesIO(raw))
             return "\n".join([para.text for para in doc.paragraphs])
