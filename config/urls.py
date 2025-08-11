@@ -4,11 +4,16 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    
+    # Swagger
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema")),
+    
+    # Health/readiness endpoints
+    path("api/", include("apps.ops.urls")), 
+    
 
     # Auth flows
-    path("api/", include("apps.ops.urls")), # Added for health/readiness endpoints
     path("api/", include("apps.auth.signup.urls")),
     path("api/", include("apps.auth.login.urls")),
     path("api/", include("apps.auth.logout.urls")),

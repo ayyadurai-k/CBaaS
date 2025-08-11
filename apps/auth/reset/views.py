@@ -16,10 +16,10 @@ class ForgotView(APIView):
     throttle_scope = "password_reset"
 
     def post(self, request):
-        s = ForgotSerializer(data=request.data)
-        s.is_valid(raise_exception=True)
+        serializer = ForgotSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         try:
-            user = User.objects.get(email=s.validated_data["email"])
+            user = User.objects.get(email=serializer.validated_data["email"])
         except User.DoesNotExist:
             return Response(status=204)
         raw, _ = PasswordResetToken.issue(user)
@@ -50,10 +50,10 @@ class ResetView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        s = ResetSerializer(data=request.data)
-        s.is_valid(raise_exception=True)
-        u, prt = s.validated_data["user"], s.validated_data["prt"]
-        u.set_password(s.validated_data["new_password"])
+        serializer = ResetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        u, prt = serializer.validated_data["user"], serializer.validated_data["prt"]
+        u.set_password(serializer.validated_data["new_password"])
         u.save(update_fields=["password"])
         prt.used = True
         prt.save(update_fields=["used"])

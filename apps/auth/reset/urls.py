@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import ForgotView, VerifyView, ResetView
+
+from apps.auth.reset.views import ForgotView, ResetView, VerifyView
 
 urlpatterns = [
     path("auth/forgot-password", ForgotView.as_view()),

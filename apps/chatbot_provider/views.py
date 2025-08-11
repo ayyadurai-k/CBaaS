@@ -18,8 +18,8 @@ class TestKeyView(APIView):
         bot = Chatbot.objects.filter(organization=request.user.organization).first()
         if not bot:
             return Response({"detail": "Chatbot not configured"}, status=400)
-        s = ProviderSerializer(data=request.data)
-        s.is_valid(raise_exception=True)
+        serializer = ProviderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         # (Optional) ping provider here
         return Response({"ok": True})
 

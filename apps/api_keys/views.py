@@ -11,9 +11,9 @@ class APIKeyListCreateView(generics.ListCreateAPIView):
     def get_serializer_class(self):
         return APIKeyCreateSerializer if self.request.method == "POST" else APIKeySerializer
     def create(self, request, *args, **kwargs):
-        s = APIKeyCreateSerializer(data=request.data, context={"request": request})
-        s.is_valid(raise_exception=True)
-        key = s.save()
+        serializer = APIKeyCreateSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        key = serializer.save()
         data = APIKeySerializer(key).data
         data["plaintext"] = getattr(key, "plaintext", None)
         return Response(data, status=201)

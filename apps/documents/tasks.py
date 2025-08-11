@@ -1,20 +1,19 @@
 from __future__ import annotations
-import io
 import logging
 from typing import List
 import logging
-import mimetypes
 
 from celery import shared_task
 from django.core.files.storage import default_storage
 from django.conf import settings
 import httpx
 
-from .models import Document, DocumentChunk
+from apps.documents.models import Document, DocumentChunk
 from common.llm.embeddings import get_embedding
 from common.utils.extract import extract_text_from_bytes, sniff_mime
 
 log = logging.getLogger(__name__)
+
 
 def _read_bytes(document: Document) -> bytes:
     """
@@ -26,7 +25,7 @@ def _read_bytes(document: Document) -> bytes:
     media_url = getattr(settings, "MEDIA_URL", "")
     rel = None
     if media_url and url.startswith(media_url):
-        rel = url[len(media_url):].lstrip("/")
+        rel = url[len(media_url) :].lstrip("/")
     try:
         if rel and default_storage.exists(rel):
             with default_storage.open(rel, "rb") as f:
@@ -40,6 +39,7 @@ def _read_bytes(document: Document) -> bytes:
         r.raise_for_status()
         return r.content
 
+
 def _map_file_type_to_mime(file_type: str) -> str:
     """Maps our internal file_type to a common MIME type for extraction."""
     if file_type == Document.FileType.PDF:
@@ -52,7 +52,8 @@ def _map_file_type_to_mime(file_type: str) -> str:
         return "text/markdown"
     elif file_type == Document.FileType.CSV:
         return "text/csv"
-    return "application/octet-stream" # Fallback for unknown types
+    return "application/octet-stream"  # Fallback for unknown types
+
 
 def _chunk_text(text: str) -> List[str]:
     size = int(getattr(settings, "CHUNK_SIZE_CHARS", 1500))
@@ -71,11 +72,13 @@ def _chunk_text(text: str) -> List[str]:
         i = max(end - overlap, i + 1)
     return chunks
 
+
 def _embed_chunks(chunks: List[str]) -> List[List[float]]:
     vecs: List[List[float]] = []
     for ch in chunks:
         vecs.append(get_embedding(ch))
     return vecs
+
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def process_document(self, doc_id: str):
@@ -86,20 +89,28 @@ def process_document(self, doc_id: str):
     doc = Document.objects.get(id=doc_id)
     try:
         raw = _read_bytes(doc)
-        
+
         # Sanity check MIME type, but Document.file_type is source of truth
         sniffed_mime, _ = sniff_mime(raw)
-        log.debug("Document %s: Sniffed MIME: %s, Declared file_type: %s", doc.id, sniffed_mime, doc.file_type)
+        log.debug(
+            "Document %s: Sniffed MIME: %s, Declared file_type: %s",
+            doc.id,
+            sniffed_mime,
+            doc.file_type,
+        )
 
         # Use the document's declared file_type for extraction
         mime_type_for_extraction = _map_file_type_to_mime(doc.file_type)
-        
+
         text = extract_text_from_bytes(
             mime_type_for_extraction,
             raw,
-            {"MAX_UPLOAD_MB": settings.MAX_UPLOAD_MB, "MAX_PDF_PAGES": settings.MAX_PDF_PAGES}
+            {
+                "MAX_UPLOAD_MB": settings.MAX_UPLOAD_MB,
+                "MAX_PDF_PAGES": settings.MAX_PDF_PAGES,
+            },
         )
-        
+
         chunks = _chunk_text(text)
         embeddings = _embed_chunks(chunks)
 
@@ -109,7 +120,11 @@ def process_document(self, doc_id: str):
         objs = []
         for idx, (content, emb) in enumerate(zip(chunks, embeddings)):
             # Cap content length as per prompt
-            objs.append(DocumentChunk(document=doc, chunk_index=idx, content=content[:5000], embedding=emb))
+            objs.append(
+                DocumentChunk(
+                    document=doc, chunk_index=idx, content=content[:5000], embedding=emb
+                )
+            )
         DocumentChunk.objects.bulk_create(objs, batch_size=100)
 
         doc.status = Document.Status.READY

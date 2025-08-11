@@ -18,6 +18,7 @@ class ResetSerializer(serializers.Serializer):
     def validate(self, data):
         try:
             user = User.objects.get(email=data["email"])
+            # prt - password reset token
             prt = PasswordResetToken.objects.filter(user=user, used=False).latest(
                 "created_at"
             )

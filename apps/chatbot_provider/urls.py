@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import TestKeyView, ChatbotProviderUpsertView
+
+from apps.chatbot_provider.views import ChatbotProviderUpsertView, TestKeyView
 
 urlpatterns = [
     path("chatbot/test-key", TestKeyView.as_view()),
-    path("chatbot/provider", ChatbotProviderUpsertView.as_view()),  # <-- new
+    path("chatbot/provider", ChatbotProviderUpsertView.as_view()), 
 ]

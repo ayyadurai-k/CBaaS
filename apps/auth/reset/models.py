@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 from apps.users.models import User
 
+
 class PasswordResetToken(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -15,8 +16,11 @@ class PasswordResetToken(models.Model):
     def issue(user, ttl_seconds: int = 3600):
         raw = secrets.token_urlsafe(48)
         token_hash = hashlib.sha256(raw.encode()).hexdigest()
-        obj = PasswordResetToken.objects.create(user=user, token=token_hash,
-                     expires_at=timezone.now() + timezone.timedelta(seconds=ttl_seconds))
+        obj = PasswordResetToken.objects.create(
+            user=user,
+            token=token_hash,
+            expires_at=timezone.now() + timezone.timedelta(seconds=ttl_seconds),
+        )
         return raw, obj
 
     def matches(self, raw: str) -> bool:
