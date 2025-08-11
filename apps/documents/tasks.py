@@ -1,20 +1,20 @@
 from __future__ import annotations
 import io
 import logging
-from typing import List, Tuple
+from typing import List
+import logging
+import mimetypes
 
 from celery import shared_task
 from django.core.files.storage import default_storage
 from django.conf import settings
-from django.utils import timezone
 import httpx
 
 from .models import Document, DocumentChunk
 from common.llm.embeddings import get_embedding
+from common.utils.extract import extract_text_from_bytes, sniff_mime
 
 log = logging.getLogger(__name__)
-
-TEXT_TYPES = {"txt", "md", "csv"}  # extend later to pdf/docx
 
 def _read_bytes(document: Document) -> bytes:
     """
@@ -40,11 +40,19 @@ def _read_bytes(document: Document) -> bytes:
         r.raise_for_status()
         return r.content
 
-def _to_text(file_type: str, raw: bytes) -> str:
-    if file_type in TEXT_TYPES:
-        return raw.decode("utf-8", errors="ignore")
-    # TODO: Plug PDF/DOCX extractors (pypdf / python-docx) once added to requirements.
-    raise ValueError(f"Unsupported file_type for extractor: {file_type}")
+def _map_file_type_to_mime(file_type: str) -> str:
+    """Maps our internal file_type to a common MIME type for extraction."""
+    if file_type == Document.FileType.PDF:
+        return "application/pdf"
+    elif file_type == Document.FileType.DOCX:
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    elif file_type == Document.FileType.TXT:
+        return "text/plain"
+    elif file_type == Document.FileType.MD:
+        return "text/markdown"
+    elif file_type == Document.FileType.CSV:
+        return "text/csv"
+    return "application/octet-stream" # Fallback for unknown types
 
 def _chunk_text(text: str) -> List[str]:
     size = int(getattr(settings, "CHUNK_SIZE_CHARS", 1500))
@@ -78,7 +86,20 @@ def process_document(self, doc_id: str):
     doc = Document.objects.get(id=doc_id)
     try:
         raw = _read_bytes(doc)
-        text = _to_text(doc.file_type, raw)
+        
+        # Sanity check MIME type, but Document.file_type is source of truth
+        sniffed_mime, _ = sniff_mime(raw)
+        log.debug("Document %s: Sniffed MIME: %s, Declared file_type: %s", doc.id, sniffed_mime, doc.file_type)
+
+        # Use the document's declared file_type for extraction
+        mime_type_for_extraction = _map_file_type_to_mime(doc.file_type)
+        
+        text = extract_text_from_bytes(
+            mime_type_for_extraction,
+            raw,
+            {"MAX_UPLOAD_MB": settings.MAX_UPLOAD_MB, "MAX_PDF_PAGES": settings.MAX_PDF_PAGES}
+        )
+        
         chunks = _chunk_text(text)
         embeddings = _embed_chunks(chunks)
 
@@ -87,6 +108,7 @@ def process_document(self, doc_id: str):
 
         objs = []
         for idx, (content, emb) in enumerate(zip(chunks, embeddings)):
+            # Cap content length as per prompt
             objs.append(DocumentChunk(document=doc, chunk_index=idx, content=content[:5000], embedding=emb))
         DocumentChunk.objects.bulk_create(objs, batch_size=100)
 

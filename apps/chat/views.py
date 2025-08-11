@@ -6,7 +6,8 @@ from django.conf import settings
 from django.utils.timezone import now
 from django.http import StreamingHttpResponse
 from apps.chat.serializers import ChatRequestSerializer, ChatResponseSerializer
-from apps.chat.services import chat_completion, chat_stream
+from apps.chat.services import chat_completion, chat_strea
+from common.security.throttles import ChatRateThrottle # Import ChatRateThrottle
 from common.utils.idempotency import reserve_idempotency_key, save_idempotent_result, get_idempotent_result
 from common.utils.sse import sse_event
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse
@@ -32,7 +33,8 @@ class ChatCompletionsView(APIView):
     Auth: JWT (dashboard) or X-API-Key (integrations)
     Requires Idempotency-Key header (returns 400 if missing).
     """
-    permission_classes = [IsAuthenticated]  # API key auth returns (None, None), but allowed via custom authentication
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ChatRateThrottle] # Apply throttle
 
     def post(self, request):
         # org resolution
@@ -77,6 +79,7 @@ class ChatStreamView(APIView):
     POST /api/chat/stream  (SSE)
     """
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ChatRateThrottle] # Apply throttle
 
     def post(self, request):
         org = getattr(request, "organization", None) or getattr(request.user, "organization", None)

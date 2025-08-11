@@ -23,9 +23,11 @@ INSTALLED_APPS = [
     "django_filters",
     "drf_spectacular",
     "pgvector",
+    "corsheaders", # Added for CORS
 
     # Domain apps
     "apps.users",
+    "apps.ops", # Added for health/readiness endpoints
     "apps.organizations",
     "apps.documents",
     "apps.chatbot",
@@ -46,6 +48,7 @@ AUTH_USER_MODEL = "users.User"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware", # Must be above CommonMiddleware
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -116,6 +119,9 @@ REST_FRAMEWORK = {
         "anon": "50/hour",
         "login": "10/minute",
         "password_reset": "5/minute",
+        "chat": os.environ.get("RATE_CHAT", "60/min"),
+        "search": os.environ.get("RATE_SEARCH", "120/min"),
+        "documents": os.environ.get("RATE_DOCS", "10/min"),
     },
 }
 
@@ -171,3 +177,17 @@ TIME_ZONE = os.environ.get("TIME_ZONE", "UTC")
 USE_TZ = True
 
 API_KEY_HMAC_SECRET = os.environ.get("API_KEY_HMAC_SECRET", ENCRYPTION_SECRET_KEY)
+
+# Document extraction caps
+MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", 25))
+MAX_PDF_PAGES = int(os.environ.get("MAX_PDF_PAGES", 500))
+
+# CORS settings
+CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if os.environ.get("CORS_ALLOWED_ORIGINS") else []
+CORS_ALLOW_HEADERS = list(set([
+    "accept", "accept-encoding", "authorization", "content-type", "origin",
+    "x-api-key", "idempotency-key",
+]))
+CORS_ALLOW_METHODS = ["GET", "POST", "OPTIONS", "DELETE", "PUT", "PATCH"]
+CORS_EXPOSE_HEADERS = ["Content-Type"]
+CORS_ALLOW_CREDENTIALS = False

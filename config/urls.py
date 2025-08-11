@@ -8,6 +8,7 @@ urlpatterns = [
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema")),
 
     # Auth flows
+    path("api/", include("apps.ops.urls")), # Added for health/readiness endpoints
     path("api/", include("apps.auth.signup.urls")),
     path("api/", include("apps.auth.login.urls")),
     path("api/", include("apps.auth.logout.urls")),

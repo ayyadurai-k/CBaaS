@@ -5,6 +5,7 @@ from rest_framework import serializers
 from apps.search.serializers import SearchRequestSerializer, SearchResponseSerializer
 from common.llm.embeddings import get_embedding
 from apps.documents.models import DocumentChunk
+from common.security.throttles import SearchRateThrottle # Import SearchRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse
 
 
@@ -12,6 +13,7 @@ from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse
 @extend_schema(request=SearchRequestSerializer, responses={200: SearchResponseSerializer})
 class SearchView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [SearchRateThrottle] # Apply throttle
 
     def post(self, request):
         org = getattr(request, "organization", None) or getattr(request.user, "organization", None)
