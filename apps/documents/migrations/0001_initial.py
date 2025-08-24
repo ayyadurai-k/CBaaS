@@ -2,7 +2,7 @@
 import uuid
 from django.db import migrations, models
 import django.db.models.deletion
-import pgvector.django.vector
+import pgvector
 
 
 EMBEDDING_DIM = (

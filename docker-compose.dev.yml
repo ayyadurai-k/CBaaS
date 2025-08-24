@@ -2,10 +2,11 @@ version: "3.9"
 
 services:
   db:
-    image: postgres:16
+    image: ankane/pgvector:pg16
     env_file: .env.dev
     ports: ["5432:5432"]
-    volumes: [db_data:/var/lib/postgresql/data]
+    volumes:
+      - db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
       interval: 10s
