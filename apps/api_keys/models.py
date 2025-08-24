@@ -3,28 +3,35 @@ from django.db import models
 from django.conf import settings
 from common.security.encryption import Encryptor
 
+
 class APIKey(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "active", "active"
         REVOKED = "revoked", "revoked"
+
     class Scope(models.TextChoices):
         FULL = "full-access", "Full Access"
         READ_ONLY = "read-only", "Read Only"
         UPLOAD_ONLY = "upload-only", "Upload Only"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE)
-    name = models.CharField(max_length=100)
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE
+    )
+    name = models.CharField(max_length=100, unique=True)
     key_encrypted = models.CharField(max_length=255)
-    key_hmac = models.CharField(max_length=64, unique=True, db_index=True, null=True, blank=True)  # NEW
+    key_hmac = models.CharField(
+        max_length=64, unique=True, db_index=True, null=True, blank=True
+    )  # NEW
     created_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.ACTIVE
+    )
     usage_count = models.PositiveIntegerField(default=0)
     quota = models.PositiveIntegerField(null=True, blank=True)
     scope = models.CharField(max_length=20, choices=Scope.choices, default=Scope.FULL)
-    
-    _plaintext: str | None = None 
 
+    _plaintext: str | None = None
 
     @staticmethod
     def generate_plaintext() -> str:
@@ -36,7 +43,9 @@ class APIKey(models.Model):
         if not secret:
             # fallback to encryption key if not provided (still better than nothing)
             secret = getattr(settings, "ENCRYPTION_SECRET_KEY", "")
-        mac = hmac.new(secret.encode("utf-8"), raw.encode("utf-8"), hashlib.sha256).hexdigest()
+        mac = hmac.new(
+            secret.encode("utf-8"), raw.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
         return mac
 
     @property
