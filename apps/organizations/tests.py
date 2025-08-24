@@ -1,70 +1,207 @@
 from django.test import TestCase
 from django.urls import reverse
-from rest_framework import status
 from rest_framework.test import APITestCase
+from rest_framework import status
 from apps.users.models import User
 from apps.organizations.models import Organization
+from apps.api_keys.models import APIKey
+from apps.documents.models import Document
 from rest_framework_simplejwt.tokens import RefreshToken
+from unittest.mock import patch
+import uuid
 
-class OrganizationTests(APITestCase):
+class OrganizationModelTests(TestCase):
+    """Test cases for Organization model"""
+
     def setUp(self):
-        # Create test user and organization
-        self.organization = Organization.objects.create(name='Test Org')
+        self.org_data = {
+            'name': 'Test Organization',
+            'logo_url': 'https://example.com/logo.png'
+        }
+        self.organization = Organization.objects.create(**self.org_data)
+
+    def test_organization_creation(self):
+        """Test organization creation with valid data"""
+        self.assertEqual(self.organization.name, self.org_data['name'])
+        self.assertEqual(self.organization.logo_url, self.org_data['logo_url'])
+        self.assertIsNotNone(self.organization.id)
+        self.assertIsNotNone(self.organization.created_at)
+        self.assertIsNotNone(self.organization.updated_at)
+
+    def test_organization_str_representation(self):
+        """Test string representation of organization"""
+        self.assertEqual(str(self.organization), self.org_data['name'])
+
+    def test_organization_auto_fields(self):
+        """Test auto-populated fields"""
+        self.assertIsInstance(self.organization.id, uuid.UUID)
+        # created_at should be equal to updated_at on creation
+        self.assertEqual(self.organization.created_at, self.organization.updated_at)
+
+    def test_organization_updated_at(self):
+        """Test updated_at field is auto-updated"""
+        original_updated_at = self.organization.updated_at
+        self.organization.name = "Updated Name"
+        self.organization.save()
+        self.assertGreater(self.organization.updated_at, original_updated_at)
+
+class OrganizationViewTests(APITestCase):
+    """Test cases for Organization views"""
+
+    def setUp(self):
+        """Set up test data"""
+        # Create organization
+        self.organization = Organization.objects.create(
+            name='Test Organization',
+            logo_url='https://example.com/logo.png'
+        )
+        
+        # Create regular user
         self.user = User.objects.create_user(
             email='test@example.com',
             password='testpass123',
             organization=self.organization
         )
         
-        # Get JWT token
-        refresh = RefreshToken.for_user(self.user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
-
-    def test_update_organization(self):
-        """Test updating organization details"""
-        url = reverse('organization-detail')
-        data = {
-            'name': 'Updated Org Name',
-            'settings': {'theme': 'dark'}
-        }
-        response = self.client.put(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.organization.refresh_from_db()
-        self.assertEqual(self.organization.name, 'Updated Org Name')
-        self.assertEqual(self.organization.settings['theme'], 'dark')
-
-    def test_delete_organization(self):
-        """Test deleting organization"""
-        url = reverse('organization-detail')
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(Organization.objects.count(), 0)
-
-    def test_unauthorized_access(self):
-        """Test unauthorized access to organization endpoints"""
-        self.client.credentials()  # Remove authentication
-        url = reverse('organization-detail')
-        response = self.client.put(url, {'name': 'New Name'})
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_wrong_organization_access(self):
-        """Test accessing wrong organization"""
-        other_org = Organization.objects.create(name='Other Org')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='testpass123',
-            organization=other_org
+        # Create admin user
+        self.admin_user = User.objects.create_user(
+            email='admin@example.com',
+            password='adminpass123',
+            organization=self.organization,
+            is_staff=True
         )
         
-        # Login as other user
-        refresh = RefreshToken.for_user(other_user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+        # Create another organization and user
+        self.other_org = Organization.objects.create(
+            name='Other Organization'
+        )
+        self.other_user = User.objects.create_user(
+            email='other@example.com',
+            password='otherpass123',
+            organization=self.other_org
+        )
         
-        url = reverse('organization-detail')
-        data = {'name': 'Hacked Name'}
-        response = self.client.put(url, data)
+        # URLs
+        self.org_url = reverse('organization')
+        
+        # Test data
+        self.update_data = {
+            'name': 'Updated Organization Name',
+            'logo_url': 'https://example.com/new_logo.png'
+        }
+    def test_update_organization_success(self):
+        """Test successful organization update"""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.put(self.org_url, self.update_data)
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['name'], self.update_data['name'])
+        self.assertEqual(response.data['logo_url'], self.update_data['logo_url'])
         
-        # Verify original org wasn't changed
+        # Verify database update
         self.organization.refresh_from_db()
-        self.assertEqual(self.organization.name, 'Test Org')
+        self.assertEqual(self.organization.name, self.update_data['name'])
+        self.assertEqual(self.organization.logo_url, self.update_data['logo_url'])
+
+    def test_update_organization_partial(self):
+        """Test partial update of organization"""
+        self.client.force_authenticate(user=self.user)
+        partial_data = {'name': 'New Name Only'}
+        response = self.client.put(self.org_url, partial_data)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['name'], partial_data['name'])
+        self.assertEqual(response.data['logo_url'], self.organization.logo_url)
+
+    def test_update_organization_validation(self):
+        """Test organization update validation"""
+        self.client.force_authenticate(user=self.user)
+        
+        # Test with invalid logo URL
+        invalid_data = {
+            'name': 'Test Org',
+            'logo_url': 'invalid-url'
+        }
+        response = self.client.put(self.org_url, invalid_data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        # Test with empty name
+        invalid_data = {'name': ''}
+        response = self.client.put(self.org_url, invalid_data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_organization_authentication(self):
+        """Test authentication requirements for organization update"""
+        # Test without authentication
+        response = self.client.put(self.org_url, self.update_data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # Test with other organization's user
+        self.client.force_authenticate(user=self.other_user)
+        response = self.client.put(self.org_url, self.update_data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_update_organization_admin_access(self):
+        """Test admin user can update organization"""
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.put(self.org_url, self.update_data)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['name'], self.update_data['name'])
+
+    def test_delete_organization(self):
+        """Test organization deletion"""
+        self.client.force_authenticate(user=self.user)
+        response = self.client.delete(self.org_url)
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # Verify organization is deleted
+        self.assertFalse(Organization.objects.filter(id=self.organization.id).exists())
+
+    def test_delete_organization_authentication(self):
+        """Test authentication requirements for organization deletion"""
+        # Test without authentication
+        response = self.client.delete(self.org_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # Test with other organization's user
+        self.client.force_authenticate(user=self.other_user)
+        response = self.client.delete(self.org_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # Verify organization still exists
+        self.assertTrue(Organization.objects.filter(id=self.organization.id).exists())
+
+    def test_delete_organization_cascade(self):
+        """Test organization deletion cascades to related objects"""
+        self.client.force_authenticate(user=self.user)
+        
+        # Create some related objects
+        api_key = APIKey.objects.create(
+            name='Test Key',
+            organization=self.organization,
+            created_by=self.user
+        )
+        document = Document.objects.create(
+            name='test.txt',
+            organization=self.organization,
+            uploaded_by=self.user
+        )
+        
+        # Delete organization
+        response = self.client.delete(self.org_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        # Verify related objects are deleted
+        self.assertFalse(Organization.objects.filter(id=self.organization.id).exists())
+        self.assertFalse(User.objects.filter(organization_id=self.organization.id).exists())
+        self.assertFalse(APIKey.objects.filter(organization_id=self.organization.id).exists())
+        self.assertFalse(Document.objects.filter(organization_id=self.organization.id).exists())
+        
+    def test_delete_organization_admin(self):
+        """Test admin can delete organization"""
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.delete(self.org_url)
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Organization.objects.filter(id=self.organization.id).exists())
