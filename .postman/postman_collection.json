@@ -1,0 +1,975 @@
+{
+  "info": {
+    "_postman_id": "YOUR_POSTMAN_COLLECTION_ID",
+    "name": "CBaaS API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "API Keys",
+      "item": [
+        {
+          "name": "List API Keys",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/keys",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "keys"
+              ]
+            },
+            "description": "Request for List API Keys"
+          },
+          "response": []
+        },
+        {
+          "name": "Create API Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/keys",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "keys"
+              ]
+            },
+            "description": "Request for Create API Key",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My New API Key\",\n  \"quota\": 1000,\n  \"scope\": \"FULL\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke API Key",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/keys/:pk/revoke",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "keys",
+                ":pk",
+                "revoke"
+              ]
+            },
+            "description": "Request for Revoke API Key"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete API Key",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/keys/:pk",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "keys",
+                ":pk"
+              ]
+            },
+            "description": "Request for Delete API Key"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Auth - Signup",
+          "item": [
+            {
+              "name": "Signup User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/signup",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "",
+                    "auth",
+                    "signup"
+                  ]
+                },
+                "description": "Request for Signup User",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Test User\",\n  \"organization_name\": \"Test Org\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Auth - Login",
+          "item": [
+            {
+              "name": "Login User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/login",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Request for Login User",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Auth - Logout",
+          "item": [
+            {
+              "name": "Logout User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/logout",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "",
+                    "auth",
+                    "logout"
+                  ]
+                },
+                "description": "Request for Logout User",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Auth - Reset Password",
+          "item": [
+            {
+              "name": "Forgot Password",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/forgot-password",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "",
+                    "auth",
+                    "forgot-password"
+                  ]
+                },
+                "description": "Request for Forgot Password",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Verify Reset Token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/verify-reset-token",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "",
+                    "auth",
+                    "verify-reset-token"
+                  ]
+                },
+                "description": "Request for Verify Reset Token",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"token\": \"YOUR_RESET_TOKEN\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Reset Password",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/reset-password",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "",
+                    "auth",
+                    "reset-password"
+                  ]
+                },
+                "description": "Request for Reset Password",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"token\": \"YOUR_RESET_TOKEN\",\n  \"new_password\": \"newpassword123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "Chat Completions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chat/completions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "chat",
+                "completions"
+              ]
+            },
+            "description": "Request for Chat Completions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Hello, how are you?\"\n    }\n  ],\n  \"max_tokens\": 512,\n  \"temperature\": 0.2,\n  \"top_k\": 6\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Chat Stream",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chat/stream",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "chat",
+                "stream"
+              ]
+            },
+            "description": "Request for Chat Stream",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Tell me a story.\"\n    }\n  ],\n  \"max_tokens\": 512,\n  \"temperature\": 0.2,\n  \"top_k\": 6\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chatbot",
+      "item": [
+        {
+          "name": "Get Chatbot Config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chatbot",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "chatbot"
+              ]
+            },
+            "description": "Request for Get Chatbot Config"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Chatbot Config",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chatbot",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "chatbot"
+              ]
+            },
+            "description": "Request for Update Chatbot Config",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Custom Chatbot\",\n  \"tone\": \"Friendly\",\n  \"system_instructions\": \"Always be helpful.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chatbot Provider",
+      "item": [
+        {
+          "name": "Test Chatbot Provider Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chatbot/test-key",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "chatbot",
+                "test-key"
+              ]
+            },
+            "description": "Request for Test Chatbot Provider Key",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"api_key\": \"YOUR_PROVIDER_API_KEY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upsert Chatbot Provider",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chatbot/provider",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "chatbot",
+                "provider"
+              ]
+            },
+            "description": "Request for Upsert Chatbot Provider",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"openai\",\n  \"model_name\": \"gpt-3.5-turbo\",\n  \"api_key\": \"YOUR_PROVIDER_API_KEY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "List Documents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "documents"
+              ]
+            },
+            "description": "Request for List Documents"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "documents"
+              ]
+            },
+            "description": "Request for Upload Document",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Document\",\n  \"file\": \"SELECT_FILE_FROM_DISK\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Document Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents/:pk",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "documents",
+                ":pk"
+              ]
+            },
+            "description": "Request for Get Document Details"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Document",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents/:pk",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "documents",
+                ":pk"
+              ]
+            },
+            "description": "Request for Update Document",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Document Name\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Document",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents/:pk",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "documents",
+                ":pk"
+              ]
+            },
+            "description": "Request for Delete Document"
+          },
+          "response": []
+        },
+        {
+          "name": "Reprocess Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents/:pk/reprocess",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "documents",
+                ":pk",
+                "reprocess"
+              ]
+            },
+            "description": "Request for Reprocess Document"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Operational Endpoints",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/healthz",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "healthz"
+              ]
+            },
+            "description": "Request for Health Check"
+          },
+          "response": []
+        },
+        {
+          "name": "Readiness Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/readyz",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "readyz"
+              ]
+            },
+            "description": "Request for Readiness Check"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Organizations",
+      "item": [
+        {
+          "name": "Update Organization",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/organization",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "user",
+                "organization"
+              ]
+            },
+            "description": "Request for Update Organization",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My New Org Name\",\n  \"logo_url\": \"http://example.com/logo.png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Organization",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/organization",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "user",
+                "organization"
+              ]
+            },
+            "description": "Request for Delete Organization"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Search Documents",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/search",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "search"
+              ]
+            },
+            "description": "Request for Search Documents",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"What is the capital of France?\",\n  \"top_k\": 5,\n  \"filters\": {\n    \"document_ids\": [],\n    \"file_types\": [\n      \"pdf\"\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "",
+                "user",
+                "profile"
+              ]
+            },
+            "description": "Request for Get User Profile"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Add your pre-request script here, e.g., for authentication",
+          "// pm.environment.set(\"jwt_token\", \"YOUR_JWT_TOKEN\");"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Add your test script here"
+        ]
+      }
+    }
+  ]
+}
