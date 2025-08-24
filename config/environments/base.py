@@ -1,10 +1,16 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from dotenv import load_dotenv
+
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-change")
+load_dotenv(BASE_DIR / ".env.dev")
+
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY", "pHGgxiiy2Pc,=XL[#.U#vjq=eq7y7<3Y!9zU'U+U$V0I"
+)
 DEBUG = False
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
@@ -16,18 +22,16 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     # Third-party
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "django_filters",
     "drf_spectacular",
     "pgvector",
-    "corsheaders", # Added for CORS
-
+    "corsheaders",  # Added for CORS
     # Domain apps
     "apps.users",
-    "apps.ops", # Added for health/readiness endpoints
+    "apps.ops",  # Added for health/readiness endpoints
     "apps.organizations",
     "apps.documents",
     "apps.chatbot",
@@ -35,7 +39,6 @@ INSTALLED_APPS = [
     "apps.api_keys",
     "apps.chat",
     "apps.search",
-
     # Auth sub-apps
     "apps.auth.signup",
     "apps.auth.login",
@@ -48,7 +51,7 @@ AUTH_USER_MODEL = "users.User"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware", # Must be above CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",  # Must be above CommonMiddleware
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -58,17 +61,21 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 
-TEMPLATES = [{
-    "BACKEND": "django.template.backends.django.DjangoTemplates",
-    "DIRS": [],
-    "APP_DIRS": True,
-    "OPTIONS": {"context_processors": [
-        "django.template.context_processors.debug",
-        "django.template.context_processors.request",
-        "django.contrib.auth.context_processors.auth",
-        "django.contrib.messages.context_processors.messages",
-    ]},
-}]
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ]
+        },
+    }
+]
 
 WSGI_APPLICATION = "config.wsgi.application"
 
@@ -183,11 +190,24 @@ MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", 25))
 MAX_PDF_PAGES = int(os.environ.get("MAX_PDF_PAGES", 500))
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if os.environ.get("CORS_ALLOWED_ORIGINS") else []
-CORS_ALLOW_HEADERS = list(set([
-    "accept", "accept-encoding", "authorization", "content-type", "origin",
-    "x-api-key", "idempotency-key",
-]))
+CORS_ALLOWED_ORIGINS = (
+    os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if os.environ.get("CORS_ALLOWED_ORIGINS")
+    else []
+)
+CORS_ALLOW_HEADERS = list(
+    set(
+        [
+            "accept",
+            "accept-encoding",
+            "authorization",
+            "content-type",
+            "origin",
+            "x-api-key",
+            "idempotency-key",
+        ]
+    )
+)
 CORS_ALLOW_METHODS = ["GET", "POST", "OPTIONS", "DELETE", "PUT", "PATCH"]
 CORS_EXPOSE_HEADERS = ["Content-Type"]
 CORS_ALLOW_CREDENTIALS = False
