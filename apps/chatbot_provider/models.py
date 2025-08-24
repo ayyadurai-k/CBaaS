@@ -8,10 +8,17 @@ class ChatbotProvider(models.Model):
     chatbot = models.ForeignKey("chatbot.Chatbot", on_delete=models.CASCADE)
     provider = models.CharField(
         max_length=20,
-        choices=[("openai", "openai"), ("gemini", "gemini"), ("deepseek", "deepseek")],
+        choices=[
+            ("openai", "OpenAI"),
+            ("gemini", "Gemini"),
+            ("deepseek", "DeepSeek"),
+        ],
     )
     model_name = models.CharField(max_length=50)
     api_key_encrypted = models.CharField(max_length=255)
+
+    is_active = models.BooleanField(default=True, db_index=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -22,3 +29,8 @@ class ChatbotProvider(models.Model):
     @api_key.setter
     def api_key(self, value: str):
         self.api_key_encrypted = Encryptor.encrypt(value)
+        
+    
+
+    def __str__(self) -> str:
+        return f"({self.model_name})"
