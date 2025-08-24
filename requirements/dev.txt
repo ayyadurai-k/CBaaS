@@ -1,4 +1,19 @@
- 
 -r base.txt
-pytest
-pytest-django
+
+# --- Dev only packages ---
+# Load env vars from .env files
+python-dotenv>=1.0,<2.0
+
+# API schema generation
+drf-spectacular>=0.27,<0.28
+
+# Typing stubs (fix Pylance / mypy issues)
+django-stubs>=5.0,<6.0
+djangorestframework-stubs>=3.15,<3.16
+
+# Type checker
+mypy>=1.9,<2.0
+
+# Linters/formatters
+black>=24.3,<25.0
+ruff>=0.4,<0.5
