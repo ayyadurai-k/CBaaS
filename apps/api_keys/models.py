@@ -8,9 +8,9 @@ class APIKey(models.Model):
         ACTIVE = "active", "active"
         REVOKED = "revoked", "revoked"
     class Scope(models.TextChoices):
-        FULL = "full-access", "full-access"
-        READ_ONLY = "read-only", "read-only"
-        UPLOAD_ONLY = "upload-only", "upload-only"
+        FULL = "full-access", "Full Access"
+        READ_ONLY = "read-only", "Read Only"
+        UPLOAD_ONLY = "upload-only", "Upload Only"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE)
@@ -22,6 +22,9 @@ class APIKey(models.Model):
     usage_count = models.PositiveIntegerField(default=0)
     quota = models.PositiveIntegerField(null=True, blank=True)
     scope = models.CharField(max_length=20, choices=Scope.choices, default=Scope.FULL)
+    
+    _plaintext: str | None = None 
+
 
     @staticmethod
     def generate_plaintext() -> str:

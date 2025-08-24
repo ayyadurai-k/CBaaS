@@ -38,5 +38,5 @@ class APIKeyCreateSerializer(serializers.Serializer):
         raw = APIKey.generate_plaintext()
         key.key = raw
         key.save()
-        key.plaintext = raw
+        key._plaintext = raw
         return key
