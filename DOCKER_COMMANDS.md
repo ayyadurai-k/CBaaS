@@ -1,6 +1,3 @@
-Got it ✅ — here’s the **entire `.md` file** in one code block so you can just copy-paste and save it as `DOCKER-COMMANDS.md`.
-
-````markdown
 # 🐳 Docker Dev Commands for CBaaS
 
 This document lists essential Docker Compose commands for managing the **CBaaS development stack**  
@@ -11,9 +8,10 @@ This document lists essential Docker Compose commands for managing the **CBaaS d
 ## 🚀 Start & Stop Services
 
 ### Start all services (detached mode)
+
 ```bash
 docker compose -f docker-compose.dev.yml up -d
-````
+```
 
 ### Stop all services
 
