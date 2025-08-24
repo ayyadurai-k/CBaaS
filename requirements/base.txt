@@ -16,6 +16,6 @@ orjson
 tiktoken
 pypdf>=4.2
 python-docx>=1.1
-python-magic>=0.4.27
 django-cors-headers>=4.4
-python-magic-bin==0.4.14
+python-magic>=0.4.27
+
