@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: chatbot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [db_data:/var/lib/postgresql/data]
+
+  redis:
+    image: redis:7
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    environment:
+      DJANGO_ENV: prod
+      POSTGRES_HOST: db
+      POSTGRES_DB: chatbot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ENCRYPTION_SECRET_KEY: ${ENCRYPTION_SECRET_KEY}
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
+    ports: ["8000:8000"]
+    depends_on: [db, redis]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    command: celery -A config.celery.app worker -l info
+    environment:
+      DJANGO_ENV: prod
+      POSTGRES_HOST: db
+      POSTGRES_DB: chatbot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ENCRYPTION_SECRET_KEY: ${ENCRYPTION_SECRET_KEY}
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
+    depends_on: [db, redis, web]
+
+volumes:
+  db_data:
