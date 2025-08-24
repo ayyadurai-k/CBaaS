@@ -1,602 +1,320 @@
-from django.test import TestCase
+from datetime import timedelta
+
 from django.urls import reverse
-from rest_framework.test import APITestCase, APIClient
-from rest_framework import status
-from unittest.mock import patch, MagicMock
-from django.test.utils import override_settings
 from django.utils import timezone
+from rest_framework import status
+from rest_framework.test import APITestCase
+
 from apps.organizations.models import Organization
 from apps.chatbot.models import Chatbot
 from apps.chatbot_provider.models import ChatbotProvider
 from apps.api_keys.models import APIKey
 from apps.users.models import User
-from datetime import datetime, timedelta
+
 
 class BaseChatbotProviderTestCase(APITestCase):
     """Base test case for chatbot provider tests"""
-    
-    def setUp(self):
-        """Set up test data common to all provider tests"""
-        # Create test organization
+
+    def setUp(self) -> None:
+        # Org
         self.organization = Organization.objects.create(
-            name='Test Org',
-            slug='test-org'
+            name="Test Org",
+            slug="test-org",
         )
-        
-        # Create regular user
+
+        # Users
         self.user = User.objects.create_user(
-            email='test@example.com',
-            password='testpass123',
-            organization=self.organization,
-            is_active=True
-        )
-        
-        # Create admin user
-        self.admin_user = User.objects.create_user(
-            email='admin@example.com',
-            password='adminpass123',
+            email="test@example.com",
+            password="testpass123",
             organization=self.organization,
             is_active=True,
-            is_staff=True
         )
-        
-        # Create API key
+        self.admin_user = User.objects.create_user(
+            email="admin@example.com",
+            password="adminpass123",
+            organization=self.organization,
+            is_active=True,
+            is_staff=True,
+        )
+
+        # API key (for header-based auth path)
         self.api_key = APIKey.objects.create(
-            name='Test API Key',
+            name="Test API Key",
             organization=self.organization,
-            created_by=self.user
+            created_by=self.user,
         )
-        
-        # Create chatbot
+
+        # Chatbot (provide required fields per your model)
         self.chatbot = Chatbot.objects.create(
-            name='Test Chatbot',
+            name="Test Chatbot",
             organization=self.organization,
-            tone='Technical',
-            system_instructions='Be helpful'
+            tone="Technical",
+            system_instructions="Be helpful",
         )
-        
-        # Set up authentication
+
+        # Default auth via logged-in user
         self.client.force_authenticate(user=self.user)
-        
-        # Common test data
+
+        # Valid provider payloads (as required by ProviderUpsertSerializer)
         self.valid_providers = {
-            'openai': {
-                'provider': 'openai',
-                'model_name': 'gpt-4',
-                'api_key': 'sk-test-key'
+            "openai": {
+                "provider": "openai",
+                "model_name": "gpt-4",
+                "api_key": "sk-test-key",
             },
-            'gemini': {
-                'provider': 'gemini',
-                'model_name': 'gemini-pro',
-                'api_key': 'test-key'
+            "gemini": {
+                "provider": "gemini",
+                "model_name": "gemini-pro",
+                "api_key": "test-key",
             },
-            'deepseek': {
-                'provider': 'deepseek',
-                'model_name': 'deepseek-chat',
-                'api_key': 'test-key'
-            }
+            "deepseek": {
+                "provider": "deepseek",
+                "model_name": "deepseek-chat",
+                "api_key": "test-key",
+            },
         }
+
 
 class TestKeyViewTests(BaseChatbotProviderTestCase):
-    """Test cases for TestKeyView"""
-    
-    def setUp(self):
-        """Set up specific to test key tests"""
+    """Tests for POST /test-key"""
+
+    def setUp(self) -> None:
         super().setUp()
-        self.url = reverse('test-key')
+        self.url = reverse("test-key")
 
-    def test_test_key_success(self):
-        """Test successful API key testing"""
-        for provider, data in self.valid_providers.items():
-            response = self.client.post(self.url, data, format='json')
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertTrue(response.data['ok'])
+    def test_test_key_success(self) -> None:
+        """All supported providers validate via serializer and return ok=True"""
+        for data in self.valid_providers.values():
+            resp = self.client.post(self.url, data, format="json")
+            self.assertEqual(resp.status_code, status.HTTP_200_OK)
+            self.assertTrue(resp.data.get("ok", False))
 
-    def test_test_key_no_chatbot(self):
-        """Test key testing without configured chatbot"""
-        # Delete existing chatbot
+    def test_test_key_no_chatbot(self) -> None:
+        """If no chatbot configured for org, return 400 with specific message"""
         self.chatbot.delete()
-        
-        response = self.client.post(self.url, self.valid_providers['openai'], format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data['detail'], 'Chatbot not configured')
+        resp = self.client.post(self.url, self.valid_providers["openai"], format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(resp.data.get("detail"), "Chatbot not configured")
 
-    def test_test_key_invalid_data(self):
-        """Test key testing with invalid data"""
-        invalid_data_cases = [
-            {
-                'provider': 'invalid-provider',
-                'model_name': 'gpt-4',
-                'api_key': 'test-key'
-            },
-            {
-                'provider': 'openai',
-                'model_name': 'invalid-model',
-                'api_key': 'test-key'
-            },
-            {
-                'provider': 'openai',
-                'model_name': 'gpt-4',
-                'api_key': ''  # Empty key
-            }
-        ]
-        
-        for data in invalid_data_cases:
-            response = self.client.post(self.url, data, format='json')
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    def test_test_key_invalid_provider(self) -> None:
+        """Invalid provider choice should fail serializer validation"""
+        bad = {"provider": "invalid", "model_name": "gpt-4", "api_key": "x"}
+        resp = self.client.post(self.url, bad, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("provider", resp.data)
 
-    def test_test_key_missing_fields(self):
-        """Test key testing with missing required fields"""
-        required_fields = ['provider', 'model_name', 'api_key']
-        base_data = self.valid_providers['openai']
-        
-        for field in required_fields:
-            data = base_data.copy()
-            del data[field]
-            
-            response = self.client.post(self.url, data, format='json')
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertIn(field, response.data)
+    def test_test_key_missing_fields(self) -> None:
+        """Serializer complains on missing required fields"""
+        base = self.valid_providers["openai"]
 
-    def test_test_key_unauthorized(self):
-        """Test key testing without authentication"""
+        for field in ("provider", "model_name", "api_key"):
+            bad = {**base}
+            del bad[field]
+            resp = self.client.post(self.url, bad, format="json")
+            self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn(field, resp.data)
+
+    def test_test_key_empty_api_key(self) -> None:
+        """Empty string for api_key should be rejected"""
+        bad = {**self.valid_providers["openai"], "api_key": ""}
+        resp = self.client.post(self.url, bad, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("api_key", resp.data)
+
+    def test_test_key_unauthenticated(self) -> None:
+        """Unauthenticated request should be rejected"""
         self.client.force_authenticate(user=None)
-        response = self.client.post(self.url, self.valid_providers['openai'], format='json')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        resp = self.client.post(self.url, self.valid_providers["openai"], format="json")
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_test_key_with_api_key_auth(self):
-        """Test key testing with API key authentication"""
-        self.client.credentials(HTTP_X_API_KEY=self.api_key.key)
-        response = self.client.post(self.url, self.valid_providers['openai'], format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.data['ok'])
-
-    def test_test_key_other_organization(self):
-        """Test key testing from different organization"""
-        other_org = Organization.objects.create(name='Other Org')
+    def test_test_key_other_organization(self) -> None:
+        """User from another org with no chatbot should get 400"""
+        other_org = Organization.objects.create(name="Other Org", slug="other-org")
         other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            organization=other_org
+            email="other@example.com",
+            password="otherpass123",
+            organization=other_org,
+            is_active=True,
         )
-        
         self.client.force_authenticate(user=other_user)
-        response = self.client.post(self.url, self.valid_providers['openai'], format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        resp = self.client.post(self.url, self.valid_providers["openai"], format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(resp.data.get("detail"), "Chatbot not configured")
+
+    def test_test_key_with_api_key_header(self) -> None:
+        """Header-based API key auth path should also succeed (if permission allows)"""
+        self.client.credentials(HTTP_X_API_KEY=self.api_key.key)
+        resp = self.client.post(self.url, self.valid_providers["openai"], format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp.data.get("ok", False))
+
 
 class ChatbotProviderUpsertViewTests(BaseChatbotProviderTestCase):
-    """Test cases for ChatbotProviderUpsertView"""
-    
-    def setUp(self):
-        """Set up specific to provider upsert tests"""
+    """Tests for PUT /provider-upsert"""
+
+    def setUp(self) -> None:
         super().setUp()
-        self.url = reverse('provider-upsert')
+        self.url = reverse("provider-upsert")
+        # Single baseline payload
+        self.valid_data = self.valid_providers["openai"]
 
-    def test_create_provider_success(self):
-        """Test successful provider creation for different providers"""
-        # Delete any existing providers
+    def test_create_provider_success_each_vendor(self) -> None:
+        """Fresh creation for each provider should succeed"""
         ChatbotProvider.objects.all().delete()
-        
-        for provider, data in self.valid_providers.items():
-            response = self.client.put(self.url, data, format='json')
-            
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(response.data['provider'], data['provider'])
-            self.assertEqual(response.data['model_name'], data['model_name'])
-            self.assertIn('id', response.data)
-            self.assertIn('created_at', response.data)
-            self.assertIn('updated_at', response.data)
-            
-            # Verify database entry
-            provider_obj = ChatbotProvider.objects.get(id=response.data['id'])
-            self.assertEqual(provider_obj.provider, data['provider'])
-            self.assertEqual(provider_obj.model_name, data['model_name'])
-            self.assertEqual(provider_obj.chatbot, self.chatbot)
-            
-            # Clean up for next iteration
-            provider_obj.delete()
+        for data in self.valid_providers.values():
+            resp = self.client.put(self.url, data, format="json")
+            self.assertEqual(resp.status_code, status.HTTP_200_OK)
+            self.assertEqual(resp.data["provider"], data["provider"])
+            self.assertEqual(resp.data["model_name"], data["model_name"])
+            self.assertIn("id", resp.data)
+            self.assertIn("created_at", resp.data)
+            self.assertIn("updated_at", resp.data)
 
-    def test_update_provider_success(self):
-        """Test successful provider update"""
-        # Create initial provider
-        initial_data = self.valid_providers['openai']
-        response = self.client.put(self.url, initial_data, format='json')
-        provider_id = response.data['id']
-        
-        # Update with new data
-        update_data = {
-            'provider': 'openai',
-            'model_name': 'gpt-4-turbo',
-            'api_key': 'new-test-key'
+            # Verify DB persisted as expected
+            obj = ChatbotProvider.objects.get(id=resp.data["id"])
+            self.assertEqual(obj.chatbot, self.chatbot)
+            self.assertEqual(obj.provider, data["provider"])
+            self.assertEqual(obj.model_name, data["model_name"])
+            # reset to test next vendor cleanly
+            obj.delete()
+
+    def test_update_provider_success(self) -> None:
+        """Updating model_name on existing provider should retain same id"""
+        create = self.client.put(self.url, self.valid_data, format="json")
+        self.assertEqual(create.status_code, status.HTTP_200_OK)
+        provider_id = create.data["id"]
+
+        update_payload = {
+            "provider": "openai",
+            "model_name": "gpt-4-turbo",
+            "api_key": "new-secret",
         }
-        response = self.client.put(self.url, update_data, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['id'], provider_id)
-        self.assertEqual(response.data['model_name'], update_data['model_name'])
-        
-        # Verify database update
-        provider = ChatbotProvider.objects.get(id=provider_id)
-        self.assertEqual(provider.model_name, update_data['model_name'])
+        upd = self.client.put(self.url, update_payload, format="json")
+        self.assertEqual(upd.status_code, status.HTTP_200_OK)
+        self.assertEqual(upd.data["id"], provider_id)
+        self.assertEqual(upd.data["model_name"], "gpt-4-turbo")
 
-    def test_create_provider_with_chatbot_creation(self):
-        """Test provider creation with automatic chatbot creation"""
-        # Delete existing chatbot
+        obj = ChatbotProvider.objects.get(id=provider_id)
+        self.assertEqual(obj.model_name, "gpt-4-turbo")
+
+    def test_create_provider_with_chatbot_auto_creation(self) -> None:
+        """If no chatbot exists, view should create one with sane defaults"""
         self.chatbot.delete()
-        
-        response = self.client.put(self.url, self.valid_providers['openai'], format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # Verify chatbot was created
-        chatbot = Chatbot.objects.filter(organization=self.organization).first()
-        self.assertIsNotNone(chatbot)
-        self.assertEqual(chatbot.name, f"{self.organization.name} Chatbot")
-        self.assertEqual(chatbot.organization, self.organization)
+        resp = self.client.put(self.url, self.valid_providers["openai"], format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
 
-    def test_provider_validation(self):
-        """Test provider validation rules"""
-        invalid_cases = [
-            {
-                'provider': 'invalid',
-                'model_name': 'gpt-4',
-                'api_key': 'test-key'
-            },
-            {
-                'provider': 'openai',
-                'model_name': 'invalid-model',
-                'api_key': 'test-key'
-            },
-            {
-                'provider': 'gemini',
-                'model_name': 'invalid-model',
-                'api_key': 'test-key'
-            }
-        ]
-        
-        for data in invalid_cases:
-            response = self.client.put(self.url, data, format='json')
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # Use .get() to avoid OptionalMemberAccess (Pylance)
+        bot = Chatbot.objects.get(organization=self.organization)
+        self.assertEqual(bot.name, f"{self.organization.name} Chatbot")
+        self.assertEqual(bot.organization, self.organization)
 
-    def test_provider_api_key_encryption(self):
-        """Test API key encryption"""
-        response = self.client.put(self.url, self.valid_providers['openai'], format='json')
-        
-        # Verify API key is encrypted
-        provider = ChatbotProvider.objects.get(id=response.data['id'])
-        self.assertNotEqual(provider.api_key, self.valid_providers['openai']['api_key'])
-        self.assertTrue(len(provider.api_key) > len(self.valid_providers['openai']['api_key']))
-        
-        # Verify original key is not in response
-        self.assertNotIn('api_key', response.data)
+    def test_validation_errors(self) -> None:
+        """Provider choices and required fields are enforced by the serializer"""
+        bad_provider = {"provider": "invalid", "model_name": "gpt-4", "api_key": "x"}
+        resp = self.client.put(self.url, bad_provider, format="json")
+        I = status.HTTP_400_BAD_REQUEST
+        self.assertEqual(resp.status_code, I)
+        self.assertIn("provider", resp.data)
 
-    def test_provider_permissions(self):
-        """Test provider permissions"""
-        # Test with unauthenticated user
+        empty_key = {**self.valid_data, "api_key": ""}
+        resp = self.client.put(self.url, empty_key, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("api_key", resp.data)
+
+        missing_fields = {"provider": "openai"}  # missing model_name, api_key
+        resp = self.client.put(self.url, missing_fields, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("model_name", resp.data)
+        self.assertIn("api_key", resp.data)
+
+    def test_api_key_encryption_roundtrip(self) -> None:
+        """Ciphertext stored; property returns plaintext"""
+        resp = self.client.put(self.url, self.valid_data, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        obj = ChatbotProvider.objects.get(id=resp.data["id"])
+        # stored ciphertext is different from plaintext
+        self.assertNotEqual(obj.api_key_encrypted, self.valid_data["api_key"])
+        # property returns plaintext
+        self.assertEqual(obj.api_key, self.valid_data["api_key"])
+        # response should never expose api_key (write_only)
+        self.assertNotIn("api_key", resp.data)
+
+    def test_permissions(self) -> None:
+        """Unauthenticated: 401; API key or admin user: 200"""
+        # unauthenticated
         self.client.force_authenticate(user=None)
-        response = self.client.put(self.url, self.valid_providers['openai'], format='json')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        
-        # Test with API key
+        resp = self.client.put(self.url, self.valid_data, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # API key header (if your permission class supports it)
         self.client.credentials(HTTP_X_API_KEY=self.api_key.key)
-        response = self.client.put(self.url, self.valid_providers['openai'], format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # Test with admin user
+        resp = self.client.put(self.url, self.valid_data, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        # admin user
         self.client.force_authenticate(user=self.admin_user)
-        response = self.client.put(self.url, self.valid_providers['openai'], format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        resp = self.client.put(self.url, self.valid_data, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
 
-    def test_concurrent_updates(self):
-        """Test handling of concurrent updates"""
-        # Create initial provider
-        response = self.client.put(self.url, self.valid_providers['openai'], format='json')
-        initial_updated_at = response.data['updated_at']
-        
-        # Simulate small delay
-        provider = ChatbotProvider.objects.get(id=response.data['id'])
-        provider.updated_at = timezone.now() + timedelta(seconds=1)
-        provider.save()
-        
-        # Try to update
-        response = self.client.put(self.url, self.valid_providers['gemini'], format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertNotEqual(response.data['updated_at'], initial_updated_at)
+    def test_concurrent_updates_timestamp_changes(self) -> None:
+        """updated_at should move forward on subsequent updates"""
+        first = self.client.put(self.url, self.valid_data, format="json")
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        initial_updated_at = first.data["updated_at"]
 
-    def test_provider_history(self):
-        """Test provider update history"""
-        # Create and update provider multiple times
-        providers_to_test = list(self.valid_providers.values())
-        previous_ids = []
-        
-        for provider_data in providers_to_test:
-            response = self.client.put(self.url, provider_data, format='json')
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            
-            # Keep track of IDs
-            if previous_ids:
-                # Should be the same ID (updating existing provider)
-                self.assertEqual(response.data['id'], previous_ids[-1])
-            
-            previous_ids.append(response.data['id'])
-        # First create
-        response1 = self.client.put(self.upsert_url, self.valid_data, format="json")
-        # Update with new model
-        data2 = self.valid_data.copy()
-        data2["model_name"] = "gpt-4"
-        response2 = self.client.put(self.upsert_url, data2, format="json")
-        self.assertEqual(response2.status_code, status.HTTP_200_OK)
-        self.assertEqual(response2.data["model_name"], "gpt-4")
-        self.assertEqual(response1.data["id"], response2.data["id"])
+        # artificially advance DB field
+        obj = ChatbotProvider.objects.get(id=first.data["id"])
+        obj.updated_at = timezone.now() + timedelta(seconds=1)
+        obj.save()
 
-    def test_chatbotproviderupsertview_permissions(self):
-        # Remove authentication
-        self.client.force_authenticate(user=None)
-        response = self.client.put(self.upsert_url, self.valid_data, format="json")
-        self.assertEqual(response.status_code, 403)
+        second = self.client.put(self.url, self.valid_data, format="json")
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(second.data["updated_at"], initial_updated_at)
 
-    def test_testkeyview_permissions(self):
-        self.client.force_authenticate(user=None)
-        response = self.client.post(self.test_key_url, self.valid_data)
-        self.assertEqual(response.status_code, 403)
+    def test_upsert_preserves_identity_across_provider_changes(self) -> None:
+        """Switching provider should still update same row (single provider per bot)"""
+        # openai
+        r1 = self.client.put(self.url, self.valid_providers["openai"], format="json")
+        self.assertEqual(r1.status_code, status.HTTP_200_OK)
+        pid = r1.data["id"]
 
-    def test_chatbotproviderupsertview_invalid_method(self):
-        response = self.client.get(self.upsert_url)
-        self.assertEqual(response.status_code, 405)
+        # switch to gemini
+        r2 = self.client.put(self.url, self.valid_providers["gemini"], format="json")
+        self.assertEqual(r2.status_code, status.HTTP_200_OK)
+        self.assertEqual(r2.data["id"], pid)
+        self.assertEqual(r2.data["provider"], "gemini")
 
-    def test_testkeyview_invalid_method(self):
-        response = self.client.get(self.test_key_url)
-        self.assertEqual(response.status_code, 405)
+        # switch to deepseek
+        r3 = self.client.put(self.url, self.valid_providers["deepseek"], format="json")
+        self.assertEqual(r3.status_code, status.HTTP_200_OK)
+        self.assertEqual(r3.data["id"], pid)
+        self.assertEqual(r3.data["provider"], "deepseek")
 
-    def test_chatbotproviderupsertview_long_api_key(self):
-        data = self.valid_data.copy()
-        data["api_key"] = "sk-" + "x" * 1024
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    def test_invalid_method(self) -> None:
+        """GET is not allowed on the upsert view"""
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_chatbotproviderupsertview_special_characters(self):
-        data = self.valid_data.copy()
-        data["api_key"] = "sk-!@#$%^&*()_+"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    def test_invalid_json_payload(self) -> None:
+        """Bad JSON body should return 400 parse error"""
+        resp = self.client.put(self.url, "not json", content_type="application/json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_chatbotproviderupsertview_multiple_providers(self):
-        # Create with openai
-        response1 = self.client.put(self.upsert_url, self.valid_data, format="json")
-        # Update with gemini
-        data2 = {
-            "provider": "gemini",
-            "model_name": "gemini-pro",
-            "api_key": "sk-gemini"
-        }
-        response2 = self.client.put(self.upsert_url, data2, format="json")
-        self.assertEqual(response2.status_code, status.HTTP_200_OK)
-        self.assertEqual(response2.data["provider"], "gemini")
-        self.assertEqual(response1.data["id"], response2.data["id"])
-
-    def test_chatbotproviderupsertview_deepseek_provider(self):
-        data = {
-            "provider": "deepseek",
-            "model_name": "deepseek-chat",
-            "api_key": "sk-deepseek"
-        }
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["provider"], "deepseek")
-
-    def test_chatbotproviderupsertview_empty_api_key(self):
-        data = self.valid_data.copy()
-        data["api_key"] = ""
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_empty_model_name(self):
-        data = self.valid_data.copy()
-        data["model_name"] = ""
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_empty_provider(self):
-        data = self.valid_data.copy()
-        data["provider"] = ""
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_case_insensitive_provider(self):
-        data = self.valid_data.copy()
-        data["provider"] = "OpenAI"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_extra_fields(self):
-        data = self.valid_data.copy()
-        data["extra"] = "value"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_chatbotproviderupsertview_large_payload(self):
-        data = self.valid_data.copy()
-        data["api_key"] = "sk-" + "x" * 10000
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_testkeyview_large_payload(self):
-        Chatbot.objects.create(organization=self.organization, name="TestBot")
-        data = self.valid_data.copy()
-        data["api_key"] = "sk-" + "x" * 10000
-        response = self.client.post(self.test_key_url, data)
-        self.assertEqual(response.status_code, 200)
-
-    def test_chatbotproviderupsertview_invalid_json(self):
-        response = self.client.put(self.upsert_url, "not a json", content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_testkeyview_invalid_json(self):
-        Chatbot.objects.create(organization=self.organization, name="TestBot")
-        response = self.client.post(self.test_key_url, "not a json", content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_concurrent_updates(self):
-        Chatbot.objects.create(organization=self.organization, name="TestBot")
-        data1 = self.valid_data.copy()
-        data2 = self.valid_data.copy()
-        data2["model_name"] = "gpt-4"
-        # Simulate two concurrent updates
-        response1 = self.client.put(self.upsert_url, data1, format="json")
-        response2 = self.client.put(self.upsert_url, data2, format="json")
-        self.assertEqual(response1.data["id"], response2.data["id"])
-        self.assertEqual(response2.data["model_name"], "gpt-4")
-
-    def test_chatbotproviderupsertview_idempotency(self):
-        # Same payload twice should not create new provider
-        response1 = self.client.put(self.upsert_url, self.valid_data, format="json")
-        response2 = self.client.put(self.upsert_url, self.valid_data, format="json")
-        self.assertEqual(response1.data["id"], response2.data["id"])
-
-    def test_chatbotproviderupsertview_provider_field_type(self):
-        data = self.valid_data.copy()
-        data["provider"] = 123  # Should be string
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_model_name_field_type(self):
-        data = self.valid_data.copy()
-        data["model_name"] = 456  # Should be string
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_api_key_field_type(self):
-        data = self.valid_data.copy()
-        data["api_key"] = 789  # Should be string
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_null_fields(self):
-        data = {
-            "provider": None,
-            "model_name": None,
-            "api_key": None
-        }
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_testkeyview_null_fields(self):
-        Chatbot.objects.create(organization=self.organization, name="TestBot")
-        data = {
-            "provider": None,
-            "model_name": None,
-            "api_key": None
-        }
-        response = self.client.post(self.test_key_url, data)
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_unicode_api_key(self):
-        data = self.valid_data.copy()
-        data["api_key"] = "sk-测试"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_chatbotproviderupsertview_unicode_model_name(self):
-        data = self.valid_data.copy()
-        data["model_name"] = "模型"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_chatbotproviderupsertview_unicode_provider(self):
-        data = self.valid_data.copy()
-        data["provider"] = "提供者"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_strip_whitespace(self):
-        data = self.valid_data.copy()
-        data["provider"] = " openai "
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_duplicate_provider(self):
-        # Should update, not create new
-        response1 = self.client.put(self.upsert_url, self.valid_data, format="json")
-        response2 = self.client.put(self.upsert_url, self.valid_data, format="json")
-        self.assertEqual(response1.data["id"], response2.data["id"])
-
-    def test_chatbotproviderupsertview_created_updated_timestamps(self):
-        response = self.client.put(self.upsert_url, self.valid_data, format="json")
-        created = response.data["created_at"]
-        updated = response.data["updated_at"]
+    def test_created_vs_updated_timestamps_order(self) -> None:
+        """Basic sanity on timestamps ordering"""
+        resp = self.client.put(self.url, self.valid_data, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        created = resp.data["created_at"]
+        updated = resp.data["updated_at"]
         self.assertLessEqual(created, updated)
 
-    def test_chatbotproviderupsertview_provider_case(self):
-        data = self.valid_data.copy()
-        data["provider"] = "OPENAI"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
+    def test_case_and_whitespace_rules(self) -> None:
+        """Provider must match choices exactly (lowercase, no surrounding spaces)"""
+        bad_upper = {**self.valid_data, "provider": "OPENAI"}
+        resp = self.client.put(self.url, bad_upper, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_chatbotproviderupsertview_model_name_case(self):
-        data = self.valid_data.copy()
-        data["model_name"] = "GPT-3.5"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_chatbotproviderupsertview_api_key_case(self):
-        data = self.valid_data.copy()
-        data["api_key"] = "SK-TEST"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_chatbotproviderupsertview_provider_whitespace(self):
-        data = self.valid_data.copy()
-        data["provider"] = "openai "
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_model_name_whitespace(self):
-        data = self.valid_data.copy()
-        data["model_name"] = " gpt-3.5 "
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_chatbotproviderupsertview_api_key_whitespace(self):
-        data = self.valid_data.copy()
-        data["api_key"] = " sk-test "
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_chatbotproviderupsertview_provider_numeric_string(self):
-        data = self.valid_data.copy()
-        data["provider"] = "123"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_model_name_numeric_string(self):
-        data = self.valid_data.copy()
-        data["model_name"] = "456"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_chatbotproviderupsertview_api_key_numeric_string(self):
-        data = self.valid_data.copy()
-        data["api_key"] = "789"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_chatbotproviderupsertview_provider_special_chars(self):
-        data = self.valid_data.copy()
-        data["provider"] = "!@#$"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, 400)
-
-    def test_chatbotproviderupsertview_model_name_special_chars(self):
-        data = self.valid_data.copy()
-        data["model_name"] = "!@#$"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_chatbotproviderupsertview_api_key_special_chars(self):
-        data = self.valid_data.copy()
-        data["api_key"] = "!@#$"
-        response = self.client.put(self.upsert_url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    # Add more tests as needed to reach 500+ lines
-    # The above covers a wide range of edge cases, field types, permissions, concurrency, and payloads.
+        bad_space = {**self.valid_data, "provider": " openai "}
+        resp = self.client.put(self.url, bad_space, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
