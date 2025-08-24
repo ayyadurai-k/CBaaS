@@ -31,6 +31,7 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    
     class Role(models.TextChoices):
         OWNER = "owner", "owner"
         ADMIN = "admin", "admin"
@@ -50,4 +51,4 @@ class User(AbstractBaseUser, PermissionsMixin):
     updated_at = models.DateTimeField(auto_now=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
-    objects = UserManager()
+    objects: UserManager = UserManager()

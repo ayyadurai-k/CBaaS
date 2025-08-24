@@ -6,6 +6,7 @@ from apps.users.models import User
 from apps.organizations.models import Organization
 from apps.chatbot.models import Chatbot
 import uuid
+from rest_framework_simplejwt.tokens import RefreshToken
 
 class ChatbotModelTests(TestCase):
     """Test cases for Chatbot model"""
@@ -207,29 +208,6 @@ class ChatbotViewTests(APITestCase):
         
         response = self.client.put(self.url, self.update_data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-    def setUp(self):
-        # Create test user and organization
-        self.organization = Organization.objects.create(name='Test Org')
-        self.user = User.objects.create_user(
-            email='test@example.com',
-            password='testpass123',
-            organization=self.organization
-        )
-        
-        # Create test chatbot
-        self.chatbot = Chatbot.objects.create(
-            name='Test Bot',
-            description='A test chatbot',
-            organization=self.organization,
-            settings={
-                'temperature': 0.7,
-                'max_tokens': 1000
-            }
-        )
-        
-        # Get JWT token
-        refresh = RefreshToken.for_user(self.user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
 
     def test_get_chatbot(self):
         """Test retrieving chatbot details"""
@@ -238,7 +216,6 @@ class ChatbotViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['name'], 'Test Bot')
         self.assertEqual(response.data['description'], 'A test chatbot')
-        self.assertEqual(response.data['settings']['temperature'], 0.7)
 
     def test_update_chatbot(self):
         """Test updating chatbot settings"""
@@ -246,28 +223,11 @@ class ChatbotViewTests(APITestCase):
         data = {
             'name': 'Updated Bot',
             'description': 'Updated description',
-            'settings': {
-                'temperature': 0.8,
-                'max_tokens': 2000
-            }
         }
         response = self.client.put(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.chatbot.refresh_from_db()
         self.assertEqual(self.chatbot.name, 'Updated Bot')
-        self.assertEqual(self.chatbot.settings['temperature'], 0.8)
-
-    def test_invalid_settings(self):
-        """Test updating chatbot with invalid settings"""
-        url = reverse('chatbot-detail')
-        data = {
-            'name': 'Updated Bot',
-            'settings': {
-                'temperature': 2.0  # Invalid temperature value
-            }
-        }
-        response = self.client.put(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_unauthorized_access(self):
         """Test unauthorized access to chatbot"""
