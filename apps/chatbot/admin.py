@@ -1,4 +1,5 @@
 from django.contrib import admin
-from .models import Chatbot
+
+from apps.chatbot.models import Chatbot
 
 admin.site.register(Chatbot)

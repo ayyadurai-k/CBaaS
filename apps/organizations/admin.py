@@ -1,4 +1,5 @@
 from django.contrib import admin
-from .models import Organization
+
+from apps.organizations.models import Organization
 
 admin.site.register(Organization)
