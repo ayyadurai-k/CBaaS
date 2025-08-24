@@ -27,6 +27,12 @@ class APIKeyCreateSerializer(serializers.Serializer):
         choices=APIKey.Scope.choices, default=APIKey.Scope.FULL
     )
 
+    def validate_name(self, value):
+        org = self.context["request"].user.organization
+        if APIKey.objects.filter(organization=org, name=value).exists():
+            raise serializers.ValidationError("API key with this name already exists.")
+        return value
+
     def create(self, validated):
         org = self.context["request"].user.organization
         key = APIKey(
