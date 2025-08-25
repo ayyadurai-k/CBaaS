@@ -1,15 +1,15 @@
-
 import React, { useState } from 'react';
 import { MessageSquare, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from 'react-router-dom';
+import { login } from '@/lib/api';
 
 export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: ''
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -22,8 +22,8 @@ export const LoginPage: React.FC = () => {
 
     // Basic validation
     const newErrors: {[key: string]: string} = {};
-    if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
     }
     if (!formData.password) {
       newErrors.password = 'Password is required';
@@ -35,12 +35,17 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    // Simulate login attempt
-    setTimeout(() => {
-      console.log('Login attempt:', formData);
-      setIsLoading(false);
-      // Add your login logic here
-    }, 1000);
+
+    // API call for login
+    const result = await login(formData.email, formData.password);
+    if (result.success) {
+      console.log('Login successful');
+      // Redirect or perform post-login actions here
+    } else {
+      setErrors({ general: result.message || 'Login failed' });
+    }
+
+    setIsLoading(false);
   };
 
   return (
@@ -70,26 +75,26 @@ export const LoginPage: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium text-slate-700">
-                Username
+              <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+                Email
               </Label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Enter your username"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className={`h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500 ${
-                  errors.username ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''
+                  errors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''
                 }`}
                 autoComplete="off"
                 data-form-type="other"
                 required
               />
-              {errors.username && (
+              {errors.email && (
                 <div className="flex items-center gap-2 text-red-600 text-sm">
                   <AlertCircle style={{ width: '16px', height: '16px' }} />
-                  <span>{errors.username}</span>
+                  <span>{errors.email}</span>
                 </div>
               )}
             </div>

@@ -191,9 +191,9 @@ MAX_PDF_PAGES = int(os.environ.get("MAX_PDF_PAGES", 500))
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = (
-    os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:8080").split(",")
     if os.environ.get("CORS_ALLOWED_ORIGINS")
-    else []
+    else ["http://localhost:8080"]
 )
 CORS_ALLOW_HEADERS = list(
     set(
