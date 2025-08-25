@@ -20,5 +20,9 @@ class SignupView(APIView):
         user = serializer.save()
         refresh = RefreshToken.for_user(user)
         return Response(
-            {"access": str(refresh.access_token), "refresh": str(refresh)}, status=201
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+            status=201,
         )

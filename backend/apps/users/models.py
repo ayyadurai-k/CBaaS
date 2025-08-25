@@ -49,6 +49,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    phone_number = models.CharField(max_length=15, null=True, blank=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
     objects: UserManager = UserManager()
