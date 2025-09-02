@@ -58,6 +58,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     container_name: vite-frontend
+    env_file: ./frontend/.env.development
     volumes:
       - ./frontend:/app
       - /app/node_modules
