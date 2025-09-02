@@ -1,6 +1,6 @@
 // src/services/index.ts
 export * from "./ApiKeysService";
-export * from "./AuthService";
+export * from "./auth/AuthService";
 export * from "./ChatService";
 export * from "./ChatbotService";
 export * from "./ChatbotProviderService";

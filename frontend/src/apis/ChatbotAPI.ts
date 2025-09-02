@@ -1,5 +1,5 @@
-// src/apis/chatbot/ChatbotAPI.ts
-import { api } from "../../lib/api";
+// src/apis/ChatbotAPI.ts
+import { api } from "./configs/axiosConfig";
 import { AxiosResponse } from "axios";
 
 export type ChatbotTone = "Friendly" | "Technical" | "Formal";

@@ -1,5 +1,5 @@
-// src/apis/chatbot_provider/ChatbotProviderAPI.ts
-import { api } from "../../lib/api";
+// src/apis/ChatbotProviderAPI.ts
+import { api } from "./configs/axiosConfig";
 import { AxiosResponse } from "axios";
 
 export type ProviderType = "openai" | "gemini" | "deepseek";

@@ -1,5 +1,5 @@
-// src/apis/users/UsersAPI.ts
-import { api } from "../../lib/api";
+// src/apis/UsersAPI.ts
+import { api } from "./configs/axiosConfig";
 import { AxiosResponse } from "axios";
 
 export type UserDTO = {

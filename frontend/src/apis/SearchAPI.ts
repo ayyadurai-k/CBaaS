@@ -1,5 +1,5 @@
-// src/apis/search/SearchAPI.ts
-import { api } from "../../lib/api";
+// src/apis/SearchAPI.ts
+import { api } from "./configs/axiosConfig";
 import { AxiosResponse } from "axios";
 
 export type SearchPayload = {

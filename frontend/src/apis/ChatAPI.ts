@@ -1,5 +1,5 @@
-// src/apis/chat/ChatAPI.ts
-import { api } from "../../lib/api";
+// src/apis/ChatAPI.ts
+import { api } from "./configs/axiosConfig";
 import { AxiosResponse } from "axios";
 
 export type ChatMessage = {

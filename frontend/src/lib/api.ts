@@ -1,124 +1,68 @@
 // src/lib/api.ts
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosRequestHeaders } from "axios";
-import { tokenStore } from "./auth/tokenStore";
+import axios, { AxiosInstance, AxiosResponse, AxiosError } from "axios";
 
 // Use Vite env; fallback for local dev
-const API_BASE_URL =
-  import.meta?.env?.VITE_API_BASE_URL || "http://localhost:8000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
-  console.log("API_BASE_URL ",API_BASE_URL);
-  
+console.log("API_BASE_URL:", API_BASE_URL);
 
-// Create a dedicated axios instance for app calls
-const api: AxiosInstance = axios.create({
+// Create axios instance
+export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-// A separate bare axios for refresh (to avoid interceptor recursion)
-const raw: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 8000,
-  withCredentials: true, // send the HttpOnly refresh cookie
-});
-
-// Single-flight refresh controller
-let refreshPromise: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  try {
-    // IMPORTANT (backend):
-    // - Set refresh cookie as HttpOnly, Secure, SameSite=Lax(or Strict)
-    // - Enable CORS with credentials for this endpoint if cross-origin
-    //   Access-Control-Allow-Credentials: true
-    //   Access-Control-Allow-Origin: https://your-frontend.example
-    const res = await raw.post("/auth/refresh", {}); // cookie is sent via withCredentials
-    const newToken = res.data?.accessToken;
-    if (typeof newToken === "string" && newToken.length > 0) {
-      tokenStore.set(newToken);
-      return newToken;
-    }
-    return null;
-  } catch {
-    return null;
-  } finally {
-    refreshPromise = null;
-  }
-}
-
-// Attach access token on every request (if present)
+// Request interceptor to add auth token
 api.interceptors.request.use((config) => {
-  const token = tokenStore.get();
+  const token = localStorage.getItem("access_token");
   if (token) {
-    if (config.headers) {
-      (config.headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
-    } else {
-      config.headers = {} as AxiosRequestHeaders;
-    }
-    (config.headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-type RetriableConfig = AxiosRequestConfig & {
-  _retry?: boolean;
-  _skipAuthRefresh?: boolean;
-};
-
+// Response interceptor for error handling
 api.interceptors.response.use(
-  (res) => res,
-  async (err: AxiosError) => {
-    const status = err.response?.status;
-    const original = (err.config || {}) as RetriableConfig;
-
-    // If no response or already retried or this call explicitly skips refresh -> fail fast
-    if (!status || original._retry || original._skipAuthRefresh) {
-      return Promise.reject(err);
-    }
-
-    // Expired/unauthorized access token → try one refresh
-    if (status === 401 || status === 419) {
-      original._retry = true;
-
-      try {
-        if (!refreshPromise) {
-          refreshPromise = refreshAccessToken();
-        }
-        const newToken = await refreshPromise;
-
-        if (newToken) {
+  (response: AxiosResponse) => response,
+  async (error: AxiosError) => {
+    const status = error.response?.status;
+    
+    // Handle 401 unauthorized - token expired
+    if (status === 401) {
+      // Try to refresh token
+      const refreshToken = localStorage.getItem("refresh_token");
+      if (refreshToken) {
+        try {
+          const refreshResponse = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
+            refresh: refreshToken,
+          });
+          
+          const newToken = refreshResponse.data.access;
+          localStorage.setItem("access_token", newToken);
+          
           // Retry original request with new token
-          original.headers = {
-            ...original.headers,
-            Authorization: `Bearer ${newToken}`,
-          };
-          return api.request(original);
+          if (error.config) {
+            error.config.headers.Authorization = `Bearer ${newToken}`;
+            return api.request(error.config);
+          }
+        } catch (refreshError) {
+          // Refresh failed, clear tokens and redirect to login
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          window.location.href = "/login";
         }
-      } catch {
-        // fallthrough to logout
+      } else {
+        // No refresh token, redirect to login
+        window.location.href = "/login";
       }
-
-      // Refresh failed → clear token and propagate error (UI can redirect to login)
-      tokenStore.clear();
     }
-
-    return Promise.reject(err);
+    
+    return Promise.reject(error);
   }
 );
 
-// Function to handle login API call
-export async function login(email: string, password: string): Promise<{ success: boolean; message?: string }> {
-  try {
-    const response = await api.post('/auth/login/', { email, password });
-    const token = response.data?.accessToken;
-    if (token) {
-      tokenStore.set(token);
-      return { success: true };
-    }
-    return { success: false, message: 'Invalid response from server' };
-  } catch (error: any) {
-    return { success: false, message: error.response?.data?.message || 'Login failed' };
-  }
-}
-
-export { api, tokenStore };
+export default api;

@@ -1,9 +1,8 @@
 // src/services/auth/AuthService.ts
-import { LoginAPI, LoginPayload, LoginResponse } from "../apis/auth/LoginAPI";
-import { SignupAPI, SignupPayload, SignupResponse } from "../apis/auth/SignupAPI";
-import { LogoutAPI } from "../apis/auth/LogoutAPI";
-import { ResetAPI, ForgotPasswordPayload, VerifyResetTokenPayload, ResetPasswordPayload } from "../apis/auth/ResetAPI";
-import { tokenStore } from "../lib/auth/tokenStore";
+import { LoginAPI, LoginPayload, LoginResponse } from "../../apis/auth/LoginAPI";
+import { SignupAPI, SignupPayload, SignupResponse } from "../../apis/auth/SignupAPI";
+import { LogoutAPI } from "../../apis/auth/LogoutAPI";
+import { ResetAPI, ForgotPasswordPayload, VerifyResetTokenPayload, ResetPasswordPayload } from "../../apis/auth/ResetAPI";
 
 export type AuthUser = {
   id: string;
@@ -26,14 +25,16 @@ export type SignupResult = {
 };
 
 export class AuthService {
+  private readonly ACCESS_TOKEN_KEY = 'access_token';
+  private readonly REFRESH_TOKEN_KEY = 'refresh_token';
+
   async login(payload: LoginPayload): Promise<LoginResult> {
     try {
       const { data } = await LoginAPI.login(payload);
       
-      // Store tokens
-      tokenStore.set(data.access);
-      // Store refresh token in localStorage or secure storage
-      localStorage.setItem('refresh_token', data.refresh);
+      // Store tokens in localStorage
+      localStorage.setItem(this.ACCESS_TOKEN_KEY, data.access);
+      localStorage.setItem(this.REFRESH_TOKEN_KEY, data.refresh);
       
       const user: AuthUser = {
         ...data.user,
@@ -75,8 +76,8 @@ export class AuthService {
       console.warn('Logout API call failed:', error);
     } finally {
       // Clear local tokens
-      tokenStore.clear();
-      localStorage.removeItem('refresh_token');
+      localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     }
   }
 
@@ -117,16 +118,20 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return Boolean(tokenStore.get());
+    return Boolean(localStorage.getItem(this.ACCESS_TOKEN_KEY));
+  }
+
+  getAccessToken(): string | null {
+    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
   }
 
   async refreshToken(): Promise<boolean> {
     try {
-      const refreshToken = localStorage.getItem('refresh_token');
+      const refreshToken = localStorage.getItem(this.REFRESH_TOKEN_KEY);
       if (!refreshToken) return false;
 
       const { data } = await LoginAPI.refreshToken({ refresh: refreshToken });
-      tokenStore.set(data.access);
+      localStorage.setItem(this.ACCESS_TOKEN_KEY, data.access);
       return true;
     } catch (error) {
       // Clear tokens if refresh fails

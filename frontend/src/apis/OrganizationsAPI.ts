@@ -1,5 +1,5 @@
-// src/apis/organizations/OrganizationsAPI.ts
-import { api } from "../../lib/api";
+// src/apis/OrganizationsAPI.ts
+import { api } from "./configs/axiosConfig";
 import { AxiosResponse } from "axios";
 
 export type OrganizationDTO = {

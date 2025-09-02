@@ -1,4 +1,4 @@
-// src/apis/api_keys/ApiKeysAPI.ts
+// src/apis/ApiKeysAPI.ts
 import { AxiosResponse } from "axios";
 import { api } from "./configs/axiosConfig";
 
