@@ -4,7 +4,10 @@ import { tokenStore } from "./auth/tokenStore";
 
 // Use Vite env; fallback for local dev
 const API_BASE_URL =
-  import.meta?.env?.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+  import.meta?.env?.VITE_API_BASE_URL || "http://localhost:8000/api";
+
+  console.log("API_BASE_URL ",API_BASE_URL);
+  
 
 // Create a dedicated axios instance for app calls
 const api: AxiosInstance = axios.create({
