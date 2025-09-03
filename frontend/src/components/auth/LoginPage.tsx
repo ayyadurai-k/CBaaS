@@ -3,8 +3,8 @@ import { MessageSquare, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Link } from 'react-router-dom';
-import { login } from '@/lib/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { authService } from '@/services/auth/AuthService';
 
 export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -14,6 +14,7 @@ export const LoginPage: React.FC = () => {
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,12 +36,16 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-
-    // API call for login
-    const result = await login(formData.email, formData.password);
+    // API call for login using AuthService
+    const result = await authService.login({
+      email: formData.email,
+      password: formData.password
+    });
+    
     if (result.success) {
       console.log('Login successful');
-      // Redirect or perform post-login actions here
+      // Redirect to dashboard or home page after successful login
+      navigate('/dashboard');
     } else {
       setErrors({ general: result.message || 'Login failed' });
     }
@@ -74,6 +79,12 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+            {errors.general && (
+              <div className="flex items-center gap-2 p-3 rounded bg-red-50 text-red-600 text-sm mb-4">
+                <AlertCircle style={{ width: '16px', height: '16px' }} />
+                <span>{errors.general}</span>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium text-slate-700">
                 Email
