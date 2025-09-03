@@ -4,7 +4,10 @@ import axios, { AxiosResponse, AxiosError } from "axios";
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api",
   withCredentials: true,
-  headers: { "Content-Type": "application/json" },
+  headers: { 
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+  },
   timeout: 10000,
 });
 
@@ -32,6 +35,12 @@ api.interceptors.response.use(
           const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
           const refreshResponse = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
             refresh: refreshToken,
+          }, {
+            withCredentials: true,
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            }
           });
           
           const newToken = refreshResponse.data.access;
