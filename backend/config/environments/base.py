@@ -216,7 +216,7 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:8080")
 
 # ---- Email Configuration (Postmark) ----
 POSTMARK_API_KEY = os.environ.get("POSTMARK_API_KEY")
-POSTMARK_FROM_EMAIL = os.environ.get("POSTMARK_FROM_EMAIL", "noreply@cbaas.com")
+POSTMARK_FROM_EMAIL = os.environ.get("POSTMARK_FROM_EMAIL")
 
 # Email settings for Django (fallback)
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"  # For development

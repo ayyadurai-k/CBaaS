@@ -47,7 +47,7 @@ class ForgotView(APIView):
             result = postmark_service.send_password_reset_email(
                 to_email=user.email,
                 reset_url=reset_url,
-                user_name=f"{user.first_name} {user.last_name}".strip() or None
+                user_name=f"{user.name}".strip() or None
             )
             
             if not result.get("success"):
