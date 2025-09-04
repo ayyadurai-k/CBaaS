@@ -55,6 +55,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "common.middleware.logging_middleware.RequestLoggingMiddleware",  # Add request logging
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -221,3 +222,27 @@ POSTMARK_FROM_EMAIL = os.environ.get("POSTMARK_FROM_EMAIL")
 # Email settings for Django (fallback)
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"  # For development
 DEFAULT_FROM_EMAIL = POSTMARK_FROM_EMAIL
+
+# ---- Logging Configuration ----
+from common.utils.logging_config import get_logging_config
+LOGGING = get_logging_config()
+
+# Logging settings for request/response middleware
+LOG_REQUEST_BODY = os.environ.get("LOG_REQUEST_BODY", "true").lower() == "true"
+LOG_RESPONSE_BODY = os.environ.get("LOG_RESPONSE_BODY", "true").lower() == "true"
+LOG_MAX_BODY_LENGTH = int(os.environ.get("LOG_MAX_BODY_LENGTH", "10000"))
+LOG_EXCLUDED_PATHS = [
+    "/health/",
+    "/readiness/", 
+    "/static/",
+    "/media/",
+    "/favicon.ico",
+    "/admin/jsi18n/",
+]
+LOG_EXCLUDED_CONTENT_TYPES = [
+    "image/",
+    "video/",
+    "audio/",
+    "application/octet-stream",
+    "application/pdf",
+]
