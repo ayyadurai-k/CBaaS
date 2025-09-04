@@ -12,6 +12,7 @@ django-storages
 boto3
 pgvector
 httpx
+requests>=2.31.0
 orjson
 tiktoken
 pypdf>=4.2

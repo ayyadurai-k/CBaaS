@@ -2,7 +2,6 @@ import logging
 from urllib.parse import urlencode
 from django.conf import settings
 from django.utils import timezone
-from django.core.mail import send_mail
 from rest_framework import permissions, throttling, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -11,6 +10,7 @@ from rest_framework.views import APIView
 from apps.users.models import User
 from backend.apps.auth.reset.serializers import ForgotSerializer, ResetSerializer, VerifySerializer
 from backend.apps.auth.reset.models import PasswordResetToken
+from backend.common.services.email import postmark_service
 
 logger = logging.getLogger(__name__)
 
@@ -38,28 +38,24 @@ class ForgotView(APIView):
 
         # Prefer a secure link over raw tokens in emails.
         frontend_url = getattr(settings, "FRONTEND_URL", None)
-        subject = "Password reset"
-        from_email = getattr(settings, "DEFAULT_FROM_EMAIL", None)
 
         if frontend_url:
             query = urlencode({"token": raw, "email": user.email})
             reset_url = f"{frontend_url.rstrip('/')}/reset-password?{query}"
-            body = f"Use the link below to reset your password:\n\n{reset_url}\n\n" \
-                   f"If you did not request this, you can ignore this email."
-        else:
-            # Fallback only if FRONTEND_URL is not configured; still functional.
-            logger.warning("FRONTEND_URL not set; sending raw token as fallback.")
-            body = (
-                "A password reset was requested for your account.\n\n"
-                f"Your reset token: {raw}\n\n"
-                "If you did not request this, you can ignore this email."
+            
+            # Send email via Postmark with professional template
+            result = postmark_service.send_password_reset_email(
+                to_email=user.email,
+                reset_url=reset_url,
+                user_name=f"{user.first_name} {user.last_name}".strip() or None
             )
-
-        try:
-            send_mail(subject, body, from_email, [user.email])
-        except Exception:
-            # Do not leak mailer failures to clients; log internally.
-            logger.exception("Failed to send password reset email for %s", user.email)
+            
+            if not result.get("success"):
+                # Log the error but don't expose it to the client
+                logger.error(f"Failed to send password reset email to {user.email}: {result.get('error')}")
+        else:
+            # Fallback: log warning if FRONTEND_URL is not configured
+            logger.warning("FRONTEND_URL not set; cannot send password reset email")
 
         return Response({"message": "If an account with this email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
 
