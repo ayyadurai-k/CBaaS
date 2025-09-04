@@ -9,8 +9,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.models import User
-from .models import PasswordResetToken
-from .serializers import ForgotSerializer, VerifySerializer, ResetSerializer
+from backend.apps.auth.reset.serializers import ForgotSerializer, ResetSerializer, VerifySerializer
+from backend.apps.auth.reset.models import PasswordResetToken
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,8 @@ class ForgotView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            # Always return 204 to avoid user enumeration
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            # Return consistent response to avoid user enumeration
+            return Response({"message": "If an account with this email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
 
         raw, _ = PasswordResetToken.issue(user)
 
@@ -61,7 +61,7 @@ class ForgotView(APIView):
             # Do not leak mailer failures to clients; log internally.
             logger.exception("Failed to send password reset email for %s", user.email)
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "If an account with this email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
 
 
 class VerifyView(APIView):
@@ -82,15 +82,15 @@ class VerifyView(APIView):
                 .latest("created_at")
             )
         except Exception:
-            return Response({"valid": False})
+            return Response({"valid": False, "message": "Invalid token"})
 
         now = timezone.now()
         valid = prt.matches(token_raw) and prt.expires_at > now
         if not valid:
-            return Response({"valid": False})
+            return Response({"valid": False, "message": "Token has expired or is invalid"})
 
         expires_in = int((prt.expires_at - now).total_seconds())
-        return Response({"valid": True, "expires_in_seconds": max(0, expires_in)})
+        return Response({"valid": True, "message": "Token is valid", "expires_in_seconds": max(0, expires_in)})
 
 
 class ResetView(APIView):
@@ -119,4 +119,4 @@ class ResetView(APIView):
         user.set_password(new_password)
         user.save(update_fields=["password"])
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Password has been reset successfully"}, status=status.HTTP_200_OK)

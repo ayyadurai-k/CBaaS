@@ -12,15 +12,18 @@ export type ForgotPasswordResponse = {
 
 export type VerifyResetTokenPayload = {
   token: string;
+  email: string;
 };
 
 export type VerifyResetTokenResponse = {
   valid: boolean;
   message: string;
+  expires_in_seconds?: number;
 };
 
 export type ResetPasswordPayload = {
   token: string;
+  email: string;
   new_password: string;
 };
 
