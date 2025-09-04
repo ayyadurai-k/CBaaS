@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ email_title|default:"CBaaS Notification" }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .header .icon {
+            width: 64px;
+            height: 64px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .content {
+            padding: 40px 30px;
+            background-color: #ffffff;
+        }
+        
+        .content p {
+            margin: 0 0 20px 0;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            color: white;
+            padding: 16px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .button:hover {
+            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+        }
+        
+        .button.secondary {
+            background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%);
+            box-shadow: 0 4px 14px rgba(107, 114, 128, 0.4);
+        }
+        
+        .button.secondary:hover {
+            background: linear-gradient(135deg, #4B5563 0%, #374151 100%);
+        }
+        
+        .warning {
+            background-color: #FEF3C7;
+            border-left: 4px solid #F59E0B;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .info {
+            background-color: #DBEAFE;
+            border-left: 4px solid #3B82F6;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .success {
+            background-color: #D1FAE5;
+            border-left: 4px solid #10B981;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .alert-icon {
+            font-size: 18px;
+            margin-right: 12px;
+            margin-top: 2px;
+        }
+        
+        .alert-content {
+            flex: 1;
+        }
+        
+        .warning strong {
+            color: #92400E;
+            font-weight: 600;
+        }
+        
+        .info strong {
+            color: #1E40AF;
+            font-weight: 600;
+        }
+        
+        .success strong {
+            color: #047857;
+            font-weight: 600;
+        }
+        
+        .url-box {
+            word-break: break-all;
+            background-color: #F3F4F6;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            margin: 20px 0;
+            border: 1px solid #E5E7EB;
+        }
+        
+        .footer {
+            background-color: #F8FAFC;
+            padding: 30px;
+            text-align: center;
+            font-size: 14px;
+            color: #6B7280;
+            border-top: 1px solid #E5E7EB;
+        }
+        
+        .footer .logo {
+            font-weight: 700;
+            color: #3B82F6;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .divider {
+            height: 1px;
+            background-color: #E5E7EB;
+            margin: 30px 0;
+        }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .content {
+                background-color: #1F2937;
+                color: #F3F4F6;
+            }
+            
+            .url-box {
+                background-color: #374151;
+                border-color: #4B5563;
+                color: #E5E7EB;
+            }
+            
+            .footer {
+                background-color: #111827;
+                color: #9CA3AF;
+            }
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .button {
+                padding: 14px 24px;
+                font-size: 15px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="icon">{{ header_icon|default:"📧" }}</div>
+            <h1>{{ header_title|default:"CBaaS Notification" }}</h1>
+        </div>
+        
+        <div class="content">
+            <!-- Email content will be inserted here -->
+            {{ email_content }}
+        </div>
+        
+        <div class="footer">
+            <div class="logo">CBaaS</div>
+            <div>{{ footer_text|default:"This is an automated email. Please do not reply to this email address." }}</div>
+        </div>
+    </div>
+</body>
+</html>

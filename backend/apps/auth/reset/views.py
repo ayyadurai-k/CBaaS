@@ -8,9 +8,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.models import User
-from backend.apps.auth.reset.serializers import ForgotSerializer, ResetSerializer, VerifySerializer
-from backend.apps.auth.reset.models import PasswordResetToken
-from backend.common.services.email import postmark_service
+from apps.auth.reset.serializers import ForgotSerializer, ResetSerializer, VerifySerializer
+from apps.auth.reset.models import PasswordResetToken
+from common.services.email import postmark_service
 
 logger = logging.getLogger(__name__)
 

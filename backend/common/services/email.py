@@ -4,8 +4,10 @@ Documentation: https://postmarkapp.com/developer/user-guide/send-email-with-api
 """
 import logging
 import requests
+from pathlib import Path
 from typing import Dict, Any, Optional
 from django.conf import settings
+from django.template import Template, Context
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +22,40 @@ class PostmarkEmailService:
         self.api_url = 'https://api.postmarkapp.com/email'
         self.from_email = getattr(settings, 'POSTMARK_FROM_EMAIL', None)
         
+        # Template directory
+        self.template_dir = Path(__file__).parent.parent / 'templates' / 'emails'
+        
         if not self.api_key:
             logger.error("POSTMARK_API_KEY not configured in settings")
         if not self.from_email:
             logger.error("POSTMARK_FROM_EMAIL not configured in settings")
+    
+    def _load_template(self, template_name: str, context: Dict[str, Any]) -> str:
+        """
+        Load and render an email template
+        
+        Args:
+            template_name: Name of the template file (without extension)
+            context: Template context variables
+            
+        Returns:
+            Rendered template content
+        """
+        template_path = self.template_dir / f"{template_name}"
+        
+        try:
+            with open(template_path, 'r', encoding='utf-8') as file:
+                template_content = file.read()
+            
+            template = Template(template_content)
+            return template.render(Context(context))
+            
+        except FileNotFoundError:
+            logger.error(f"Email template not found: {template_path}")
+            raise
+        except Exception as e:
+            logger.error(f"Error rendering email template {template_path}: {str(e)}")
+            raise
     
     def send_email(
         self,
@@ -146,90 +178,31 @@ class PostmarkEmailService:
         # Personalize greeting
         greeting = f"Hi {user_name}," if user_name else "Hi,"
         
-        # Plain text version
-        text_body = f"""{greeting}
-
-We received a request to reset the password for your CBaaS account.
-
-Click the link below to reset your password:
-{reset_url}
-
-This link will expire in 1 hour for security reasons.
-
-If you didn't request this password reset, you can safely ignore this email. Your password will remain unchanged.
-
-If you're having trouble clicking the link, copy and paste the URL into your web browser.
-
-Best regards,
-The CBaaS Team
-
----
-This is an automated email. Please do not reply to this email address.
-"""
-
-        # HTML version with better formatting
-        html_body = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Your Password</title>
-    <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background-color: #3B82F6; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }}
-        .content {{ background-color: #ffffff; padding: 40px 30px; border: 1px solid #e5e7eb; border-top: none; }}
-        .button {{ display: inline-block; background-color: #3B82F6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0; }}
-        .button:hover {{ background-color: #2563EB; }}
-        .footer {{ background-color: #f8fafc; padding: 20px; text-align: center; font-size: 14px; color: #6b7280; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb; border-top: none; }}
-        .warning {{ background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px; }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1 style="margin: 0; font-size: 24px;">Reset Your Password</h1>
-    </div>
-    
-    <div class="content">
-        <p>{greeting}</p>
+        # Template context
+        context = {
+            'greeting': greeting,
+            'reset_url': reset_url,
+            'user_name': user_name,
+            'to_email': to_email
+        }
         
-        <p>We received a request to reset the password for your <strong>CBaaS</strong> account.</p>
-        
-        <p>Click the button below to reset your password:</p>
-        
-        <p style="text-align: center;">
-            <a href="{reset_url}" class="button">Reset Password</a>
-        </p>
-        
-        <div class="warning">
-            <strong>⏰ Important:</strong> This link will expire in 1 hour for security reasons.
-        </div>
-        
-        <p>If you didn't request this password reset, you can safely ignore this email. Your password will remain unchanged.</p>
-        
-        <p>If you're having trouble clicking the button, copy and paste this URL into your web browser:</p>
-        <p style="word-break: break-all; background-color: #f3f4f6; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
-            {reset_url}
-        </p>
-        
-        <p>Best regards,<br>
-        <strong>The CBaaS Team</strong></p>
-    </div>
-    
-    <div class="footer">
-        This is an automated email. Please do not reply to this email address.
-    </div>
-</body>
-</html>
-"""
-
-        return self.send_email(
-            to_email=to_email,
-            subject=subject,
-            text_body=text_body,
-            html_body=html_body,
-            tag="password-reset"
-        )
+        try:
+            # Load and render templates
+            text_body = self._load_template('password_reset.txt', context)
+            html_body = self._load_template('password_reset.html', context)
+            
+            return self.send_email(
+                to_email=to_email,
+                subject=subject,
+                text_body=text_body,
+                html_body=html_body,
+                tag="password-reset"
+            )
+            
+        except Exception as e:
+            error_msg = f"Error loading email template: {str(e)}"
+            logger.error(f"Failed to load email template for {to_email}: {error_msg}")
+            return {"success": False, "error": error_msg}
 
 
 # Singleton instance for app-wide usage
