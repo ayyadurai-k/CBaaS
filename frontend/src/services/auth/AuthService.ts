@@ -54,12 +54,20 @@ export class AuthService {
     try {
       const { data } = await SignupAPI.signup(payload);
       
+      // Store tokens in localStorage
+      localStorage.setItem(this.ACCESS_TOKEN_KEY, data.access);
+      localStorage.setItem(this.REFRESH_TOKEN_KEY, data.refresh);
+      
+      // Since backend doesn't return user data, create a basic user object
       const user: AuthUser = {
-        ...data.user,
-        full_name: `${data.user.first_name} ${data.user.last_name}`.trim(),
+        id: '', // Will be populated when user data is fetched
+        email: payload.email,
+        first_name: payload.name.split(' ')[0] || '',
+        last_name: payload.name.split(' ').slice(1).join(' ') || '',
+        full_name: payload.name,
       };
       
-      return { success: true, user, message: data.message };
+      return { success: true, user, message: 'Account created successfully!' };
     } catch (error: any) {
       return {
         success: false,

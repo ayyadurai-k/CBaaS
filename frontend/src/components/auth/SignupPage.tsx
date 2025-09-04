@@ -4,7 +4,9 @@ import { MessageSquare, Eye, EyeOff, AlertCircle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { authService } from '@/services/auth/AuthService';
+import { toast } from 'sonner';
 
 interface FormData {
   fullName: string;
@@ -20,6 +22,7 @@ interface ValidationErrors {
 }
 
 export const SignupPage: React.FC = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -117,12 +120,36 @@ export const SignupPage: React.FC = () => {
       return;
     }
 
-    // Simulate signup attempt
-    setTimeout(() => {
-      console.log('Signup attempt:', formData);
+    try {
+      // Prepare signup payload to match API expectations
+      const signupPayload = {
+        email: formData.email.trim(),
+        password: formData.password,
+        confirm_password: formData.confirmPassword,
+        name: formData.fullName.trim(),
+        phone_number: formData.phoneNumber.trim(),
+        organization_name: formData.companyName.trim()
+      };
+
+      const result = await authService.signup(signupPayload);
+
+      if (result.success) {
+        toast.success(result.message || 'Account created successfully!');
+        // Redirect to dashboard since user is now logged in
+        navigate('/dashboard');
+      } else {
+        // Handle signup failure
+        setErrors({ general: result.message || 'Signup failed. Please try again.' });
+        toast.error(result.message || 'Signup failed. Please try again.');
+      }
+    } catch (error: unknown) {
+      console.error('Signup error:', error);
+      const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'An unexpected error occurred. Please try again.';
+      setErrors({ general: errorMessage });
+      toast.error(errorMessage);
+    } finally {
       setIsLoading(false);
-      // Add your signup logic here
-    }, 1500);
+    }
   };
 
   const passwordRequirements = validatePassword(formData.password);
@@ -153,6 +180,15 @@ export const SignupPage: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off" role="form">
+            {errors.general && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertCircle style={{ width: '16px', height: '16px' }} />
+                  <span>{errors.general}</span>
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="fullName" className="text-sm font-medium text-slate-700">
                 Full Name
