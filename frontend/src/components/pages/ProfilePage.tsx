@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ImageCropper } from '@/components/ui/image-cropper';
 import { toast } from '@/hooks/use-toast';
 import { useProfile } from '@/hooks/useProfile';
 import { UpdateProfilePayload } from '@/apis/UsersAPI';
@@ -20,13 +21,17 @@ import {
   Loader2,
   Camera,
   Upload,
-  X
+  X,
+  Move
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
   const { profile, isLoading, isUpdating, isUploadingPicture, error, updateProfile, uploadProfilePicture, deleteProfilePicture } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [formData, setFormData] = useState({
     name: '',
     phone_number: ''
@@ -100,7 +105,7 @@ export const ProfilePage: React.FC = () => {
     setIsEditing(false);
   };
 
-  const handleProfilePictureUpload = async (file: File) => {
+  const handleFileSelect = (file: File) => {
     // Validate file size (max 5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     if (file.size > maxSize) {
@@ -123,14 +128,75 @@ export const ProfilePage: React.FC = () => {
       return;
     }
 
-    const success = await uploadProfilePicture(file);
-    if (success) {
-      setShowProfilePictureModal(false);
-      toast({
-        title: 'Success',
-        description: 'Profile picture updated successfully',
+    // Create preview URL and show cropper
+    const imageUrl = URL.createObjectURL(file);
+    setSelectedImageUrl(imageUrl);
+    setShowCropper(true);
+  };
+
+  const handleCropComplete = async (croppedImageBlob: Blob) => {
+    setUploadProgress(0);
+    
+    // Create artificial delay with progress
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + Math.random() * 15;
       });
+    }, 200);
+
+    // Convert blob to file
+    const croppedFile = new File([croppedImageBlob], 'profile-picture.jpg', {
+      type: 'image/jpeg',
+    });
+
+    try {
+      const success = await uploadProfilePicture(croppedFile);
+      
+      // Complete progress
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      if (success) {
+        setTimeout(() => {
+          setShowCropper(false);
+          setShowProfilePictureModal(false);
+          setUploadProgress(0);
+          // Clean up the preview URL
+          if (selectedImageUrl) {
+            URL.revokeObjectURL(selectedImageUrl);
+            setSelectedImageUrl('');
+          }
+          toast({
+            title: 'Success',
+            description: 'Profile picture updated successfully',
+          });
+        }, 500);
+      } else {
+        setUploadProgress(0);
+        clearInterval(progressInterval);
+      }
+    } catch (error) {
+      clearInterval(progressInterval);
+      setUploadProgress(0);
+      console.error('Error uploading profile picture:', error);
     }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    // Clean up the preview URL
+    if (selectedImageUrl) {
+      URL.revokeObjectURL(selectedImageUrl);
+      setSelectedImageUrl('');
+    }
+  };
+
+  const handleProfilePictureUpload = async (file: File) => {
+    handleFileSelect(file);
   };
 
   const handleProfilePictureDelete = async () => {
@@ -409,73 +475,91 @@ export const ProfilePage: React.FC = () => {
       {/* Profile Picture Upload Modal */}
       {showProfilePictureModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-slate-900">Profile Picture</h3>
               <button 
-                onClick={() => setShowProfilePictureModal(false)}
+                onClick={() => {
+                  setShowProfilePictureModal(false);
+                  setShowCropper(false);
+                  if (selectedImageUrl) {
+                    URL.revokeObjectURL(selectedImageUrl);
+                    setSelectedImageUrl('');
+                  }
+                }}
                 className="text-slate-500 hover:text-slate-700"
+                disabled={isUploadingPicture}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-6">
-              {/* Current Profile Picture */}
-              <div className="text-center">
-                <Avatar className="w-32 h-32 mx-auto mb-4">
-                  <AvatarImage src={profile.profile_picture_url || ""} alt={profile.name} />
-                  <AvatarFallback className="text-2xl font-semibold bg-slate-100 text-slate-700">
-                    {getInitials(profile.name)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
+            {showCropper ? (
+              <ImageCropper
+                src={selectedImageUrl}
+                onCropComplete={handleCropComplete}
+                onCancel={handleCropCancel}
+                isUploading={isUploadingPicture}
+                uploadProgress={uploadProgress}
+              />
+            ) : (
+              <div className="space-y-6">
+                {/* Current Profile Picture */}
+                <div className="text-center">
+                  <Avatar className="w-32 h-32 mx-auto mb-4">
+                    <AvatarImage src={profile.profile_picture_url || ""} alt={profile.name} />
+                    <AvatarFallback className="text-2xl font-semibold bg-slate-100 text-slate-700">
+                      {getInitials(profile.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
 
-              {/* Upload Options */}
-              <div className="space-y-4">
-                <div className="flex flex-col space-y-3">
-                  <input
-                    id="profile-picture-upload"
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                    onChange={(e) => e.target.files?.[0] && handleProfilePictureUpload(e.target.files[0])}
-                    className="hidden"
-                  />
-                  <Button
-                    onClick={() => document.getElementById('profile-picture-upload')?.click()}
-                    disabled={isUploadingPicture}
-                    className="w-full rounded-xl"
-                  >
-                    {isUploadingPicture ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4 mr-2" />
-                    )}
-                    {profile.profile_picture_url ? 'Change Picture' : 'Upload Picture'}
-                  </Button>
-                  
-                  {profile.profile_picture_url && (
+                {/* Upload Options */}
+                <div className="space-y-4">
+                  <div className="flex flex-col space-y-3">
+                    <input
+                      id="profile-picture-upload"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={(e) => e.target.files?.[0] && handleProfilePictureUpload(e.target.files[0])}
+                      className="hidden"
+                    />
                     <Button
-                      onClick={handleProfilePictureDelete}
+                      onClick={() => document.getElementById('profile-picture-upload')?.click()}
                       disabled={isUploadingPicture}
-                      variant="outline"
-                      className="w-full rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="w-full rounded-xl"
                     >
                       {isUploadingPicture ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
-                        <X className="w-4 h-4 mr-2" />
+                        <Upload className="w-4 h-4 mr-2" />
                       )}
-                      Remove Picture
+                      {profile.profile_picture_url ? 'Change Picture' : 'Upload Picture'}
                     </Button>
-                  )}
+                    
+                    {profile.profile_picture_url && (
+                      <Button
+                        onClick={handleProfilePictureDelete}
+                        disabled={isUploadingPicture}
+                        variant="outline"
+                        className="w-full rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        {isUploadingPicture ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <X className="w-4 h-4 mr-2" />
+                        )}
+                        Remove Picture
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <p className="text-xs text-slate-500 text-center">
+                    Supports JPEG, PNG, WEBP • Max 5MB
+                  </p>
                 </div>
-                
-                <p className="text-xs text-slate-500 text-center">
-                  Supports JPEG, PNG, WEBP • Max 5MB
-                </p>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
