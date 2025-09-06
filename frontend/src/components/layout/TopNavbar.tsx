@@ -11,10 +11,16 @@ export const TopNavbar: React.FC = () => {
 
   const handleNavigate = (path: string) => {
     // add log for test
-      console.log(`Navigating to ${path}`);
-
+    console.log(`Navigating to ${path}`);
     navigate(path);
     setShowUserDropdown(false);
+  };
+
+  const handleLogout = () => {
+    console.log('Logging out user');
+    // Add logout logic here - clear auth tokens, etc.
+    setShowUserDropdown(false);
+    navigate('/login');
   };
 
   const getInitials = (name: string) => {
@@ -34,7 +40,10 @@ export const TopNavbar: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="relative">
               <button
-                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                onClick={() => {
+                  console.log('Dropdown toggle clicked, current state:', showUserDropdown);
+                  setShowUserDropdown(!showUserDropdown);
+                }}
                 className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
               >
                 <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
@@ -56,21 +65,30 @@ export const TopNavbar: React.FC = () => {
                 <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
                   <div className="p-2">
                     <button 
-                      onClick={() => handleNavigate('/profile')}
+                      onClick={() => {
+                        console.log('Profile button clicked');
+                        handleNavigate('/profile');
+                      }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
                     >
                       <UserCircle className="w-4 h-4 text-slate-500" />
                       <span>View Profile</span>
                     </button>
                     <button 
-                      onClick={() => handleNavigate('/settings')}
+                      onClick={() => {
+                        console.log('Settings button clicked');
+                        handleNavigate('/settings');
+                      }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
                     >
                       <Settings className="w-4 h-4 text-slate-500" />
                       <span>Settings</span>
                     </button>
                     <hr className="border-slate-200 my-2" />
-                    <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
                       <LogOut className="w-4 h-4" />
                       <span>Log out</span>
                     </button>
