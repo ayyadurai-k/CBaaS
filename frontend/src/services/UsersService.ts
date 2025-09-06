@@ -4,8 +4,7 @@ import { UsersAPI, UserDTO, UpdateProfilePayload } from "../apis/UsersAPI";
 export type User = {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  name: string;
   phone_number?: string;
   is_active: boolean;
   date_joined: Date;
@@ -27,7 +26,7 @@ export class UsersService {
     return {
       ...user,
       date_joined: new Date(user.date_joined),
-      full_name: `${user.first_name} ${user.last_name}`.trim(),
+      full_name: user.name,
     };
   }
 }

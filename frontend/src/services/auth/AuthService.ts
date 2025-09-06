@@ -7,8 +7,7 @@ import { ResetAPI, ForgotPasswordPayload, VerifyResetTokenPayload, ResetPassword
 export type AuthUser = {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  name: string;
   full_name: string;
 };
 
@@ -38,7 +37,7 @@ export class AuthService {
       
       const user: AuthUser = {
         ...data.user,
-        full_name: `${data.user.first_name} ${data.user.last_name}`.trim(),
+        full_name: data.user.name,
       };
       
       return { success: true, user };
@@ -62,8 +61,7 @@ export class AuthService {
       const user: AuthUser = {
         id: '', // Will be populated when user data is fetched
         email: payload.email,
-        first_name: payload.name.split(' ')[0] || '',
-        last_name: payload.name.split(' ').slice(1).join(' ') || '',
+        name: payload.name,
         full_name: payload.name,
       };
       
