@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
-  const { profile, isLoading, isUpdating, isUploadingPicture, error, updateProfile, uploadProfilePicture, deleteProfilePicture } = useProfile();
+  const { profile, isLoading, isUpdating, isUploadingPicture, error, profilePictureVersion, updateProfile, uploadProfilePicture, deleteProfilePicture, refetchProfile } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
@@ -307,7 +307,10 @@ export const ProfilePage: React.FC = () => {
           <CardHeader className="text-center pb-4">
             <div className="relative w-24 h-24 mx-auto mb-4">
               <Avatar className="w-24 h-24">
-                <AvatarImage src={profile.profile_picture_url || ""} alt={profile.name} />
+                <AvatarImage 
+                  src={profile.profile_picture_url ? `${profile.profile_picture_url}?v=${profilePictureVersion}` : ""} 
+                  alt={profile.name} 
+                />
                 <AvatarFallback className="text-xl font-semibold bg-slate-100 text-slate-700">
                   {getInitials(profile.name)}
                 </AvatarFallback>
@@ -507,7 +510,10 @@ export const ProfilePage: React.FC = () => {
                 {/* Current Profile Picture */}
                 <div className="text-center">
                   <Avatar className="w-32 h-32 mx-auto mb-4">
-                    <AvatarImage src={profile.profile_picture_url || ""} alt={profile.name} />
+                    <AvatarImage 
+                      src={profile.profile_picture_url ? `${profile.profile_picture_url}?v=${profilePictureVersion}` : ""} 
+                      alt={profile.name} 
+                    />
                     <AvatarFallback className="text-2xl font-semibold bg-slate-100 text-slate-700">
                       {getInitials(profile.name)}
                     </AvatarFallback>

@@ -7,6 +7,7 @@ interface UseProfileReturn {
   isUpdating: boolean;
   isUploadingPicture: boolean;
   error: string | null;
+  profilePictureVersion: number;
   updateProfile: (payload: UpdateProfilePayload) => Promise<boolean>;
   uploadProfilePicture: (file: File) => Promise<boolean>;
   deleteProfilePicture: () => Promise<boolean>;
@@ -19,6 +20,7 @@ export const useProfile = (): UseProfileReturn => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploadingPicture, setIsUploadingPicture] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [profilePictureVersion, setProfilePictureVersion] = useState<number>(Date.now());
 
   const fetchProfile = async () => {
     try {
@@ -63,6 +65,7 @@ export const useProfile = (): UseProfileReturn => {
     try {
       const response = await UsersAPI.uploadProfilePicture(file);
       setProfile(response.data);
+      setProfilePictureVersion(Date.now()); // Update version to bust cache
       return true;
     } catch (err: any) {
       console.error('Failed to upload profile picture:', err);
@@ -86,6 +89,7 @@ export const useProfile = (): UseProfileReturn => {
     try {
       const response = await UsersAPI.deleteProfilePicture();
       setProfile(response.data);
+      setProfilePictureVersion(Date.now()); // Update version to bust cache
       return true;
     } catch (err: any) {
       console.error('Failed to delete profile picture:', err);
@@ -117,6 +121,7 @@ export const useProfile = (): UseProfileReturn => {
     isUpdating,
     isUploadingPicture,
     error,
+    profilePictureVersion,
     updateProfile,
     uploadProfilePicture,
     deleteProfilePicture,

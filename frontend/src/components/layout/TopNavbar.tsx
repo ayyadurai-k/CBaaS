@@ -8,7 +8,7 @@ import { useProfile } from '@/hooks/useProfile';
 export const TopNavbar: React.FC = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const navigate = useNavigate();
-  const { profile } = useProfile();
+  const { profile, profilePictureVersion } = useProfile();
 
   const handleNavigate = (path: string) => {
     // add log for test
@@ -47,7 +47,10 @@ export const TopNavbar: React.FC = () => {
               className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
             >
               <Avatar className="w-8 h-8">
-                <AvatarImage src={profile?.profile_picture_url || ""} alt={profile?.name || "User"} />
+                <AvatarImage 
+                  src={profile?.profile_picture_url ? `${profile.profile_picture_url}?v=${profilePictureVersion}` : ""} 
+                  alt={profile?.name || "User"} 
+                />
                 <AvatarFallback className="text-xs font-semibold bg-blue-600 text-white">
                   {profile ? getInitials(profile.name) : <User className="w-4 h-4" />}
                 </AvatarFallback>
