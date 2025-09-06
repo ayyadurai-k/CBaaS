@@ -1,6 +1,6 @@
 // src/apis/configs/axiosConfig.ts
 import axios, { AxiosResponse, AxiosError, InternalAxiosRequestConfig } from "axios";
-import { TokenStorage } from "../../lib/utils/security";
+import { TokenStorage } from "@/lib/utils/security";
 
 // Define public endpoints that don't require authentication
 const PUBLIC_ENDPOINTS = [
