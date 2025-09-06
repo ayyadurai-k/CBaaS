@@ -17,12 +17,16 @@ import {
   Building, 
   Shield, 
   Save,
-  Loader2
+  Loader2,
+  Camera,
+  Upload,
+  X
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
-  const { profile, isLoading, isUpdating, error, updateProfile } = useProfile();
+  const { profile, isLoading, isUpdating, isUploadingPicture, error, updateProfile, uploadProfilePicture, deleteProfilePicture } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
+  const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone_number: ''
@@ -94,6 +98,50 @@ export const ProfilePage: React.FC = () => {
       phone_number: profile.phone_number || ''
     });
     setIsEditing(false);
+  };
+
+  const handleProfilePictureUpload = async (file: File) => {
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      toast({
+        title: 'File too large',
+        description: 'Image size must be less than 5MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please select a JPEG, PNG, or WEBP image',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const success = await uploadProfilePicture(file);
+    if (success) {
+      setShowProfilePictureModal(false);
+      toast({
+        title: 'Success',
+        description: 'Profile picture updated successfully',
+      });
+    }
+  };
+
+  const handleProfilePictureDelete = async () => {
+    const success = await deleteProfilePicture();
+    if (success) {
+      setShowProfilePictureModal(false);
+      toast({
+        title: 'Success',
+        description: 'Profile picture removed successfully',
+      });
+    }
   };
 
   const getInitials = (name: string) => {
@@ -191,12 +239,21 @@ export const ProfilePage: React.FC = () => {
         {/* Profile Overview */}
         <Card className="border-slate-200 lg:col-span-1">
           <CardHeader className="text-center pb-4">
-            <Avatar className="w-24 h-24 mx-auto mb-4">
-              <AvatarImage src="" alt={profile.name} />
-              <AvatarFallback className="text-xl font-semibold bg-slate-100 text-slate-700">
-                {getInitials(profile.name)}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative w-24 h-24 mx-auto mb-4">
+              <Avatar className="w-24 h-24">
+                <AvatarImage src={profile.profile_picture_url || ""} alt={profile.name} />
+                <AvatarFallback className="text-xl font-semibold bg-slate-100 text-slate-700">
+                  {getInitials(profile.name)}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                onClick={() => setShowProfilePictureModal(true)}
+                className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                title="Change profile picture"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+            </div>
             <CardTitle className="text-xl text-slate-900">
               {profile.name}
             </CardTitle>
@@ -348,6 +405,80 @@ export const ProfilePage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Profile Picture Upload Modal */}
+      {showProfilePictureModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-slate-900">Profile Picture</h3>
+              <button 
+                onClick={() => setShowProfilePictureModal(false)}
+                className="text-slate-500 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Current Profile Picture */}
+              <div className="text-center">
+                <Avatar className="w-32 h-32 mx-auto mb-4">
+                  <AvatarImage src={profile.profile_picture_url || ""} alt={profile.name} />
+                  <AvatarFallback className="text-2xl font-semibold bg-slate-100 text-slate-700">
+                    {getInitials(profile.name)}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+
+              {/* Upload Options */}
+              <div className="space-y-4">
+                <div className="flex flex-col space-y-3">
+                  <input
+                    id="profile-picture-upload"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={(e) => e.target.files?.[0] && handleProfilePictureUpload(e.target.files[0])}
+                    className="hidden"
+                  />
+                  <Button
+                    onClick={() => document.getElementById('profile-picture-upload')?.click()}
+                    disabled={isUploadingPicture}
+                    className="w-full rounded-xl"
+                  >
+                    {isUploadingPicture ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4 mr-2" />
+                    )}
+                    {profile.profile_picture_url ? 'Change Picture' : 'Upload Picture'}
+                  </Button>
+                  
+                  {profile.profile_picture_url && (
+                    <Button
+                      onClick={handleProfilePictureDelete}
+                      disabled={isUploadingPicture}
+                      variant="outline"
+                      className="w-full rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      {isUploadingPicture ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <X className="w-4 h-4 mr-2" />
+                      )}
+                      Remove Picture
+                    </Button>
+                  )}
+                </div>
+                
+                <p className="text-xs text-slate-500 text-center">
+                  Supports JPEG, PNG, WEBP • Max 5MB
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

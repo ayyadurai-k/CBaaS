@@ -5,6 +5,7 @@ User = get_user_model()
 
 class ProfileSerializer(serializers.ModelSerializer):
     organization = serializers.SerializerMethodField()
+    profile_picture_url = serializers.ReadOnlyField()
 
     class Meta:
         model = User
@@ -17,6 +18,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "organization",
+            "profile_picture_url",
         ]
 
     def get_organization(self, obj):
@@ -49,3 +51,26 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
         if value and len(value.strip()) < 10:
             raise serializers.ValidationError("Phone number must be at least 10 digits.")
         return value.strip() if value else None
+
+
+class ProfilePictureUploadSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.ImageField(required=True)
+    
+    class Meta:
+        model = User
+        fields = ["profile_picture"]
+        
+    def validate_profile_picture(self, value):
+        """Validate uploaded profile picture"""
+        # Check file size (max 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB in bytes
+        if value.size > max_size:
+            raise serializers.ValidationError("Image size cannot exceed 5MB.")
+        
+        # Check file format
+        allowed_formats = ['jpeg', 'jpg', 'png', 'webp']
+        file_extension = value.name.split('.')[-1].lower()
+        if file_extension not in allowed_formats:
+            raise serializers.ValidationError("Only JPEG, PNG, and WEBP images are allowed.")
+        
+        return value

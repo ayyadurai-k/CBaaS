@@ -5,6 +5,7 @@ from django.contrib.auth.models import (
     PermissionsMixin,
     BaseUserManager,
 )
+from django.conf import settings
 
 
 class UserManager(BaseUserManager):
@@ -50,6 +51,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     phone_number = models.CharField(max_length=15, null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
     objects: UserManager = UserManager()
+
+    @property
+    def profile_picture_url(self):
+        """Get the full URL for the profile picture"""
+        if self.profile_picture:
+            return self.profile_picture.url
+        return None
