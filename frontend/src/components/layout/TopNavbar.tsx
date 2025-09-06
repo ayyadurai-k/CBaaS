@@ -3,12 +3,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, User, Settings, LogOut, UserCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useProfile } from '@/hooks/useProfile';
+import { useProfile } from '@/hooks/redux/useProfile';
 
 export const TopNavbar: React.FC = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const navigate = useNavigate();
-  const { profile, profilePictureVersion } = useProfile();
+  const { profile, profilePictureVersion, displayName, initials, avatarUrl } = useProfile();
 
   const handleNavigate = (path: string) => {
     // add log for test
@@ -48,15 +48,15 @@ export const TopNavbar: React.FC = () => {
             >
               <Avatar className="w-8 h-8">
                 <AvatarImage 
-                  src={profile?.profile_picture_url ? `${profile.profile_picture_url}?v=${profilePictureVersion}` : ""} 
-                  alt={profile?.name || "User"} 
+                  src={avatarUrl || ""} 
+                  alt={displayName} 
                 />
                 <AvatarFallback className="text-xs font-semibold bg-blue-600 text-white">
-                  {profile ? getInitials(profile.name) : <User className="w-4 h-4" />}
+                  {initials || <User className="w-4 h-4" />}
                 </AvatarFallback>
               </Avatar>
               <span className="text-sm font-medium text-slate-700">
-                {profile?.name || 'Loading...'}
+                {displayName}
               </span>
               <ChevronDown className="w-4 h-4 text-slate-500" />
             </button>

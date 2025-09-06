@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ImageCropper } from '@/components/ui/image-cropper';
 import { toast } from '@/hooks/use-toast';
-import { useProfile } from '@/hooks/useProfile';
+import { useProfile } from '@/hooks/redux/useProfile';
 import { UpdateProfilePayload } from '@/apis/UsersAPI';
 import { 
   User, 
@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
-  const { profile, isLoading, isUpdating, isUploadingPicture, error, profilePictureVersion, updateProfile, uploadProfilePicture, deleteProfilePicture, refetchProfile } = useProfile();
+  const { profile, isLoading, isUpdating, isUploadingPicture, error, profilePictureVersion, updateProfile, uploadProfilePicture, deleteProfilePicture, refetchProfile, initials, avatarUrl } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
@@ -308,11 +308,11 @@ export const ProfilePage: React.FC = () => {
             <div className="relative w-24 h-24 mx-auto mb-4">
               <Avatar className="w-24 h-24">
                 <AvatarImage 
-                  src={profile.profile_picture_url ? `${profile.profile_picture_url}?v=${profilePictureVersion}` : ""} 
-                  alt={profile.name} 
+                  src={avatarUrl || ""} 
+                  alt={profile?.name || "User"} 
                 />
                 <AvatarFallback className="text-xl font-semibold bg-slate-100 text-slate-700">
-                  {getInitials(profile.name)}
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <button
