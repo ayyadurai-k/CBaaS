@@ -5,7 +5,7 @@ User = get_user_model()
 
 class ProfileSerializer(serializers.ModelSerializer):
     organization = serializers.SerializerMethodField()
-    profile_picture_url = serializers.ReadOnlyField()
+    profile_picture_url = serializers.ImageField(source='profile_picture', read_only=True)
 
     class Meta:
         model = User

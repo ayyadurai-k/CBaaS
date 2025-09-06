@@ -14,15 +14,17 @@ class ProfileView(APIView):
 
     def get(self, request):
         """Get user profile"""
-        return Response(ProfileSerializer(request.user).data)
+        serializer = ProfileSerializer(request.user, context={'request': request})
+        return Response(serializer.data)
     
     def put(self, request):
         """Update user profile"""
         serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            # Return the updated profile using ProfileSerializer
-            return Response(ProfileSerializer(request.user).data)
+            # Return the updated profile using ProfileSerializer with context
+            profile_serializer = ProfileSerializer(request.user, context={'request': request})
+            return Response(profile_serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -41,7 +43,8 @@ class ProfilePictureUploadView(APIView):
             
             serializer.save()
             # Return updated profile data
-            return Response(ProfileSerializer(request.user).data, status=status.HTTP_200_OK)
+            profile_serializer = ProfileSerializer(request.user, context={'request': request})
+            return Response(profile_serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request):
@@ -50,5 +53,6 @@ class ProfilePictureUploadView(APIView):
             request.user.profile_picture.delete(save=False)
             request.user.profile_picture = None
             request.user.save()
-            return Response(ProfileSerializer(request.user).data, status=status.HTTP_200_OK)
+            profile_serializer = ProfileSerializer(request.user, context={'request': request})
+            return Response(profile_serializer.data, status=status.HTTP_200_OK)
         return Response({"detail": "No profile picture to delete"}, status=status.HTTP_404_NOT_FOUND)

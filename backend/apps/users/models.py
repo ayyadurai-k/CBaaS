@@ -55,10 +55,3 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
     objects: UserManager = UserManager()
-
-    @property
-    def profile_picture_url(self):
-        """Get the full URL for the profile picture"""
-        if self.profile_picture:
-            return self.profile_picture.url
-        return None
