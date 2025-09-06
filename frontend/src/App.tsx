@@ -17,6 +17,7 @@ import { DocumentationPage } from "./components/pages/DocumentationPage";
 import { ApiKeysPage } from "./components/pages/ApiKeysPage";
 import { TeamPage } from "./components/pages/TeamPage";
 import { SettingsPage } from "./components/pages/SettingsPage";
+import { ProfilePage } from "./components/pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 import { BillingPage } from "./components/pages/BillingPage";
 
@@ -77,6 +78,11 @@ const App = () => (
           <Route path="/settings" element={
             <DashboardLayout>
               <SettingsPage />
+            </DashboardLayout>
+          } />
+          <Route path="/profile" element={
+            <DashboardLayout>
+              <ProfilePage />
             </DashboardLayout>
           } />
           <Route path="*" element={<NotFound />} />

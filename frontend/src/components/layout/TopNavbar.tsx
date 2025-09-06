@@ -1,9 +1,25 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronDown, User, Settings, LogOut, UserCircle } from 'lucide-react';
+import { useProfile } from '@/hooks/useProfile';
 
 export const TopNavbar: React.FC = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const navigate = useNavigate();
+  const { profile } = useProfile();
+
+  const handleNavigate = (path: string) => {
+    // add log for test
+      console.log(`Navigating to ${path}`);
+
+    navigate(path);
+    setShowUserDropdown(false);
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+  };
 
   return (
     <>
@@ -22,10 +38,16 @@ export const TopNavbar: React.FC = () => {
                 className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
               >
                 <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
+                  {profile ? (
+                    <span className="text-xs font-semibold text-white">
+                      {getInitials(profile.name)}
+                    </span>
+                  ) : (
+                    <User className="w-4 h-4 text-white" />
+                  )}
                 </div>
                 <span className="text-sm font-medium text-slate-700">
-                  John Doe
+                  {profile?.name || 'Loading...'}
                 </span>
                 <ChevronDown className="w-4 h-4 text-slate-500" />
               </button>
@@ -33,11 +55,17 @@ export const TopNavbar: React.FC = () => {
               {showUserDropdown && (
                 <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
                   <div className="p-2">
-                    <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
+                    <button 
+                      onClick={() => handleNavigate('/profile')}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
+                    >
                       <UserCircle className="w-4 h-4 text-slate-500" />
                       <span>View Profile</span>
                     </button>
-                    <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
+                    <button 
+                      onClick={() => handleNavigate('/settings')}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
+                    >
                       <Settings className="w-4 h-4 text-slate-500" />
                       <span>Settings</span>
                     </button>
