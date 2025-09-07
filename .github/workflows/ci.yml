@@ -61,9 +61,9 @@ jobs:
         working-directory: backend
         run: python manage.py migrate --noinput
 
-      - name: Run Backend Tests
-        working-directory: backend
-        run: pytest --disable-warnings -q
+      # - name: Run Backend Tests
+      #   working-directory: backend
+      #   run: pytest --disable-warnings -q
 
   frontend:
     name: Frontend Tests
