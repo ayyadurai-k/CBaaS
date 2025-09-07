@@ -1,27 +1,43 @@
-FROM python:3.11-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    DJANGO_ENV=prod
+# --- Builder stage ---
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 # Install system deps
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    libmagic1 \
+    libmagic-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install prod dependencies
-COPY requirements/prod.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+# Install pip-tools (optional for locking)
+RUN pip install --no-cache-dir pip setuptools wheel
 
-# Copy project code
-COPY . /app
+COPY requirements /app/requirements
+RUN pip install --no-cache-dir -r /app/requirements/prod.txt
 
-# Switch to non-root user
-RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
+# --- Runtime stage ---
+FROM python:3.11-slim
 
-# Run Gunicorn in production
-CMD ["bash", "-lc", "python manage.py migrate && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4"]
+WORKDIR /app
+
+# Copy runtime system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    libmagic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local /usr/local
+
+# Copy backend code
+COPY . .
+
+EXPOSE 8000
+
+# Start using gunicorn (better than Django dev server)
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=4"]
