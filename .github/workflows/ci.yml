@@ -7,16 +7,34 @@ on:
     branches: [ "main" ]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'requirements/**'
+              - 'docker-compose.dev.yml'
+              - 'docker-compose.prod.yml'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - 'docker-compose.dev.yml'
+              - 'docker-compose.prod.yml'
+              - '.github/workflows/ci.yml'
+
   backend:
     name: Backend Tests
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
-    if: |
-      contains(github.event.pull_request.changed_files.*.filename, 'backend/') ||
-      contains(github.event.pull_request.changed_files.*.filename, 'requirements/') ||
-      contains(github.event.pull_request.changed_files.*.filename, 'docker-compose.dev.yml') ||
-      contains(github.event.pull_request.changed_files.*.filename, 'docker-compose.prod.yml') ||
-      contains(github.event.pull_request.changed_files.*.filename, '.github/workflows/ci.yml')
-
     services:
       postgres:
         image: ankane/pgvector
@@ -38,7 +56,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-
     env:
       DJANGO_SETTINGS_MODULE: config.settings
       POSTGRES_DB: cbaas_test
@@ -50,7 +67,6 @@ jobs:
       CELERY_RESULT_BACKEND: redis://localhost:6379/0
       SECRET_KEY: dummy
       PYTHONUNBUFFERED: 1
-
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -70,13 +86,9 @@ jobs:
 
   frontend:
     name: Frontend Tests
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
-    if: |
-      contains(github.event.pull_request.changed_files.*.filename, 'frontend/') ||
-      contains(github.event.pull_request.changed_files.*.filename, 'docker-compose.dev.yml') ||
-      contains(github.event.pull_request.changed_files.*.filename, 'docker-compose.prod.yml') ||
-      contains(github.event.pull_request.changed_files.*.filename, '.github/workflows/ci.yml')
-
     steps:
       - uses: actions/checkout@v4
       - name: Set up Node
