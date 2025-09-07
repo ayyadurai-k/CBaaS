@@ -2,22 +2,20 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copy dependency files first (better caching)
+# Copy dependency files first
 COPY package*.json ./
-
 RUN npm ci
 
-# Copy env.production explicitly
-COPY .env.production ./
-
-# Copy rest of the source
+# Copy source
 COPY . .
 
-# Set environment
+# Accept build-time variable from Compose
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ENV NODE_ENV=production
 
-# Ensure Vite picks up production env file
-RUN mv .env.production .env && npm run build
+# Build with production environment
+RUN npm run build
 
 # --- Runtime stage ---
 FROM nginx:stable-alpine
