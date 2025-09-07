@@ -25,6 +25,7 @@ import { BillingPage } from "./components/pages/BillingPage";
 const queryClient = new QueryClient();
 
 const App = () => (
+  // test
   <ReduxProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
