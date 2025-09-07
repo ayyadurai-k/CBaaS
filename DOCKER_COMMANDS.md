@@ -2,7 +2,7 @@
 
 This document lists essential Docker Compose commands for managing the **CBaaS development stack**  
 (Django + Celery + Redis + PostgreSQL + pgvector).  
-
+test
 ---
 
 ## 🚀 Start & Stop Services
