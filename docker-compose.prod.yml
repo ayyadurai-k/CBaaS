@@ -33,9 +33,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers=4
+    # run collectstatic + migrate before starting gunicorn
+    command: >
+      sh -c "
+        python manage.py migrate --noinput &&
+        python manage.py collectstatic --noinput &&
+        gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers=4
+      "
     ports:
       - "8000:8000"
+    volumes:
+      - static_data:/app/staticfiles
 
   worker:
     build:
@@ -57,6 +65,9 @@ services:
       - "80:80"
     depends_on:
       - web
+    volumes:
+      - static_data:/app/staticfiles  # serve Django static through nginx if needed
 
 volumes:
   db_data:
+  static_data:
