@@ -60,6 +60,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}   # pulled from env file
     restart: always
     ports:
       - "80:80"
