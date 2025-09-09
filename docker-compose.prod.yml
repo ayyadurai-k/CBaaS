@@ -33,7 +33,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # run collectstatic + migrate before starting gunicorn
     command: >
       sh -c "
         python manage.py migrate --noinput &&
@@ -61,14 +60,16 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}   # pulled from env file
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}   # from global env or .env file
     restart: always
     ports:
       - "80:80"
     depends_on:
       - web
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL}   # ensure available in runtime too, if needed
     volumes:
-      - static_data:/app/staticfiles  # serve Django static through nginx if needed
+      - static_data:/app/staticfiles
 
 volumes:
   db_data:
