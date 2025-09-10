@@ -38,7 +38,7 @@ export const useAuth = () => {
   // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const result = await dispatch(loginThunk({ email, password })).unwrap();
+      await dispatch(loginThunk({ email, password })).unwrap();
       return true;
     } catch (error: any) {
       return false;
@@ -88,8 +88,11 @@ export const useAuth = () => {
 
   // Check if user has specific role
   const hasRole = (role: string): boolean => {
-    // You would need to store user role in auth state or get it from profile
-    return false; // Implement based on your auth structure
+    // TODO: Implement based on your auth structure
+    // This would typically check user roles from the user profile or auth state
+    // For now, returning false as a placeholder
+    console.warn('hasRole function not implemented yet');
+    return false;
   };
 
   // Check if user is admin

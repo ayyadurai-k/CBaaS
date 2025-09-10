@@ -155,11 +155,11 @@ export const {
 // Export thunks for use in components
 export { loginThunk, logoutThunk, checkAuthStatusThunk, refreshTokenThunk };
 
-// Selectors
-export const selectAuth = (state: { auth: AuthState }) => state.auth;
-export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
-export const selectAccessToken = (state: { auth: AuthState }) => state.auth.accessToken;
-export const selectAuthLoading = (state: { auth: AuthState }) => state.auth.isLoading;
-export const selectAuthError = (state: { auth: AuthState }) => state.auth.error;
+// Selectors - Updated to handle redux-persist partial state
+export const selectAuth = (state: any) => state.auth || initialState;
+export const selectIsAuthenticated = (state: any) => state.auth?.isAuthenticated ?? false;
+export const selectAccessToken = (state: any) => state.auth?.accessToken ?? null;
+export const selectAuthLoading = (state: any) => state.auth?.isLoading ?? false;
+export const selectAuthError = (state: any) => state.auth?.error ?? null;
 
 export default authSlice.reducer;
