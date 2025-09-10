@@ -20,10 +20,14 @@ import {
   loginFailure,
   logout as logoutAction,
   clearError,
+  checkAuthStart,
+  checkAuthSuccess,
+  checkAuthFailure,
 } from '@/store/slices/authSlice';
 import { clearProfile } from '@/store/slices/userSlice';
 import { resetUIState } from '@/store/slices/uiSlice';
 import { useLoginMutation, useLogoutMutation } from '@/store/services/authApi';
+import { authService } from '@/services/auth/AuthService';
 
 export const useAuth = () => {
   const dispatch = useAppDispatch();
@@ -78,6 +82,29 @@ export const useAuth = () => {
     dispatch(clearError());
   };
 
+  // Check authentication status
+  const checkAuthStatus = async (): Promise<boolean> => {
+    try {
+      dispatch(checkAuthStart());
+      
+      const authStatus = await authService.checkAuthStatus();
+      
+      if (authStatus.authenticated) {
+        dispatch(checkAuthSuccess({
+          accessToken: authService.getAccessToken() || '',
+          refreshToken: localStorage.getItem('refresh_token') || undefined,
+        }));
+        return true;
+      } else {
+        dispatch(checkAuthFailure());
+        return false;
+      }
+    } catch (error) {
+      dispatch(checkAuthFailure());
+      return false;
+    }
+  };
+
   // Check if user has specific role
   const hasRole = (role: string): boolean => {
     // You would need to store user role in auth state or get it from profile
@@ -101,6 +128,7 @@ export const useAuth = () => {
     login,
     logout,
     clearAuthError,
+    checkAuthStatus,
     
     // Utilities
     hasRole,

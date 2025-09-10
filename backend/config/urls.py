@@ -20,6 +20,7 @@ urlpatterns = [
     path("api/", include("apps.auth.login.urls")),
     path("api/", include("apps.auth.logout.urls")),
     path("api/", include("apps.auth.reset.urls")),
+    path("api/", include("apps.auth.status.urls")),
 
     # User/org
     path("api/", include("apps.users.urls")),

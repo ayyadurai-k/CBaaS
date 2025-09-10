@@ -84,6 +84,29 @@ export const authSlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
+
+    // Auth status check actions
+    checkAuthStart: (state) => {
+      state.isLoading = true;
+      state.error = null;
+    },
+    checkAuthSuccess: (state, action: PayloadAction<{
+      accessToken: string;
+      refreshToken?: string;
+    }>) => {
+      state.isAuthenticated = true;
+      state.accessToken = action.payload.accessToken;
+      state.refreshToken = action.payload.refreshToken || state.refreshToken;
+      state.isLoading = false;
+      state.error = null;
+    },
+    checkAuthFailure: (state) => {
+      state.isAuthenticated = false;
+      state.accessToken = null;
+      state.refreshToken = null;
+      state.isLoading = false;
+      state.error = null;
+    },
   },
 });
 
@@ -96,6 +119,9 @@ export const {
   refreshTokenSuccess,
   clearError,
   setLoading,
+  checkAuthStart,
+  checkAuthSuccess,
+  checkAuthFailure,
 } = authSlice.actions;
 
 // Selectors

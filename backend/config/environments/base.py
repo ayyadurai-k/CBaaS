@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     "apps.auth.login",
     "apps.auth.logout",
     "apps.auth.reset",
+    "apps.auth.status",
+
 ]
 
 AUTH_USER_MODEL = "users.User"

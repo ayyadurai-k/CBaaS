@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronDown, User, Settings, LogOut, UserCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/hooks/redux/useProfile';
+import { useAuth } from '@/hooks/redux/useAuth';
 
 export const TopNavbar: React.FC = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const navigate = useNavigate();
   const { profile, profilePictureVersion, displayName, initials, avatarUrl } = useProfile();
+  const { logout } = useAuth();
 
   const handleNavigate = (path: string) => {
     // add log for test
@@ -17,11 +19,18 @@ export const TopNavbar: React.FC = () => {
     setShowUserDropdown(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     console.log('Logging out user');
-    // Add logout logic here - clear auth tokens, etc.
-    setShowUserDropdown(false);
-    navigate('/login');
+    try {
+      await logout();
+      setShowUserDropdown(false);
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still navigate to login even if logout API fails
+      setShowUserDropdown(false);
+      navigate('/login');
+    }
   };
 
   const getInitials = (name: string) => {
