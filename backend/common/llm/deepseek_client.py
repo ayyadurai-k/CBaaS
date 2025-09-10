@@ -11,6 +11,8 @@ class DeepSeekChat(ChatClient):
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         payload = {"model": self.model, "messages": messages, "max_tokens": int(max_tokens), "temperature": float(temperature), "stream": False}
         data = post_json_resilient(f"deepseek:{self.model}", url, headers, payload, timeout_s).json()
+        print(" data :  ",data)
+        
         answer = _get_choice_message_content(data)
         usage = data.get("usage", {}) or {}
         return answer, usage, data.get("model", self.model)

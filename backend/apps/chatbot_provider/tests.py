@@ -318,3 +318,119 @@ class ChatbotProviderUpsertViewTests(BaseChatbotProviderTestCase):
         bad_space = {**self.valid_data, "provider": " openai "}
         resp = self.client.put(self.url, bad_space, format="json")
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class ProviderTestServiceTests(BaseChatbotProviderTestCase):
+    """Tests for the ProviderTestService functionality."""
+    
+    def test_test_provider_unsupported(self):
+        """Test that unsupported provider returns error."""
+        from apps.chatbot_provider.services import ProviderTestService
+        
+        success, message, details = ProviderTestService.test_provider(
+            "invalid_provider", "model", "key"
+        )
+        self.assertFalse(success)
+        self.assertIn("Unsupported provider", message)
+    
+    def test_test_openai_success(self):
+        """Test successful OpenAI provider test."""
+        from unittest.mock import patch, MagicMock
+        from apps.chatbot_provider.services import ProviderTestService
+        
+        with patch('apps.chatbot_provider.services.OpenAIChat') as mock_openai_class:
+            # Mock the client and response
+            mock_client = MagicMock()
+            mock_client.chat.return_value = ("Hello", {"total_tokens": 5}, "gpt-4")
+            mock_openai_class.return_value = mock_client
+            
+            success, message, details = ProviderTestService.test_provider(
+                "openai", "gpt-4", "test-key"
+            )
+            
+            self.assertTrue(success)
+            self.assertIn("working correctly", message)
+            self.assertEqual(details["response"], "Hello")
+            self.assertEqual(details["model_used"], "gpt-4")
+    
+    def test_test_openai_unauthorized(self):
+        """Test OpenAI provider test with invalid key."""
+        from unittest.mock import patch, MagicMock
+        from apps.chatbot_provider.services import ProviderTestService
+        
+        with patch('apps.chatbot_provider.services.OpenAIChat') as mock_openai_class:
+            # Mock the client to raise unauthorized error
+            mock_client = MagicMock()
+            mock_client.chat.side_effect = Exception("401 Unauthorized")
+            mock_openai_class.return_value = mock_client
+            
+            success, message, details = ProviderTestService.test_provider(
+                "openai", "gpt-4", "invalid-key"
+            )
+            
+            self.assertFalse(success)
+            self.assertIn("Invalid OpenAI API key", message)
+
+
+class EnhancedTestKeyViewTests(BaseChatbotProviderTestCase):
+    """Tests for the enhanced TestKeyView API endpoint with real provider testing."""
+    
+    def setUp(self) -> None:
+        super().setUp()
+        self.url = reverse("test-key")
+    
+    def test_test_key_with_real_provider_test_success(self):
+        """Test test key endpoint with successful provider test."""
+        from unittest.mock import patch
+        
+        with patch('apps.chatbot_provider.services.ProviderTestService.test_provider') as mock_test:
+            mock_test.return_value = (True, "Success", {"response": "Hello"})
+            
+            response = self.client.post(self.url, {
+                "provider": "openai",
+                "model_name": "gpt-4",
+                "api_key": "test-key"
+            }, format="json")
+            
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertTrue(response.data["success"])
+            self.assertEqual(response.data["message"], "Success")
+            self.assertEqual(response.data["details"]["response"], "Hello")
+    
+    def test_test_key_with_real_provider_test_failure(self):
+        """Test test key endpoint with failed provider test."""
+        from unittest.mock import patch
+        
+        with patch('apps.chatbot_provider.services.ProviderTestService.test_provider') as mock_test:
+            mock_test.return_value = (False, "Invalid key", {"error": "401"})
+            
+            response = self.client.post(self.url, {
+                "provider": "openai",
+                "model_name": "gpt-4",
+                "api_key": "invalid-key"
+            }, format="json")
+            
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertFalse(response.data["success"])
+            self.assertEqual(response.data["message"], "Invalid key")
+            self.assertEqual(response.data["details"]["error"], "401")
+    
+    def test_test_key_calls_provider_test_service(self):
+        """Test that the endpoint actually calls the ProviderTestService."""
+        from unittest.mock import patch
+        
+        with patch('apps.chatbot_provider.services.ProviderTestService.test_provider') as mock_test:
+            mock_test.return_value = (True, "Success", {})
+            
+            self.client.post(self.url, {
+                "provider": "gemini",
+                "model_name": "gemini-pro",
+                "api_key": "test-key"
+            }, format="json")
+            
+            # Verify the service was called with correct parameters
+            mock_test.assert_called_once_with(
+                provider="gemini",
+                model_name="gemini-pro",
+                api_key="test-key"
+            )

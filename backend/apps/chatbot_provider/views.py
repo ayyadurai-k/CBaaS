@@ -6,22 +6,71 @@ from apps.chatbot_provider.models import ChatbotProvider
 from apps.chatbot_provider.serializers import (
     ProviderSerializer,
     ProviderUpsertSerializer,
+    TestKeySerializer,
 )
+from apps.chatbot_provider.services import ProviderTestService
 from rest_framework import status
 from drf_spectacular.utils import extend_schema
 
 
+@extend_schema(
+    request=TestKeySerializer,
+    responses={
+        200: {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "message": {"type": "string"},
+                "details": {"type": "object"}
+            }
+        },
+        400: {
+            "type": "object", 
+            "properties": {
+                "success": {"type": "boolean"},
+                "message": {"type": "string"},
+                "details": {"type": "object"}
+            }
+        }
+    },
+    description="Test LLM provider API key and model functionality by making a real API call.",
+)
 class TestKeyView(APIView):
+    """
+    POST /api/chatbot/test-key
+    Body: { "provider": "openai|gemini|deepseek", "model_name": "<model>", "api_key": "<secret>" }
+    Tests the provided API key by making a real call to the LLM provider.
+    """
     permission_classes = [IsOwnerOrAdmin]
 
     def post(self, request):
-        bot = Chatbot.objects.filter(organization=request.user.organization).first()
-        if not bot:
-            return Response({"detail": "Chatbot not configured"}, status=400)
-        serializer = ProviderSerializer(data=request.data)
+        # Validate input data
+        serializer = TestKeySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # (Optional) ping provider here
-        return Response({"ok": True})
+        
+        # Extract validated data
+        provider = serializer.validated_data["provider"]
+        model_name = serializer.validated_data["model_name"]
+        api_key = serializer.validated_data["api_key"]
+        
+        # Test the provider
+        success, message, details = ProviderTestService.test_provider(
+            provider=provider,
+            model_name=model_name,
+            api_key=api_key
+        )
+        
+        # Return appropriate response
+        status_code = status.HTTP_200_OK if success else status.HTTP_400_BAD_REQUEST
+        
+        return Response(
+            {
+                "success": success,
+                "message": message,
+                "details": details
+            },
+            status=status_code
+        )
 
 
 @extend_schema(
@@ -63,7 +112,12 @@ class ChatbotProviderUpsertView(APIView):
         else:
             serializer.update(provider, serializer.validated_data)
 
-        # Optional: live ping here if you want to validate the key/model.
+        # Optional: Test the provider configuration
+        test_success, test_message, test_details = ProviderTestService.test_provider(
+            provider=provider.provider,
+            model_name=provider.model_name,
+            api_key=provider.api_key  # This uses the decrypted property
+        )
 
         return Response(
             {
@@ -72,6 +126,11 @@ class ChatbotProviderUpsertView(APIView):
                 "model_name": provider.model_name,
                 "created_at": provider.created_at,
                 "updated_at": provider.updated_at,
+                "test_result": {
+                    "success": test_success,
+                    "message": test_message,
+                    "details": test_details
+                }
             },
             status=status.HTTP_200_OK,
         )

@@ -1,6 +1,20 @@
 from rest_framework import serializers
 from .models import ChatbotProvider
 
+class TestKeySerializer(serializers.Serializer):
+    """Serializer for testing LLM provider API keys."""
+    api_key = serializers.CharField(max_length=255, required=True)
+    
+    provider = serializers.ChoiceField(
+        choices=[
+            ("openai", "OpenAI"),
+            ("gemini", "Gemini"),
+            ("deepseek", "DeepSeek"),
+        ],
+        required=True
+    )
+    model_name = serializers.CharField(max_length=50, required=True)
+
 class ProviderSerializer(serializers.ModelSerializer):
     api_key = serializers.CharField(write_only=True)
     class Meta:
