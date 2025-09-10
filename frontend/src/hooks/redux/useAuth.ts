@@ -15,24 +15,18 @@ import {
   selectAccessToken,
   selectAuthLoading,
   selectAuthError,
-  loginStart,
-  loginSuccess,
-  loginFailure,
   logout as logoutAction,
   clearError,
-  checkAuthStart,
-  checkAuthSuccess,
-  checkAuthFailure,
+  loginThunk,
+  logoutThunk,
+  checkAuthStatusThunk,
+  refreshTokenThunk,
 } from '@/store/slices/authSlice';
 import { clearProfile } from '@/store/slices/userSlice';
 import { resetUIState } from '@/store/slices/uiSlice';
-import { useLoginMutation, useLogoutMutation } from '@/store/services/authApi';
-import { authService } from '@/services/auth/AuthService';
 
 export const useAuth = () => {
   const dispatch = useAppDispatch();
-  const [loginMutation] = useLoginMutation();
-  const [logoutMutation] = useLogoutMutation();
   
   // Select state from Redux store
   const auth = useAppSelector(selectAuth);
@@ -44,19 +38,9 @@ export const useAuth = () => {
   // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      dispatch(loginStart());
-      
-      const result = await loginMutation({ email, password }).unwrap();
-      
-      dispatch(loginSuccess({
-        accessToken: result.access_token,
-        refreshToken: result.refresh_token,
-      }));
-      
+      const result = await dispatch(loginThunk({ email, password })).unwrap();
       return true;
     } catch (error: any) {
-      const message = error.data?.message || 'Login failed';
-      dispatch(loginFailure(message));
       return false;
     }
   };
@@ -64,8 +48,8 @@ export const useAuth = () => {
   // Logout function
   const logout = async (): Promise<void> => {
     try {
-      // Call logout API
-      await logoutMutation().unwrap();
+      // Call logout API through thunk
+      await dispatch(logoutThunk()).unwrap();
     } catch (error) {
       // Even if API call fails, we still logout locally
       console.warn('Logout API call failed, logging out locally');
@@ -85,22 +69,19 @@ export const useAuth = () => {
   // Check authentication status
   const checkAuthStatus = async (): Promise<boolean> => {
     try {
-      dispatch(checkAuthStart());
-      
-      const authStatus = await authService.checkAuthStatus();
-      
-      if (authStatus.authenticated) {
-        dispatch(checkAuthSuccess({
-          accessToken: authService.getAccessToken() || '',
-          refreshToken: localStorage.getItem('refresh_token') || undefined,
-        }));
-        return true;
-      } else {
-        dispatch(checkAuthFailure());
-        return false;
-      }
+      const result = await dispatch(checkAuthStatusThunk()).unwrap();
+      return result.authenticated;
     } catch (error) {
-      dispatch(checkAuthFailure());
+      return false;
+    }
+  };
+
+  // Refresh token
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      await dispatch(refreshTokenThunk()).unwrap();
+      return true;
+    } catch (error) {
       return false;
     }
   };
@@ -129,6 +110,7 @@ export const useAuth = () => {
     logout,
     clearAuthError,
     checkAuthStatus,
+    refreshToken,
     
     // Utilities
     hasRole,

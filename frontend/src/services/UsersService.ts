@@ -9,6 +9,7 @@ export type User = {
   is_active: boolean;
   date_joined: Date;
   full_name: string;
+  profile_picture_url?: string | null;
 };
 
 export class UsersService {
@@ -25,7 +26,8 @@ export class UsersService {
   private normalizeUser(user: UserDTO): User {
     return {
       ...user,
-      date_joined: new Date(user.date_joined),
+      is_active: true, // Default value since UserDTO doesn't have this field
+      date_joined: new Date(user.created_at), // Map created_at to date_joined
       full_name: user.name,
     };
   }

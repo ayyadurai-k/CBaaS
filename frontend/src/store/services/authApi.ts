@@ -1,11 +1,12 @@
 /**
- * Auth API Service
+ * Auth Redux Thunks
  * 
- * RTK Query service for authentication-related API calls.
- * Handles login, logout, token refresh, and registration.
+ * Redux thunks for authentication using our existing AuthService.
+ * This maintains consistency with our service layer architecture.
  */
 
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createAsyncThunk } from '@reduxjs/toolkit';
+import { authService, AuthUser } from '@/services/auth/AuthService';
 
 export interface LoginRequest {
   email: string;
@@ -13,91 +14,91 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  access_token: string;
-  refresh_token?: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-  };
+  user: AuthUser;
+  accessToken: string;
+  refreshToken?: string;
 }
 
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  name: string;
-  organization_name?: string;
+export interface AuthStatusResponse {
+  authenticated: boolean;
+  user?: AuthUser;
 }
 
-export interface RefreshTokenRequest {
-  refresh_token: string;
-}
+// Login thunk
+export const loginThunk = createAsyncThunk<
+  LoginResponse,
+  LoginRequest,
+  { rejectValue: string }
+>(
+  'auth/login',
+  async (credentials, { rejectWithValue }) => {
+    try {
+      const result = await authService.login(credentials);
+      if (result.success && result.user) {
+        return {
+          user: result.user,
+          accessToken: authService.getAccessToken() || '',
+          refreshToken: localStorage.getItem('refresh_token') || undefined,
+        };
+      } else {
+        return rejectWithValue(result.message || 'Login failed');
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Login failed');
+    }
+  }
+);
 
-export interface RefreshTokenResponse {
-  access_token: string;
-}
+// Logout thunk
+export const logoutThunk = createAsyncThunk<
+  void,
+  void,
+  { rejectValue: string }
+>(
+  'auth/logout',
+  async (_, { rejectWithValue }) => {
+    try {
+      await authService.logout();
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Logout failed');
+    }
+  }
+);
 
-const baseQuery = fetchBaseQuery({
-  baseUrl: '/api/auth',
-});
+// Check auth status thunk
+export const checkAuthStatusThunk = createAsyncThunk<
+  AuthStatusResponse,
+  void,
+  { rejectValue: string }
+>(
+  'auth/checkStatus',
+  async (_, { rejectWithValue }) => {
+    try {
+      const result = await authService.checkAuthStatus();
+      return result;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Auth check failed');
+    }
+  }
+);
 
-export const authApi = createApi({
-  reducerPath: 'authApi',
-  baseQuery,
-  tagTypes: ['Auth'],
-  endpoints: (builder) => ({
-    // Login
-    login: builder.mutation<LoginResponse, LoginRequest>({
-      query: (credentials) => ({
-        url: '/login',
-        method: 'POST',
-        body: credentials,
-      }),
-      invalidatesTags: ['Auth'],
-    }),
-
-    // Register
-    register: builder.mutation<LoginResponse, RegisterRequest>({
-      query: (userData) => ({
-        url: '/register',
-        method: 'POST',
-        body: userData,
-      }),
-      invalidatesTags: ['Auth'],
-    }),
-
-    // Logout
-    logout: builder.mutation<void, void>({
-      query: () => ({
-        url: '/logout',
-        method: 'POST',
-      }),
-      invalidatesTags: ['Auth'],
-    }),
-
-    // Refresh token
-    refreshToken: builder.mutation<RefreshTokenResponse, RefreshTokenRequest>({
-      query: (payload) => ({
-        url: '/refresh',
-        method: 'POST',
-        body: payload,
-      }),
-    }),
-
-    // Verify token
-    verifyToken: builder.query<{ valid: boolean }, void>({
-      query: () => '/verify',
-      providesTags: ['Auth'],
-    }),
-  }),
-});
-
-// Export hooks
-export const {
-  useLoginMutation,
-  useRegisterMutation,
-  useLogoutMutation,
-  useRefreshTokenMutation,
-  useVerifyTokenQuery,
-} = authApi;
+// Refresh token thunk
+export const refreshTokenThunk = createAsyncThunk<
+  string,
+  void,
+  { rejectValue: string }
+>(
+  'auth/refreshToken',
+  async (_, { rejectWithValue }) => {
+    try {
+      const success = await authService.refreshToken();
+      if (success) {
+        return authService.getAccessToken() || '';
+      } else {
+        return rejectWithValue('Token refresh failed');
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Token refresh failed');
+    }
+  }
+);

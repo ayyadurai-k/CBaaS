@@ -7,15 +7,16 @@
  * - Profile picture management
  * - Organization data
  * 
- * This slice works in conjunction with RTK Query for data fetching
- * but maintains the normalized state for UI consistency.
+ * This slice works with Redux thunks using our existing service layer.
  */
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { UserDTO } from '@/apis/UsersAPI';
+import { User } from '@/services/UsersService';
+import { getUserProfileThunk, updateProfileThunk } from '../services/userApi';
 
 export interface UserState {
-  profile: UserDTO | null;
+  profile: User | null;
   isLoading: boolean;
   isUpdating: boolean;
   isUploadingPicture: boolean;
@@ -38,74 +39,8 @@ export const userSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
-    // Profile fetch actions
-    fetchProfileStart: (state) => {
-      state.isLoading = true;
-      state.error = null;
-    },
-    fetchProfileSuccess: (state, action: PayloadAction<UserDTO>) => {
-      state.profile = action.payload;
-      state.isLoading = false;
-      state.error = null;
-      state.lastUpdated = Date.now();
-    },
-    fetchProfileFailure: (state, action: PayloadAction<string>) => {
-      state.isLoading = false;
-      state.error = action.payload;
-    },
-
-    // Profile update actions
-    updateProfileStart: (state) => {
-      state.isUpdating = true;
-      state.error = null;
-    },
-    updateProfileSuccess: (state, action: PayloadAction<UserDTO>) => {
-      state.profile = action.payload;
-      state.isUpdating = false;
-      state.error = null;
-      state.lastUpdated = Date.now();
-    },
-    updateProfileFailure: (state, action: PayloadAction<string>) => {
-      state.isUpdating = false;
-      state.error = action.payload;
-    },
-
-    // Profile picture actions
-    uploadPictureStart: (state) => {
-      state.isUploadingPicture = true;
-      state.error = null;
-    },
-    uploadPictureSuccess: (state, action: PayloadAction<UserDTO>) => {
-      state.profile = action.payload;
-      state.isUploadingPicture = false;
-      state.error = null;
-      state.profilePictureVersion = Date.now();
-      state.lastUpdated = Date.now();
-    },
-    uploadPictureFailure: (state, action: PayloadAction<string>) => {
-      state.isUploadingPicture = false;
-      state.error = action.payload;
-    },
-
-    // Delete profile picture
-    deletePictureStart: (state) => {
-      state.isUploadingPicture = true;
-      state.error = null;
-    },
-    deletePictureSuccess: (state, action: PayloadAction<UserDTO>) => {
-      state.profile = action.payload;
-      state.isUploadingPicture = false;
-      state.error = null;
-      state.profilePictureVersion = Date.now();
-      state.lastUpdated = Date.now();
-    },
-    deletePictureFailure: (state, action: PayloadAction<string>) => {
-      state.isUploadingPicture = false;
-      state.error = action.payload;
-    },
-
     // Update profile field (for optimistic updates)
-    updateProfileField: (state, action: PayloadAction<Partial<UserDTO>>) => {
+    updateProfileField: (state, action: PayloadAction<Partial<User>>) => {
       if (state.profile) {
         state.profile = { ...state.profile, ...action.payload };
       }
@@ -130,28 +65,93 @@ export const userSlice = createSlice({
     updateProfilePictureVersion: (state) => {
       state.profilePictureVersion = Date.now();
     },
+
+    // Profile picture actions (for picture upload/delete operations)
+    uploadPictureStart: (state) => {
+      state.isUploadingPicture = true;
+      state.error = null;
+    },
+    uploadPictureSuccess: (state, action: PayloadAction<User>) => {
+      state.profile = action.payload;
+      state.isUploadingPicture = false;
+      state.error = null;
+      state.profilePictureVersion = Date.now();
+      state.lastUpdated = Date.now();
+    },
+    uploadPictureFailure: (state, action: PayloadAction<string>) => {
+      state.isUploadingPicture = false;
+      state.error = action.payload;
+    },
+
+    deletePictureStart: (state) => {
+      state.isUploadingPicture = true;
+      state.error = null;
+    },
+    deletePictureSuccess: (state, action: PayloadAction<User>) => {
+      state.profile = action.payload;
+      state.isUploadingPicture = false;
+      state.error = null;
+      state.profilePictureVersion = Date.now();
+      state.lastUpdated = Date.now();
+    },
+    deletePictureFailure: (state, action: PayloadAction<string>) => {
+      state.isUploadingPicture = false;
+      state.error = action.payload;
+    },
+  },
+  extraReducers: (builder) => {
+    // Get user profile thunk
+    builder
+      .addCase(getUserProfileThunk.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(getUserProfileThunk.fulfilled, (state, action) => {
+        state.profile = action.payload;
+        state.isLoading = false;
+        state.error = null;
+        state.lastUpdated = Date.now();
+      })
+      .addCase(getUserProfileThunk.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Failed to fetch profile';
+      })
+
+    // Update profile thunk
+    builder
+      .addCase(updateProfileThunk.pending, (state) => {
+        state.isUpdating = true;
+        state.error = null;
+      })
+      .addCase(updateProfileThunk.fulfilled, (state, action) => {
+        state.profile = action.payload;
+        state.isUpdating = false;
+        state.error = null;
+        state.lastUpdated = Date.now();
+      })
+      .addCase(updateProfileThunk.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.error = action.payload || 'Failed to update profile';
+      });
   },
 });
 
 // Action creators
 export const {
-  fetchProfileStart,
-  fetchProfileSuccess,
-  fetchProfileFailure,
-  updateProfileStart,
-  updateProfileSuccess,
-  updateProfileFailure,
+  updateProfileField,
+  clearUserError,
+  clearProfile,
+  updateProfilePictureVersion,
   uploadPictureStart,
   uploadPictureSuccess,
   uploadPictureFailure,
   deletePictureStart,
   deletePictureSuccess,
   deletePictureFailure,
-  updateProfileField,
-  clearUserError,
-  clearProfile,
-  updateProfilePictureVersion,
 } = userSlice.actions;
+
+// Export thunks for use in components
+export { getUserProfileThunk, updateProfileThunk };
 
 // Selectors
 export const selectUser = (state: { user: UserState }) => state.user;
