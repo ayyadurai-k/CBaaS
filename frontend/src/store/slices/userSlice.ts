@@ -98,6 +98,38 @@ export const userSlice = createSlice({
       state.isUploadingPicture = false;
       state.error = action.payload;
     },
+
+    // Profile fetch actions (for userThunks compatibility)
+    fetchProfileStart: (state) => {
+      state.isLoading = true;
+      state.error = null;
+    },
+    fetchProfileSuccess: (state, action: PayloadAction<User>) => {
+      state.profile = action.payload;
+      state.isLoading = false;
+      state.error = null;
+      state.lastUpdated = Date.now();
+    },
+    fetchProfileFailure: (state, action: PayloadAction<string>) => {
+      state.isLoading = false;
+      state.error = action.payload;
+    },
+
+    // Profile update actions (for userThunks compatibility)
+    updateProfileStart: (state) => {
+      state.isUpdating = true;
+      state.error = null;
+    },
+    updateProfileSuccess: (state, action: PayloadAction<User>) => {
+      state.profile = action.payload;
+      state.isUpdating = false;
+      state.error = null;
+      state.lastUpdated = Date.now();
+    },
+    updateProfileFailure: (state, action: PayloadAction<string>) => {
+      state.isUpdating = false;
+      state.error = action.payload;
+    },
   },
   extraReducers: (builder) => {
     // Get user profile thunk
@@ -148,6 +180,12 @@ export const {
   deletePictureStart,
   deletePictureSuccess,
   deletePictureFailure,
+  fetchProfileStart,
+  fetchProfileSuccess,
+  fetchProfileFailure,
+  updateProfileStart,
+  updateProfileSuccess,
+  updateProfileFailure,
 } = userSlice.actions;
 
 // Export thunks for use in components
