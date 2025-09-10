@@ -19,11 +19,6 @@ export interface LoginResponse {
   refreshToken?: string;
 }
 
-export interface AuthStatusResponse {
-  authenticated: boolean;
-  user?: AuthUser;
-}
-
 // Login thunk
 export const loginThunk = createAsyncThunk<
   LoginResponse,
@@ -61,23 +56,6 @@ export const logoutThunk = createAsyncThunk<
       await authService.logout();
     } catch (error: any) {
       return rejectWithValue(error.message || 'Logout failed');
-    }
-  }
-);
-
-// Check auth status thunk
-export const checkAuthStatusThunk = createAsyncThunk<
-  AuthStatusResponse,
-  void,
-  { rejectValue: string }
->(
-  'auth/checkStatus',
-  async (_, { rejectWithValue }) => {
-    try {
-      const result = await authService.checkAuthStatus();
-      return result;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Auth check failed');
     }
   }
 );

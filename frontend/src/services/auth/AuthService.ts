@@ -3,7 +3,6 @@ import { LoginAPI, LoginPayload, LoginResponse } from "../../apis/auth/LoginAPI"
 import { SignupAPI, SignupPayload, SignupResponse } from "../../apis/auth/SignupAPI";
 import { LogoutAPI } from "../../apis/auth/LogoutAPI";
 import { ResetAPI, ForgotPasswordPayload, VerifyResetTokenPayload, ResetPasswordPayload } from "../../apis/auth/ResetAPI";
-import { AuthStatusAPI, AuthStatusResponse } from "../../apis/auth/AuthStatusAPI";
 
 export type AuthUser = {
   id: string;
@@ -88,29 +87,6 @@ export class AuthService {
       // Clear local tokens
       localStorage.removeItem(this.ACCESS_TOKEN_KEY);
       localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-    }
-  }
-
-  async checkAuthStatus(): Promise<{ authenticated: boolean; user?: AuthUser }> {
-    try {
-      const token = this.getAccessToken();
-      if (!token) {
-        return { authenticated: false };
-      }
-
-      const { data } = await AuthStatusAPI.getAuthStatus();
-      const user: AuthUser = {
-        ...data.user,
-        full_name: data.user.name,
-      };
-      
-      return { authenticated: true, user };
-    } catch (error: any) {
-      // If auth check fails, clear tokens and return unauthenticated
-      if (error.response?.status === 401) {
-        await this.logout();
-      }
-      return { authenticated: false };
     }
   }
 

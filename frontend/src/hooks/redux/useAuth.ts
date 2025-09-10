@@ -19,7 +19,6 @@ import {
   clearError,
   loginThunk,
   logoutThunk,
-  checkAuthStatusThunk,
   refreshTokenThunk,
 } from '@/store/slices/authSlice';
 import { clearProfile } from '@/store/slices/userSlice';
@@ -66,16 +65,6 @@ export const useAuth = () => {
     dispatch(clearError());
   };
 
-  // Check authentication status
-  const checkAuthStatus = async (): Promise<boolean> => {
-    try {
-      const result = await dispatch(checkAuthStatusThunk()).unwrap();
-      return result.authenticated;
-    } catch (error) {
-      return false;
-    }
-  };
-
   // Refresh token
   const refreshToken = async (): Promise<boolean> => {
     try {
@@ -112,7 +101,6 @@ export const useAuth = () => {
     login,
     logout,
     clearAuthError,
-    checkAuthStatus,
     refreshToken,
     
     // Utilities

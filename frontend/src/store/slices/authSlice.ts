@@ -11,7 +11,7 @@
  */
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { loginThunk, logoutThunk, checkAuthStatusThunk, refreshTokenThunk } from '../services/authApi';
+import { loginThunk, logoutThunk, refreshTokenThunk } from '../services/authApi';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -102,35 +102,6 @@ export const authSlice = createSlice({
         state.lastLoginTime = null;
       })
 
-    // Check auth status thunk
-    builder
-      .addCase(checkAuthStatusThunk.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(checkAuthStatusThunk.fulfilled, (state, action) => {
-        if (action.payload.authenticated) {
-          state.isAuthenticated = true;
-          // Keep existing tokens if available
-          if (!state.accessToken) {
-            state.accessToken = localStorage.getItem('access_token');
-          }
-        } else {
-          state.isAuthenticated = false;
-          state.accessToken = null;
-          state.refreshToken = null;
-        }
-        state.isLoading = false;
-        state.error = null;
-      })
-      .addCase(checkAuthStatusThunk.rejected, (state, action) => {
-        state.isAuthenticated = false;
-        state.accessToken = null;
-        state.refreshToken = null;
-        state.isLoading = false;
-        state.error = action.payload || 'Auth check failed';
-      })
-
     // Refresh token thunk
     builder
       .addCase(refreshTokenThunk.fulfilled, (state, action) => {
@@ -153,7 +124,7 @@ export const {
 } = authSlice.actions;
 
 // Export thunks for use in components
-export { loginThunk, logoutThunk, checkAuthStatusThunk, refreshTokenThunk };
+export { loginThunk, logoutThunk, refreshTokenThunk };
 
 // Selectors - Updated to handle redux-persist partial state
 export const selectAuth = (state: any) => state.auth || initialState;

@@ -8,21 +8,12 @@ interface AuthInitializerProps {
 
 export const AuthInitializer: React.FC<AuthInitializerProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
-  const { checkAuthStatus, isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        await checkAuthStatus();
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-      } finally {
-        setIsInitialized(true);
-      }
-    };
-
-    initializeAuth();
-  }, [checkAuthStatus]);
+    // Simple initialization without auth check
+    setIsInitialized(true);
+  }, []);
 
   if (!isInitialized || isLoading) {
     return (
