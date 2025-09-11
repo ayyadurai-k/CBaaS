@@ -35,7 +35,6 @@ INSTALLED_APPS = [
     "apps.organizations",
     "apps.documents",
     "apps.chatbot",
-    "apps.chatbot_provider",
     "apps.api_keys",
     "apps.chat",
     "apps.search",

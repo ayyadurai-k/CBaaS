@@ -29,7 +29,6 @@ urlpatterns = [
     # Domain
     path("api/", include("apps.documents.urls")),
     path("api/", include("apps.chatbot.urls")),
-    path("api/", include("apps.chatbot_provider.urls")),
     path("api/", include("apps.api_keys.urls")),
     path("api/", include("apps.search.urls")),
     path("api/", include("apps.chat.urls")),
