@@ -4,7 +4,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.db import transaction
 from apps.chatbot.models import Chatbot
-from apps.chatbot_provider.models import ChatbotProvider
+from apps.chatbot.models import Chatbot
 from apps.documents.models import DocumentChunk  # must exist in your documents app
 from common.llm.embeddings import get_embedding
 from common.llm.base import ChatClient
@@ -13,7 +13,7 @@ from common.llm.gemini_client import GeminiChat
 from common.llm.deepseek_client import DeepSeekChat
 
 
-def _pick_client(provider: ChatbotProvider) -> ChatClient:
+def _pick_client(provider: Chatbot) -> ChatClient:
     if provider.provider == "openai":
         return OpenAIChat(model=provider.model_name, api_key=provider.api_key)
     if provider.provider == "gemini":
@@ -81,7 +81,7 @@ def chat_completion(*, org, payload: Dict, model_override: str | None = None) ->
             "system_instructions": "",
         },
     )[0]
-    provider = ChatbotProvider.objects.filter(chatbot=bot).first()
+    provider = Chatbot.objects.filter(chatbot=bot).first()
     if not provider:
         raise RuntimeError("Chatbot provider not configured")
 
@@ -132,7 +132,7 @@ def chat_stream(
             "system_instructions": "",
         },
     )[0]
-    provider = ChatbotProvider.objects.filter(chatbot=bot).first()
+    provider = Chatbot.objects.filter(chatbot=bot).first()
     if not provider:
         yield ("error", {"detail": "Chatbot provider not configured"})
         return

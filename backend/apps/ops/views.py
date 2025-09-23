@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from django.db import connections
 from django.conf import settings
 
-from apps.chatbot_provider.models import ChatbotProvider
+from apps.chatbot.models import Chatbot
 from common.services.logging_service import logging_service, log_api_call, log_performance
 
 import redis
@@ -168,7 +168,7 @@ class ReadyzView(APIView):
         try:
             @log_performance("provider_readiness_check")
             def check_provider():
-                if ChatbotProvider.objects.exists():
+                if Chatbot.objects.exists():
                     return "configured"
                 return "missing"
             
