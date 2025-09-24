@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from apps.users.models import User
 from apps.auth.reset.serializers import ForgotSerializer, ResetSerializer, VerifySerializer
 from apps.auth.reset.models import PasswordResetToken
-from common.services.email import postmark_service
+from common.services.email import smtp_service
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +42,12 @@ class ForgotView(APIView):
         if frontend_url:
             query = urlencode({"token": raw, "email": user.email})
             reset_url = f"{frontend_url.rstrip('/')}/reset-password?{query}"
-            
-            # Send email via Postmark with professional template
-            result = postmark_service.send_password_reset_email(
+
+            # Send email via SMTP with professional template
+            result = smtp_service.send_password_reset_email(
                 to_email=user.email,
                 reset_url=reset_url,
-                user_name=f"{user.name}".strip() or None
+                user_name=f"{user.name}".strip() or None,
             )
             
             if not result.get("success"):
@@ -57,7 +57,7 @@ class ForgotView(APIView):
             # Fallback: log warning if FRONTEND_URL is not configured
             logger.warning("FRONTEND_URL not set; cannot send password reset email")
 
-        return Response({"message": "If an account with this email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
+        return Response({"message": "If an accouant with this email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
 
 
 class VerifyView(APIView):
