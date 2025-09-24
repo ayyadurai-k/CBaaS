@@ -7,9 +7,7 @@ from apps.api_keys.serializers import APIKeySerializer, APIKeyCreateSerializer
 
 class APIKeyListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsOwnerOrAdmin]
-
-    def get_queryset(self):
-        return APIKey.objects.all()
+    queryset = APIKey.objects.all()  # Will be filtered by OrganizationFilterBackend
 
     def get_serializer_class(self):
         return (
@@ -31,7 +29,7 @@ class APIKeyListCreateView(generics.ListCreateAPIView):
 
 class APIKeyRevokeView(generics.UpdateAPIView):
     permission_classes = [IsOwnerOrAdmin]
-    queryset = APIKey.objects.all()
+    queryset = APIKey.objects.all()  # Will be filtered by OrganizationFilterBackend
 
     def patch(self, request, *args, **kwargs):
         key = self.get_object()
@@ -42,4 +40,4 @@ class APIKeyRevokeView(generics.UpdateAPIView):
 
 class APIKeyDeleteView(generics.DestroyAPIView):
     permission_classes = [IsOwnerOrAdmin]
-    queryset = APIKey.objects.all()
+    queryset = APIKey.objects.all()  # Will be filtered by OrganizationFilterBackend

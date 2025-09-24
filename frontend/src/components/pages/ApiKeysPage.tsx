@@ -1,124 +1,149 @@
 
-import React, { useState } from 'react';
-import { Key, Plus, Copy, Trash2, Eye, EyeOff, X, AlertTriangle, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Key, Plus, Copy, Trash2, X, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
+import { APIKeysAPI, APIKeyDTO, CreateAPIKeyPayload, APIKeyScope } from '@/apis/ApiKeysAPI';
 
 interface ApiKey {
   id: string;
   name: string;
-  key: string;
-  maskedKey: string;
-  createdDate: string;
-  usageQuota: string;
+  created_at: string;
+  usage_count: number;
+  quota?: number;
   status: 'active' | 'revoked';
-  expirationDate?: string;
-  scope: string;
+  scope: APIKeyScope;
 }
 
-const mockApiKeys: ApiKey[] = [
-  {
-    id: '1',
-    name: 'Production Key',
-    key: 'sk-1234567890abcdef1234567890abcdef',
-    maskedKey: 'sk-••••••••••••••••••••••••••••cdef',
-    createdDate: '2024-01-15',
-    usageQuota: '8,432 / 10,000',
-    status: 'active',
-    scope: 'Full Access'
-  },
-  {
-    id: '2',
-    name: 'Development Key',
-    key: 'sk-abcdef1234567890abcdef1234567890',
-    maskedKey: 'sk-••••••••••••••••••••••••••••7890',
-    createdDate: '2024-01-10',
-    usageQuota: '1,205 / 5,000',
-    status: 'active',
-    scope: 'Read-only'
-  }
-];
+// State for API key management
+interface NewApiKeyModalData {
+  show: boolean;
+  createdKey?: string; // The actual API key (only shown once)
+}
 
 export const ApiKeysPage: React.FC = () => {
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>(mockApiKeys);
-  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [newKeyModal, setNewKeyModal] = useState<NewApiKeyModalData>({ show: false });
   const [showConfirmModal, setShowConfirmModal] = useState<{ type: 'revoke' | 'delete', keyId: string, keyName: string } | null>(null);
   const [copiedStates, setCopiedStates] = useState<Set<string>>(new Set());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form state for new API key
   const [keyName, setKeyName] = useState('');
   const [usageQuota, setUsageQuota] = useState('');
-  const [expirationDate, setExpirationDate] = useState('');
-  const [scope, setScope] = useState('full-access');
+  const [scope, setScope] = useState<APIKeyScope>('full-access');
 
-  const toggleKeyVisibility = (keyId: string) => {
-    const newVisibleKeys = new Set(visibleKeys);
-    if (newVisibleKeys.has(keyId)) {
-      newVisibleKeys.delete(keyId);
-    } else {
-      newVisibleKeys.add(keyId);
+  // Load API keys from backend
+  useEffect(() => {
+    loadApiKeys();
+  }, []);
+
+  const loadApiKeys = async () => {
+    try {
+      setLoading(true);
+      const response = await APIKeysAPI.getAll();
+      console.log('API Response:', response);
+      console.log('API Response Data:', response.data);
+      
+      // Handle paginated response structure
+      const responseData = response.data;
+      let keysData: ApiKey[] = [];
+      
+      if (responseData && typeof responseData === 'object') {
+        // Check if it's a paginated response
+        if ('results' in responseData && Array.isArray(responseData.results)) {
+          keysData = responseData.results;
+          console.log('Paginated response - results:', keysData);
+        } else if (Array.isArray(responseData)) {
+          // Handle direct array response (non-paginated)
+          keysData = responseData;
+          console.log('Direct array response:', keysData);
+        }
+      }
+      
+      console.log('Final keysData:', keysData);
+      setApiKeys(keysData);
+    } catch (error) {
+      console.error('Failed to load API keys:', error);
+      // Ensure apiKeys is set to empty array on error
+      setApiKeys([]);
+      toast({
+        title: "Error",
+        description: "Failed to load API keys. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setVisibleKeys(newVisibleKeys);
   };
 
-  const copyToClipboard = (text: string, keyId: string) => {
+
+
+  const copyToClipboard = (text: string, itemId: string) => {
     navigator.clipboard.writeText(text);
     
     // Add to copied states
-    setCopiedStates(prev => new Set(prev).add(keyId));
+    setCopiedStates(prev => new Set(prev).add(itemId));
     
     // Remove after animation
     setTimeout(() => {
       setCopiedStates(prev => {
         const newSet = new Set(prev);
-        newSet.delete(keyId);
+        newSet.delete(itemId);
         return newSet;
       });
     }, 2000);
 
     toast({
       title: "Copied to clipboard",
-      description: "API key has been copied to your clipboard",
+      description: "Content has been copied to your clipboard",
     });
   };
 
-  const handleConfirmAction = () => {
+  const handleConfirmAction = async () => {
     if (!showConfirmModal) return;
 
-    const { type, keyId } = showConfirmModal;
+    const { type, keyId, keyName } = showConfirmModal;
     
-    if (type === 'revoke') {
-      setApiKeys(apiKeys.map(key => 
-        key.id === keyId ? { ...key, status: 'revoked' as const } : key
-      ));
+    try {
+      setIsSubmitting(true);
+      
+      if (type === 'revoke') {
+        await APIKeysAPI.revoke(keyId);
+        toast({
+          title: "API key revoked",
+          description: `${keyName} has been revoked and is no longer active`,
+        });
+      } else if (type === 'delete') {
+        await APIKeysAPI.remove(keyId);
+        toast({
+          title: "API key deleted",
+          description: `${keyName} has been permanently deleted`,
+        });
+      }
+      
+      // Reload the API keys list to get updated pagination
+      await loadApiKeys();
+    } catch (error) {
+      console.error(`Failed to ${type} API key:`, error);
       toast({
-        title: "API key revoked",
-        description: "The API key has been revoked and is no longer active",
+        title: "Error",
+        description: `Failed to ${type} API key. Please try again.`,
+        variant: "destructive",
       });
-    } else if (type === 'delete') {
-      setApiKeys(apiKeys.filter(key => key.id !== keyId));
-      toast({
-        title: "API key deleted",
-        description: "The API key has been permanently deleted",
-      });
+    } finally {
+      setIsSubmitting(false);
+      setShowConfirmModal(null);
     }
-    
-    setShowConfirmModal(null);
   };
 
-  const generateRandomKey = () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = 'sk-';
-    for (let i = 0; i < 48; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  };
 
-  const handleGenerateKey = () => {
+
+  const handleGenerateKey = async () => {
     if (!keyName.trim()) {
       toast({
         title: "Error",
@@ -128,40 +153,74 @@ export const ApiKeysPage: React.FC = () => {
       return;
     }
 
-    const newKey = generateRandomKey();
-    const newApiKey: ApiKey = {
-      id: Date.now().toString(),
-      name: keyName,
-      key: newKey,
-      maskedKey: newKey.substring(0, 3) + '••••••••••••••••••••••••••••' + newKey.substring(newKey.length - 4),
-      createdDate: new Date().toISOString().split('T')[0],
-      usageQuota: usageQuota ? `0 / ${usageQuota}` : '0 / ∞',
-      status: 'active',
-      expirationDate: expirationDate || undefined,
-      scope: scope === 'full-access' ? 'Full Access' : scope === 'read-only' ? 'Read-only' : 'Upload-only'
-    };
-
-    setApiKeys([newApiKey, ...apiKeys]);
-    
-    // Reset form
-    setKeyName('');
-    setUsageQuota('');
-    setExpirationDate('');
-    setScope('full-access');
-    setShowGenerateModal(false);
-
-    toast({
-      title: "API key created successfully",
-      description: "Your new API key has been generated and is ready to use",
-    });
+    try {
+      setIsSubmitting(true);
+      
+      const payload: CreateAPIKeyPayload = {
+        name: keyName.trim(),
+        scope,
+        ...(usageQuota && { quota: parseInt(usageQuota) })
+      };
+      
+      const response = await APIKeysAPI.create(payload);
+      const newApiKey = response.data;
+      
+      // Show the created key in a modal (only time it's visible)
+      if (newApiKey.api_key) {
+        setNewKeyModal({ 
+          show: true, 
+          createdKey: newApiKey.api_key 
+        });
+      }
+      
+      // Reload the API keys list to get updated pagination
+      await loadApiKeys();
+      
+      // Reset form and close modal
+      resetModal();
+      
+      toast({
+        title: "API key created successfully",
+        description: "Your new API key has been generated. Make sure to copy it now!",
+      });
+    } catch (error: any) {
+      console.error('Failed to create API key:', error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.name?.[0] || "Failed to create API key. Please try again.";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetModal = () => {
     setKeyName('');
     setUsageQuota('');
-    setExpirationDate('');
     setScope('full-access');
     setShowGenerateModal(false);
+  };
+
+  const getScopeDisplay = (scope: APIKeyScope): string => {
+    switch (scope) {
+      case 'full-access': return 'Full Access';
+      case 'read-only': return 'Read-only';
+      case 'upload-only': return 'Upload-only';
+      default: return scope;
+    }
+  };
+
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatUsage = (usageCount: number, quota?: number): string => {
+    if (quota) {
+      return `${usageCount.toLocaleString()} / ${quota.toLocaleString()}`;
+    }
+    return `${usageCount.toLocaleString()} / ∞`;
   };
 
   return (
@@ -187,7 +246,6 @@ export const ApiKeysPage: React.FC = () => {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Name</th>
-                <th className="text-left py-4 px-6 font-semibold text-slate-900">API Key</th>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Created</th>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Usage</th>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Scope</th>
@@ -196,84 +254,88 @@ export const ApiKeysPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {apiKeys.map((apiKey) => (
-                <tr key={apiKey.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-4 px-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                        <Key className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <span className="font-medium text-slate-900">{apiKey.name}</span>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center">
+                    <div className="flex items-center justify-center space-x-2 text-slate-500">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Loading API keys...</span>
                     </div>
                   </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center space-x-2">
-                      <code className="text-sm font-mono text-slate-600 bg-slate-50 px-2 py-1 rounded">
-                        {visibleKeys.has(apiKey.id) ? apiKey.key : apiKey.maskedKey}
-                      </code>
-                      <button
-                        onClick={() => toggleKeyVisibility(apiKey.id)}
-                        className="p-1 text-slate-500 hover:text-slate-700 transition-colors"
-                      >
-                        {visibleKeys.has(apiKey.id) ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                      <div className="relative">
-                        <button
-                          onClick={() => copyToClipboard(apiKey.key, apiKey.id)}
-                          className={`p-1 text-slate-500 hover:text-slate-700 transition-all duration-200 ${
-                            copiedStates.has(apiKey.id) ? 'scale-110' : 'scale-100'
-                          }`}
-                        >
-                          {copiedStates.has(apiKey.id) ? (
-                            <Check className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </button>
-                        {copiedStates.has(apiKey.id) && (
-                          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded animate-fade-in">
-                            Copied!
-                          </div>
+                </tr>
+              ) : apiKeys.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-500">
+                    <div className="flex flex-col items-center space-y-2">
+                      <Key className="w-8 h-8 text-slate-300" />
+                      <p>No API keys found</p>
+                      <p className="text-sm">Create your first API key to get started</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : Array.isArray(apiKeys) && apiKeys.length > 0 ? (
+                apiKeys.map((apiKey) => (
+                  <tr key={apiKey.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                          <Key className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <span className="font-medium text-slate-900">{apiKey.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-slate-600">{formatDate(apiKey.created_at)}</td>
+                    <td className="py-4 px-6 text-slate-600">{formatUsage(apiKey.usage_count, apiKey.quota)}</td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                        {getScopeDisplay(apiKey.scope)}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        apiKey.status === 'active' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {apiKey.status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-2">
+                        {apiKey.status === 'active' && (
+                          <button 
+                            onClick={() => setShowConfirmModal({ type: 'revoke', keyId: apiKey.id, keyName: apiKey.name })}
+                            className="p-2 text-slate-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                          >
+                            <AlertTriangle className="w-4 h-4" />
+                          </button>
                         )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-slate-600">{apiKey.createdDate}</td>
-                  <td className="py-4 px-6 text-slate-600">{apiKey.usageQuota}</td>
-                  <td className="py-4 px-6">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                      {apiKey.scope}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      apiKey.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {apiKey.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center space-x-2">
-                      {apiKey.status === 'active' && (
                         <button 
-                          onClick={() => setShowConfirmModal({ type: 'revoke', keyId: apiKey.id, keyName: apiKey.name })}
-                          className="p-2 text-slate-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                          onClick={() => setShowConfirmModal({ type: 'delete', keyId: apiKey.id, keyName: apiKey.name })}
+                          className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         >
-                          <AlertTriangle className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-500">
+                    <div className="flex flex-col items-center space-y-2">
+                      <Key className="w-8 h-8 text-slate-300" />
+                      <p>Something went wrong loading API keys</p>
                       <button 
-                        onClick={() => setShowConfirmModal({ type: 'delete', keyId: apiKey.id, keyName: apiKey.name })}
-                        className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        onClick={loadApiKeys}
+                        className="text-blue-600 hover:text-blue-800 text-sm underline"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        Try again
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -284,21 +346,29 @@ export const ApiKeysPage: React.FC = () => {
         <h3 className="text-lg font-semibold text-slate-900 mb-4">Usage Example</h3>
         <div className="bg-slate-900 rounded-xl p-4 overflow-x-auto relative">
           <pre className="text-sm text-slate-300">
-            <code>{`curl -X POST https://api.chatflow.com/v1/chat \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+            <code>{`curl -X POST https://api.yourdomain.com/api/chat/completions \\
+  -H "X-API-Key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: unique-request-id" \\
   -d '{
-    "message": "What is our vacation policy?",
-    "conversation_id": "optional-conversation-id"
+    "messages": [
+      {"role": "user", "content": "What is our vacation policy?"}
+    ],
+    "max_tokens": 512,
+    "temperature": 0.2
   }'`}</code>
           </pre>
           <button
-            onClick={() => copyToClipboard(`curl -X POST https://api.chatflow.com/v1/chat \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+            onClick={() => copyToClipboard(`curl -X POST https://api.yourdomain.com/api/chat/completions \\
+  -H "X-API-Key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: unique-request-id" \\
   -d '{
-    "message": "What is our vacation policy?",
-    "conversation_id": "optional-conversation-id"
+    "messages": [
+      {"role": "user", "content": "What is our vacation policy?"}
+    ],
+    "max_tokens": 512,
+    "temperature": 0.2
   }'`, 'example')}
             className={`absolute top-3 right-3 p-2 text-slate-400 hover:text-white transition-all duration-200 ${
               copiedStates.has('example') ? 'scale-110' : 'scale-100'
@@ -357,26 +427,13 @@ export const ApiKeysPage: React.FC = () => {
               </div>
 
               <div>
-                <Label htmlFor="expiration-date" className="text-sm font-medium text-slate-700">
-                  Expiration Date (Optional)
-                </Label>
-                <Input
-                  id="expiration-date"
-                  type="date"
-                  value={expirationDate}
-                  onChange={(e) => setExpirationDate(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
                 <Label htmlFor="scope" className="text-sm font-medium text-slate-700">
                   Scope
                 </Label>
                 <select
                   id="scope"
                   value={scope}
-                  onChange={(e) => setScope(e.target.value)}
+                  onChange={(e) => setScope(e.target.value as APIKeyScope)}
                   className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="full-access">Full Access</option>
@@ -395,9 +452,17 @@ export const ApiKeysPage: React.FC = () => {
                 </Button>
                 <Button
                   onClick={handleGenerateKey}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-50"
                 >
-                  Generate Key
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Generate Key'
+                  )}
                 </Button>
               </div>
             </div>
@@ -440,15 +505,87 @@ export const ApiKeysPage: React.FC = () => {
               </Button>
               <Button
                 onClick={handleConfirmAction}
+                disabled={isSubmitting}
                 className={`flex-1 rounded-xl ${
                   showConfirmModal.type === 'revoke' 
                     ? 'bg-yellow-600 hover:bg-yellow-700' 
                     : 'bg-red-600 hover:bg-red-700'
-                } text-white`}
+                } text-white disabled:opacity-50`}
               >
-                {showConfirmModal.type === 'revoke' ? 'Revoke' : 'Delete'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {showConfirmModal.type === 'revoke' ? 'Revoking...' : 'Deleting...'}
+                  </>
+                ) : (
+                  showConfirmModal.type === 'revoke' ? 'Revoke' : 'Delete'
+                )}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* New API Key Display Modal - Shows the key only once */}
+      {newKeyModal.show && newKeyModal.createdKey && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
+                <Check className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">API Key Created!</h3>
+                <p className="text-sm text-slate-600">Copy your key now - it won't be shown again</p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                Your API Key
+              </Label>
+              <div className="flex items-center space-x-2 p-3 bg-slate-50 rounded-xl border">
+                <code className="flex-1 text-sm font-mono text-slate-900 break-all">
+                  {newKeyModal.createdKey}
+                </code>
+                <div className="relative">
+                  <button
+                    onClick={() => copyToClipboard(newKeyModal.createdKey!, 'new-key')}
+                    className={`p-2 text-slate-500 hover:text-slate-700 transition-all duration-200 ${
+                      copiedStates.has('new-key') ? 'scale-110' : 'scale-100'
+                    }`}
+                  >
+                    {copiedStates.has('new-key') ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </button>
+                  {copiedStates.has('new-key') && (
+                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded animate-fade-in">
+                      Copied!
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium mb-1">Important Security Notice</p>
+                  <p>This is the only time you'll see this API key. Make sure to copy and store it securely.</p>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => setNewKeyModal({ show: false })}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+            >
+              I've Copied My Key
+            </Button>
           </div>
         </div>
       )}

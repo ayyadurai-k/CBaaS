@@ -13,7 +13,7 @@ export type APIKeyDTO = {
   quota?: number;
   scope: APIKeyScope;
   created_at: string;
-  plaintext?: string; // Only available when creating
+  api_key?: string; // Only available when creating
 };
 
 export type CreateAPIKeyPayload = {
@@ -22,15 +22,22 @@ export type CreateAPIKeyPayload = {
   scope: APIKeyScope;
 };
 
+export type APIKeysPaginatedResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: APIKeyDTO[];
+};
+
 export const APIKeysAPI = {
-  getAll: (): Promise<AxiosResponse<APIKeyDTO[]>> => 
-    api.get<APIKeyDTO[]>("/keys/"),
+  getAll: (): Promise<AxiosResponse<APIKeysPaginatedResponse>> => 
+    api.get<APIKeysPaginatedResponse>("/keys/"),
   
   create: (payload: CreateAPIKeyPayload): Promise<AxiosResponse<APIKeyDTO>> => 
     api.post<APIKeyDTO>("/keys/", payload),
   
-  revoke: (id: string): Promise<AxiosResponse<APIKeyDTO>> => 
-    api.post<APIKeyDTO>(`/keys/${id}/revoke/`, {}),
+  revoke: (id: string): Promise<AxiosResponse<void>> => 
+    api.patch<void>(`/keys/${id}/revoke/`, {}),
   
   remove: (id: string): Promise<AxiosResponse<void>> => 
     api.delete<void>(`/keys/${id}/`),
