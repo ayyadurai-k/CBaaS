@@ -156,7 +156,7 @@ ENCRYPTION_SECRET_KEY = os.environ.get("ENCRYPTION_SECRET_KEY", "")
 
 # Email
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.example.com"
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv("SMTP_USER")
@@ -218,17 +218,49 @@ CORS_ALLOW_CREDENTIALS = True
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:8080")
 
-# ---- Email Configuration (Postmark) ----
-POSTMARK_API_KEY = os.environ.get("POSTMARK_API_KEY")
-POSTMARK_FROM_EMAIL = os.environ.get("POSTMARK_FROM_EMAIL")
-
-# Email settings for Django (fallback)
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"  # For development
-DEFAULT_FROM_EMAIL = POSTMARK_FROM_EMAIL
 
 # ---- Logging Configuration ----
-from common.utils.logging_config import get_logging_config
-LOGGING = get_logging_config()
+# from common.utils.logging_config import get_logging_config
+# LOGGING = get_logging_config()
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,  # don't override Django's default loggers
+    "formatters": {
+        "standard": {
+            "format": "[{asctime}] {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "logs", "django.log"),
+            "formatter": "standard",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "django.request": {  # capture 5xx errors
+            "handlers": ["file"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "apps": {  # replace with your app name
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}
 
 # Logging settings for request/response middleware
 LOG_REQUEST_BODY = os.environ.get("LOG_REQUEST_BODY", "true").lower() == "true"
