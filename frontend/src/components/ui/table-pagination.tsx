@@ -20,7 +20,7 @@ interface TablePaginationProps {
 export const TablePagination: React.FC<TablePaginationProps> = ({
   paginationData,
   currentPage,
-  pageSize = 25,
+  pageSize = 5,
   onPageChange,
   isLoading = false,
 }) => {
