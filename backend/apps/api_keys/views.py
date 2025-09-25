@@ -24,7 +24,7 @@ class APIKeyListCreateView(generics.ListCreateAPIView):
         key = serializer.save()
         data = APIKeySerializer(key).data
         data["api_key"] = getattr(key, "_plaintext", None)
-        return Response(data, status=201)
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class APIKeyRevokeView(generics.UpdateAPIView):
@@ -35,7 +35,7 @@ class APIKeyRevokeView(generics.UpdateAPIView):
         key = self.get_object()
         key.status = APIKey.Status.REVOKED
         key.save(update_fields=["status"])
-        return Response(status=204)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class APIKeyDeleteView(generics.DestroyAPIView):
