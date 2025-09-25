@@ -30,8 +30,8 @@ export type APIKeysPaginatedResponse = {
 };
 
 export const APIKeysAPI = {
-  getAll: (): Promise<AxiosResponse<APIKeysPaginatedResponse>> => 
-    api.get<APIKeysPaginatedResponse>("/keys/"),
+  getAll: (params?: { page?: number; page_size?: number }): Promise<AxiosResponse<APIKeysPaginatedResponse>> => 
+    api.get<APIKeysPaginatedResponse>("/keys/", { params }),
   
   create: (payload: CreateAPIKeyPayload): Promise<AxiosResponse<APIKeyDTO>> => 
     api.post<APIKeyDTO>("/keys/", payload),

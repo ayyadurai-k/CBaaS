@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Key, Plus, Copy, Trash2, X, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { APIKeysAPI, CreateAPIKeyPayload, APIKeyScope } from '@/apis/ApiKeysAPI';
+import { TablePagination, PaginationData } from '@/components/ui/table-pagination';
 
 interface ApiKey {
   id: string;
@@ -17,7 +17,6 @@ interface ApiKey {
   scope: APIKeyScope;
 }
 
-// State for API key management
 interface NewApiKeyModalData {
   show: boolean;
   createdKey?: string; // The actual API key (only shown once)
@@ -31,6 +30,13 @@ export const ApiKeysPage: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState<{ type: 'revoke' | 'delete', keyId: string, keyName: string } | null>(null);
   const [copiedStates, setCopiedStates] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationData, setPaginationData] = useState<PaginationData>({
+    count: 0,
+    next: null,
+    previous: null,
+    results: [],
+  });
   
   // Form state for new API key
   const [keyName, setKeyName] = useState('');
@@ -42,30 +48,37 @@ export const ApiKeysPage: React.FC = () => {
     loadApiKeys();
   }, []);
 
-  const loadApiKeys = async () => {
+  const loadApiKeys = async (page: number = 1) => {
     try {
       setLoading(true);
-      const response = await APIKeysAPI.getAll();
+      const response = await APIKeysAPI.getAll({ page });
       
-      // Handle paginated response structure
       const responseData = response.data;
-      let keysData: ApiKey[] = [];
       
-      if (responseData && typeof responseData === 'object') {
-        // Check if it's a paginated response
-        if ('results' in responseData && Array.isArray(responseData.results)) {
-          keysData = responseData.results;
-        } else if (Array.isArray(responseData)) {
-          // Handle direct array response (non-paginated)
-          keysData = responseData;
-        }
+      if (responseData && typeof responseData === 'object' && 'results' in responseData) {
+        // Paginated response
+        setApiKeys(responseData.results);
+        setPaginationData(responseData);
+        setCurrentPage(page);
+      } else if (Array.isArray(responseData)) {
+        // Direct array response (fallback)
+        setApiKeys(responseData);
+        setPaginationData({
+          count: responseData.length,
+          next: null,
+          previous: null,
+          results: responseData,
+        });
       }
-      
-      setApiKeys(keysData);
     } catch (error) {
       console.error('Failed to load API keys:', error);
-      // Ensure apiKeys is set to empty array on error
       setApiKeys([]);
+      setPaginationData({
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+      });
       toast({
         title: "Error",
         description: "Failed to load API keys. Please try again.",
@@ -121,8 +134,12 @@ export const ApiKeysPage: React.FC = () => {
         });
       }
       
-      // Reload the API keys list to get updated pagination
-      await loadApiKeys();
+      // If we deleted the last item on current page, go to previous page
+      if (type === 'delete' && apiKeys.length === 1 && currentPage > 1) {
+        await loadApiKeys(currentPage - 1);
+      } else {
+        await loadApiKeys(currentPage);
+      }
     } catch (error) {
       console.error(`Failed to ${type} API key:`, error);
       toast({
@@ -168,11 +185,11 @@ export const ApiKeysPage: React.FC = () => {
         });
       }
       
-      // Reload the API keys list to get updated pagination
-      await loadApiKeys();
-      
       // Reset form and close modal
       resetModal();
+      
+      // Go to first page to see the new key
+      await loadApiKeys(1);
       
       toast({
         title: "API key created successfully",
@@ -216,6 +233,10 @@ export const ApiKeysPage: React.FC = () => {
       return `${usageCount.toLocaleString()} / ${quota.toLocaleString()}`;
     }
     return `${usageCount.toLocaleString()} / ∞`;
+  };
+
+  const handlePageChange = (newPage: number) => {
+    loadApiKeys(newPage);
   };
 
   return (
@@ -268,7 +289,7 @@ export const ApiKeysPage: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              ) : Array.isArray(apiKeys) && apiKeys.length > 0 ? (
+              ) : (
                 apiKeys.map((apiKey) => (
                   <tr key={apiKey.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-4 px-6">
@@ -301,6 +322,7 @@ export const ApiKeysPage: React.FC = () => {
                           <button 
                             onClick={() => setShowConfirmModal({ type: 'revoke', keyId: apiKey.id, keyName: apiKey.name })}
                             className="p-2 text-slate-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                            disabled={isSubmitting}
                           >
                             <AlertTriangle className="w-4 h-4" />
                           </button>
@@ -308,6 +330,7 @@ export const ApiKeysPage: React.FC = () => {
                         <button 
                           onClick={() => setShowConfirmModal({ type: 'delete', keyId: apiKey.id, keyName: apiKey.name })}
                           className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          disabled={isSubmitting}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -315,25 +338,16 @@ export const ApiKeysPage: React.FC = () => {
                     </td>
                   </tr>
                 ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">
-                    <div className="flex flex-col items-center space-y-2">
-                      <Key className="w-8 h-8 text-slate-300" />
-                      <p>Something went wrong loading API keys</p>
-                      <button 
-                        onClick={loadApiKeys}
-                        className="text-blue-600 hover:text-blue-800 text-sm underline"
-                      >
-                        Try again
-                      </button>
-                    </div>
-                  </td>
-                </tr>
               )}
             </tbody>
           </table>
         </div>
+        <TablePagination
+          paginationData={paginationData}
+          currentPage={currentPage}
+          onPageChange={handlePageChange}
+          isLoading={loading}
+        />
       </div>
 
       {/* Usage Example */}
