@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { APIKeysAPI, APIKeyDTO, CreateAPIKeyPayload, APIKeyScope } from '@/apis/ApiKeysAPI';
+import { APIKeysAPI, CreateAPIKeyPayload, APIKeyScope } from '@/apis/ApiKeysAPI';
 
 interface ApiKey {
   id: string;
@@ -46,8 +46,6 @@ export const ApiKeysPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await APIKeysAPI.getAll();
-      console.log('API Response:', response);
-      console.log('API Response Data:', response.data);
       
       // Handle paginated response structure
       const responseData = response.data;
@@ -57,15 +55,12 @@ export const ApiKeysPage: React.FC = () => {
         // Check if it's a paginated response
         if ('results' in responseData && Array.isArray(responseData.results)) {
           keysData = responseData.results;
-          console.log('Paginated response - results:', keysData);
         } else if (Array.isArray(responseData)) {
           // Handle direct array response (non-paginated)
           keysData = responseData;
-          console.log('Direct array response:', keysData);
         }
       }
       
-      console.log('Final keysData:', keysData);
       setApiKeys(keysData);
     } catch (error) {
       console.error('Failed to load API keys:', error);
