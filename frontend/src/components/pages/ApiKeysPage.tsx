@@ -257,9 +257,9 @@ export const ApiKeysPage: React.FC = () => {
 
       {/* API Keys List */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto" style={{ height: '400px' }}>
           <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
               <tr>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Name</th>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Created</th>
