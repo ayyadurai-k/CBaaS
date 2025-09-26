@@ -175,10 +175,10 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 LLM_CHAT_TIMEOUT_S = int(os.environ.get("LLM_CHAT_TIMEOUT_S", 30))
 
 # ---- RAG / retrieval ----
-EMBEDDING_PROVIDER = os.environ.get("EMBEDDING_PROVIDER", "openai")
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
-# MUST match your embedding model; 1536 is correct for OpenAI text-embedding-3-small
-EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", 1536))
+EMBEDDING_PROVIDER = os.environ.get("EMBEDDING_PROVIDER", "gemini")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-004")
+# MUST match your embedding model; 768 is correct for Gemini text-embedding-004
+EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", 768))
 
 TOP_K = int(os.environ.get("TOP_K", 6))
 MAX_CONTEXT_CHARS = int(os.environ.get("MAX_CONTEXT_CHARS", 12000))
