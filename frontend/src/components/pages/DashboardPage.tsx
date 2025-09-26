@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { Upload, FileText, Settings, Users, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const statsData = [
   { name: 'Your Chatbot', value: 'Active', icon: MessageSquare, trend: 'positive' },
@@ -38,6 +39,9 @@ const chartConfig = {
 };
 
 export const DashboardPage: React.FC = () => {
+
+  const navigate = useNavigate();
+  
   return (
     <div className="space-y-8">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -50,11 +54,11 @@ export const DashboardPage: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button variant="outline" className="px-5 py-3">
+          <Button  onClick={()=>navigate("/documents")}  variant="outline" className="px-5 py-3">
             <Upload className="w-4 h-4 mr-2" />
             Upload Document
           </Button>
-          <Button className="px-5 py-3">
+          <Button onClick={()=>navigate("/chatbot")} className="px-5 py-3">
             <Settings className="w-4 h-4 mr-2" />
             Configure Chatbot
           </Button>
