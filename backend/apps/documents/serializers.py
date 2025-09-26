@@ -2,8 +2,7 @@ from rest_framework import serializers
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from common.validators.files import ALLOWED_EXTS
-from .models import Document
-
+from apps.documents.models import Document
 
 class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,7 +13,7 @@ class DocumentSerializer(serializers.ModelSerializer):
 
 class DocumentUploadSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
-    file = serializers.FileField()
+    file = serializers.FileField(write_only=True)
 
     def validate(self, attrs):
         ext = (attrs["file"].name.split(".")[-1] or "").lower()
@@ -38,5 +37,6 @@ class DocumentUploadSerializer(serializers.Serializer):
         )
         from .tasks import process_document
 
-        process_document.delay(str(doc.id))
+        process_document(str(doc.id))
+        # process_document.delay(str(doc.id))
         return doc

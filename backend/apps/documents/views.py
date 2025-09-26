@@ -15,7 +15,8 @@ class DocumentListCreateView(generics.ListCreateAPIView):
     ordering_fields = ["upload_date", "name", "size_bytes"]
 
     def get_queryset(self):
-        return Document.objects.all()
+        # Filter documents by user's organization
+        return Document.objects.filter(organization=self.request.user.organization)
 
     def get_serializer_class(self):
         return (
@@ -30,7 +31,8 @@ class DocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = DocumentSerializer
 
     def get_queryset(self):
-        return Document.objects.all()
+        # Filter documents by user's organization
+        return Document.objects.filter(organization=self.request.user.organization)
 
 
 class DocumentReprocessView(APIView):
@@ -47,5 +49,6 @@ class DocumentReprocessView(APIView):
 
         doc.status = Document.Status.PROCESSING
         doc.save(update_fields=["status"])
-        process_document.delay(str(doc.id))
+        # process_document.delay(str(doc.id))
+        process_document(str(doc.id))
         return Response(status=status.HTTP_202_ACCEPTED)
