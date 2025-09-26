@@ -37,6 +37,6 @@ class DocumentUploadSerializer(serializers.Serializer):
         )
         from .tasks import process_document
 
-        process_document(str(doc.id))
-        # process_document.delay(str(doc.id))
+        # Use asynchronous processing with Celery
+        process_document.delay(str(doc.id))
         return doc

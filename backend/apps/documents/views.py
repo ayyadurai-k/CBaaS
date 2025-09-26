@@ -49,6 +49,5 @@ class DocumentReprocessView(APIView):
 
         doc.status = Document.Status.PROCESSING
         doc.save(update_fields=["status"])
-        # process_document.delay(str(doc.id))
-        process_document(str(doc.id))
+        process_document.delay(str(doc.id))
         return Response(status=status.HTTP_202_ACCEPTED)
