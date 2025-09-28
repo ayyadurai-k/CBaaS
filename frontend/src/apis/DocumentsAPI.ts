@@ -61,20 +61,9 @@ export const DocumentsAPI = {
     api.delete<void>(`/documents/${id}/`),
   
   download: (document: DocumentDTO): Promise<AxiosResponse<Blob>> => {
-    // Try to download via API first, fallback to direct URL
-    return api.get<Blob>(`/documents/${document.id}/`, {
+    // Use the dedicated download endpoint
+    return api.get<Blob>(`/documents/${document.id}/download/`, {
       responseType: 'blob',
-      headers: {
-        'Accept': 'application/octet-stream',
-      }
-    }).catch(() => {
-      // If API download fails, try fetching the direct URL
-      if (document.url) {
-        return api.get<Blob>(document.url, {
-          responseType: 'blob',
-        });
-      }
-      throw new Error('No download URL available');
     });
   },
 };

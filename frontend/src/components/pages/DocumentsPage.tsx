@@ -207,42 +207,84 @@ export const DocumentsPage: React.FC = () => {
     try {
       const response = await DocumentsAPI.download(doc);
       
-      // Create blob URL and download
-      const blob = new Blob([response.data], { type: response.headers['content-type'] });
-      const url = window.URL.createObjectURL(blob);
-      const link = window.document.createElement('a');
-      link.href = url;
-      
-      // Try to extract filename from document name and file_type
-      const filename = doc.name.includes('.') 
-        ? doc.name 
-        : `${doc.name}.${doc.file_type}`;
-      
-      link.setAttribute('download', filename);
-      window.document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Download started",
-        description: "Your document is being downloaded",
-      });
-    } catch (error) {
-      console.error('Failed to download document:', error);
-      // If all download attempts fail, try to open the URL directly
-      if (doc.url) {
-        window.open(doc.url, '_blank');
+      // Handle different response types
+      if (response.data instanceof Blob) {
+        // Direct blob download
+        const blob = response.data;
+        const url = window.URL.createObjectURL(blob);
+        const link = window.document.createElement('a');
+        link.href = url;
+        
+        // Try to get filename from Content-Disposition header or use document name
+        let filename = doc.name;
+        const contentDisposition = response.headers['content-disposition'];
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+          if (filenameMatch) {
+            filename = filenameMatch[1].replace(/['"]/g, '');
+            // Decode if URL encoded
+            try {
+              filename = decodeURIComponent(filename);
+            } catch (e) {
+              // Keep original if decode fails
+            }
+          }
+        }
+        
+        // Ensure filename has proper extension
+        if (!filename.includes('.') && doc.file_type) {
+          filename = `${filename}.${doc.file_type.toLowerCase()}`;
+        }
+        
+        link.setAttribute('download', filename);
+        window.document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        
         toast({
-          title: "Opening document",
-          description: "Document opened in new tab",
+          title: "Download completed",
+          description: `${filename} has been downloaded successfully`,
         });
       } else {
+        // Handle JSON response with external URL
+        const data = response.data as any;
+        if (data.download_url) {
+          window.open(data.download_url, '_blank');
+          toast({
+            title: "Opening document",
+            description: data.message || "Document opened in new tab",
+          });
+        } else {
+          throw new Error('Unexpected response format');
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to download document:', error);
+      
+      // Check if it's a 409 conflict (document not ready)
+      if (error.response?.status === 409) {
+        const errorData = error.response.data;
         toast({
-          title: "Error",
-          description: "Failed to download document. Please try again.",
+          title: "Document not ready",
+          description: `Document is currently ${errorData.status}. Please wait for processing to complete.`,
           variant: "destructive",
         });
+      } else {
+        // Fallback to direct URL if available
+        if (doc.url) {
+          window.open(doc.url, '_blank');
+          toast({
+            title: "Opening document",
+            description: "Document opened in new tab",
+          });
+        } else {
+          toast({
+            title: "Download failed",
+            description: "Failed to download document. Please try again later.",
+            variant: "destructive",
+          });
+        }
       }
     }
   };
