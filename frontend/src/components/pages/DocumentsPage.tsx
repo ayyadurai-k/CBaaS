@@ -13,6 +13,7 @@ import {
   Loader2,
   Plus,
   AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -178,8 +179,13 @@ export const DocumentsPage: React.FC = () => {
         } else if (newDoc.status === "failed") {
           toast({
             title: "Processing failed",
-            description: `Failed to process ${newDoc.name}`,
+            description: `Failed to process ${newDoc.name}. You can try reprocessing it.`,
             variant: "destructive",
+          });
+        } else if (newDoc.status === "processing" && oldDoc.status === "failed") {
+          toast({
+            title: "Reprocessing started",
+            description: `${newDoc.name} is being reprocessed`,
           });
         }
       }
@@ -413,6 +419,41 @@ export const DocumentsPage: React.FC = () => {
           });
         }
       }
+    }
+  };
+
+  const handleReprocess = async (doc: Document) => {
+    try {
+      setIsSubmitting(true);
+      
+      await DocumentsAPI.reprocess(doc.id);
+      
+      toast({
+        title: "Reprocessing started",
+        description: `${doc.name} is being reprocessed. This may take a few moments.`,
+      });
+      
+      // Start polling since we now have a processing document
+      if (!isPolling) {
+        startPolling();
+      }
+      
+      // Reload documents to show updated status
+      await loadDocuments(currentPage, true);
+      
+    } catch (error: any) {
+      console.error("Failed to reprocess document:", error);
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          "Failed to reprocess document. Please try again.";
+      
+      toast({
+        title: "Reprocessing failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -789,6 +830,19 @@ export const DocumentsPage: React.FC = () => {
                           >
                             <Download className="w-4 h-4" />
                           </button>
+                          
+                          {/* Reprocess button - only show for failed documents */}
+                          {document.status === "failed" && (
+                            <button
+                              onClick={() => handleReprocess(document)}
+                              disabled={isSubmitting}
+                              className="p-2 text-slate-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                              title="Reprocess document"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                          )}
+                          
                           {editingDocId !== document.id && (
                             <button
                               onClick={() => handleEditStart(document)}
