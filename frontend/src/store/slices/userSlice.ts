@@ -11,7 +11,6 @@
  */
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { UserDTO } from '@/apis/UsersAPI';
 import { User } from '@/services/UsersService';
 import { getUserProfileThunk, updateProfileThunk } from '../services/userApi';
 

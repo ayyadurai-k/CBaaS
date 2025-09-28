@@ -1,69 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ImageCropper } from '@/components/ui/image-cropper';
-import { toast } from '@/hooks/use-toast';
-import { useProfile } from '@/hooks/redux/useProfile';
-import { UpdateProfilePayload } from '@/apis/UsersAPI';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  Building, 
-  Shield, 
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ImageCropper } from "@/components/ui/image-cropper";
+import { toast } from "@/hooks/use-toast";
+import { useProfile } from "@/hooks/redux/useProfile";
+import { UpdateProfilePayload } from "@/apis/UsersAPI";
+import {
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  Building,
+  Shield,
   Save,
   Loader2,
   Camera,
   Upload,
-  X
-} from 'lucide-react';
+  X,
+} from "lucide-react";
 
 // Helper functions moved outside component to prevent re-declaration on each render
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+  return new Date(dateString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 };
 
 const getRoleBadgeVariant = (role: string) => {
   switch (role.toLowerCase()) {
-    case 'owner':
-      return 'default';
-    case 'admin':
-      return 'secondary';
-    case 'member':
-      return 'outline';
+    case "owner":
+      return "default";
+    case "admin":
+      return "secondary";
+    case "member":
+      return "outline";
     default:
-      return 'outline';
+      return "outline";
   }
 };
 
 export const ProfilePage: React.FC = () => {
-  const { profile, isLoading, isUpdating, isUploadingPicture, error, updateProfile, uploadProfilePicture, deleteProfilePicture, initials, avatarUrl } = useProfile();
+  const {
+    profile,
+    isLoading,
+    isUpdating,
+    isUploadingPicture,
+    error,
+    updateProfile,
+    uploadProfilePicture,
+    deleteProfilePicture,
+    initials,
+    avatarUrl,
+  } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string>("");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [formData, setFormData] = useState({
-    name: '',
-    phone_number: ''
+    name: "",
+    phone_number: "",
   });
 
   // Update form data when profile loads
   useEffect(() => {
     if (profile) {
       setFormData({
-        name: profile.name || '',
-        phone_number: profile.phone_number || ''
+        name: profile.name || "",
+        phone_number: profile.phone_number || "",
       });
     }
   }, [profile]);
@@ -72,17 +83,20 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (error) {
       toast({
-        title: 'Error',
+        title: "Error",
         description: error,
-        variant: 'destructive',
+        variant: "destructive",
       });
     }
   }, [error]);
 
-  const handleInputChange = (field: keyof UpdateProfilePayload, value: string) => {
-    setFormData(prev => ({
+  const handleInputChange = (
+    field: keyof UpdateProfilePayload,
+    value: string
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -90,7 +104,7 @@ export const ProfilePage: React.FC = () => {
     if (!profile) return;
 
     const payload: UpdateProfilePayload = {};
-    
+
     // Only include changed fields
     if (formData.name !== profile.name) {
       payload.name = formData.name;
@@ -109,19 +123,19 @@ export const ProfilePage: React.FC = () => {
     if (success) {
       setIsEditing(false);
       toast({
-        title: 'Success',
-        description: 'Profile updated successfully',
+        title: "Success",
+        description: "Profile updated successfully",
       });
     }
   };
 
   const handleCancel = () => {
     if (!profile) return;
-    
+
     // Reset form data to original values
     setFormData({
-      name: profile.name || '',
-      phone_number: profile.phone_number || ''
+      name: profile.name || "",
+      phone_number: profile.phone_number || "",
     });
     setIsEditing(false);
   };
@@ -131,20 +145,20 @@ export const ProfilePage: React.FC = () => {
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     if (file.size > maxSize) {
       toast({
-        title: 'File too large',
-        description: 'Image size must be less than 5MB',
-        variant: 'destructive',
+        title: "File too large",
+        description: "Image size must be less than 5MB",
+        variant: "destructive",
       });
       return;
     }
 
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast({
-        title: 'Invalid file type',
-        description: 'Please select a JPEG, PNG, or WEBP image',
-        variant: 'destructive',
+        title: "Invalid file type",
+        description: "Please select a JPEG, PNG, or WEBP image",
+        variant: "destructive",
       });
       return;
     }
@@ -157,10 +171,10 @@ export const ProfilePage: React.FC = () => {
 
   const handleCropComplete = async (croppedImageBlob: Blob) => {
     setUploadProgress(0);
-    
+
     // Create artificial delay with progress
     const progressInterval = setInterval(() => {
-      setUploadProgress(prev => {
+      setUploadProgress((prev) => {
         if (prev >= 90) {
           clearInterval(progressInterval);
           return 90;
@@ -170,17 +184,17 @@ export const ProfilePage: React.FC = () => {
     }, 200);
 
     // Convert blob to file
-    const croppedFile = new File([croppedImageBlob], 'profile-picture.jpg', {
-      type: 'image/jpeg',
+    const croppedFile = new File([croppedImageBlob], "profile-picture.jpg", {
+      type: "image/jpeg",
     });
 
     try {
       const success = await uploadProfilePicture(croppedFile);
-      
+
       // Complete progress
       clearInterval(progressInterval);
       setUploadProgress(100);
-      
+
       if (success) {
         setTimeout(() => {
           setShowCropper(false);
@@ -189,11 +203,11 @@ export const ProfilePage: React.FC = () => {
           // Clean up the preview URL
           if (selectedImageUrl) {
             URL.revokeObjectURL(selectedImageUrl);
-            setSelectedImageUrl('');
+            setSelectedImageUrl("");
           }
           toast({
-            title: 'Success',
-            description: 'Profile picture updated successfully',
+            title: "Success",
+            description: "Profile picture updated successfully",
           });
         }, 500);
       } else {
@@ -203,7 +217,7 @@ export const ProfilePage: React.FC = () => {
     } catch (error) {
       clearInterval(progressInterval);
       setUploadProgress(0);
-      console.error('Error uploading profile picture:', error);
+      console.error("Error uploading profile picture:", error);
     }
   };
 
@@ -212,7 +226,7 @@ export const ProfilePage: React.FC = () => {
     // Clean up the preview URL
     if (selectedImageUrl) {
       URL.revokeObjectURL(selectedImageUrl);
-      setSelectedImageUrl('');
+      setSelectedImageUrl("");
     }
   };
 
@@ -225,8 +239,8 @@ export const ProfilePage: React.FC = () => {
     if (success) {
       setShowProfilePictureModal(false);
       toast({
-        title: 'Success',
-        description: 'Profile picture removed successfully',
+        title: "Success",
+        description: "Profile picture removed successfully",
       });
     }
   };
@@ -236,7 +250,7 @@ export const ProfilePage: React.FC = () => {
     setShowCropper(false);
     if (selectedImageUrl) {
       URL.revokeObjectURL(selectedImageUrl);
-      setSelectedImageUrl('');
+      setSelectedImageUrl("");
     }
   };
 
@@ -252,7 +266,9 @@ export const ProfilePage: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-2">
-          <p className="text-lg font-medium text-slate-900">Profile not found</p>
+          <p className="text-lg font-medium text-slate-900">
+            Profile not found
+          </p>
           <p className="text-sm text-slate-600">Unable to load profile data</p>
         </div>
       </div>
@@ -273,15 +289,15 @@ export const ProfilePage: React.FC = () => {
         <div className="flex flex-col sm:flex-row gap-3">
           {isEditing ? (
             <>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={handleCancel}
                 disabled={isUpdating}
                 className="px-5 py-3"
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleSave}
                 disabled={isUpdating}
                 className="px-5 py-3"
@@ -295,10 +311,7 @@ export const ProfilePage: React.FC = () => {
               </Button>
             </>
           ) : (
-            <Button 
-              onClick={() => setIsEditing(true)}
-              className="px-5 py-3"
-            >
+            <Button onClick={() => setIsEditing(true)} className="px-5 py-3">
               <User className="w-4 h-4 mr-2" />
               Edit Profile
             </Button>
@@ -312,9 +325,9 @@ export const ProfilePage: React.FC = () => {
           <CardHeader className="text-center pb-4">
             <div className="relative w-24 h-24 mx-auto mb-4">
               <Avatar className="w-24 h-24">
-                <AvatarImage 
-                  src={avatarUrl || ""} 
-                  alt={profile?.name || "User"} 
+                <AvatarImage
+                  src={avatarUrl || ""}
+                  alt={profile?.name || "User"}
                 />
                 <AvatarFallback className="text-xl font-semibold bg-slate-100 text-slate-700">
                   {initials}
@@ -332,7 +345,10 @@ export const ProfilePage: React.FC = () => {
               {profile.name}
             </CardTitle>
             <div className="flex justify-center">
-              <Badge variant={getRoleBadgeVariant(profile.role)} className="capitalize">
+              <Badge
+                variant={getRoleBadgeVariant(profile.role)}
+                className="capitalize"
+              >
                 <Shield className="w-3 h-3 mr-1" />
                 {profile.role}
               </Badge>
@@ -358,7 +374,9 @@ export const ProfilePage: React.FC = () => {
             {profile.organization && (
               <div className="flex items-center gap-3 text-sm">
                 <Building className="w-4 h-4 text-slate-400" />
-                <span className="text-slate-600">{profile.organization.name}</span>
+                <span className="text-slate-600">
+                  {profile.organization.name}
+                </span>
               </div>
             )}
           </CardContent>
@@ -377,14 +395,17 @@ export const ProfilePage: React.FC = () => {
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium text-slate-700">
+                <Label
+                  htmlFor="name"
+                  className="text-sm font-medium text-slate-700"
+                >
                   Full Name
                 </Label>
                 {isEditing ? (
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
                     placeholder="Enter your full name"
                     className="border-slate-200"
                   />
@@ -396,41 +417,56 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+                <Label
+                  htmlFor="email"
+                  className="text-sm font-medium text-slate-700"
+                >
                   Email Address
                 </Label>
                 <div className="px-3 py-2 border border-slate-200 rounded-md bg-slate-50 text-slate-500">
                   {profile.email}
-                  <p className="text-xs text-slate-400 mt-1">Email cannot be changed</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Email cannot be changed
+                  </p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm font-medium text-slate-700">
+                <Label
+                  htmlFor="phone"
+                  className="text-sm font-medium text-slate-700"
+                >
                   Phone Number
                 </Label>
                 {isEditing ? (
                   <Input
                     id="phone"
                     value={formData.phone_number}
-                    onChange={(e) => handleInputChange('phone_number', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("phone_number", e.target.value)
+                    }
                     placeholder="Enter your phone number"
                     className="border-slate-200"
                   />
                 ) : (
                   <div className="px-3 py-2 border border-slate-200 rounded-md bg-slate-50 text-slate-900">
-                    {profile.phone_number || 'Not provided'}
+                    {profile.phone_number || "Not provided"}
                   </div>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="role" className="text-sm font-medium text-slate-700">
+                <Label
+                  htmlFor="role"
+                  className="text-sm font-medium text-slate-700"
+                >
                   Role
                 </Label>
                 <div className="px-3 py-2 border border-slate-200 rounded-md bg-slate-50 text-slate-500 capitalize">
                   {profile.role}
-                  <p className="text-xs text-slate-400 mt-1">Role is managed by organization</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Role is managed by organization
+                  </p>
                 </div>
               </div>
             </div>
@@ -438,7 +474,9 @@ export const ProfilePage: React.FC = () => {
             <Separator className="my-6" />
 
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-slate-900">Account Information</h3>
+              <h3 className="text-sm font-medium text-slate-900">
+                Account Information
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-700">
@@ -464,7 +502,9 @@ export const ProfilePage: React.FC = () => {
               <>
                 <Separator className="my-6" />
                 <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-slate-900">Organization</h3>
+                  <h3 className="text-sm font-medium text-slate-900">
+                    Organization
+                  </h3>
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-slate-700">
                       Organization Name
@@ -485,8 +525,10 @@ export const ProfilePage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-slate-900">Profile Picture</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-slate-900">
+                Profile Picture
+              </h3>
+              <button
                 onClick={handleModalClose}
                 className="text-slate-500 hover:text-slate-700"
                 disabled={isUploadingPicture}
@@ -508,10 +550,7 @@ export const ProfilePage: React.FC = () => {
                 {/* Current Profile Picture */}
                 <div className="text-center">
                   <Avatar className="w-32 h-32 mx-auto mb-4">
-                    <AvatarImage 
-                      src={avatarUrl || ""} 
-                      alt={profile.name} 
-                    />
+                    <AvatarImage src={avatarUrl || ""} alt={profile.name} />
                     <AvatarFallback className="text-2xl font-semibold bg-slate-100 text-slate-700">
                       {initials}
                     </AvatarFallback>
@@ -525,11 +564,18 @@ export const ProfilePage: React.FC = () => {
                       id="profile-picture-upload"
                       type="file"
                       accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={(e) => e.target.files?.[0] && handleProfilePictureUpload(e.target.files[0])}
+                      onChange={(e) =>
+                        e.target.files?.[0] &&
+                        handleProfilePictureUpload(e.target.files[0])
+                      }
                       className="hidden"
                     />
                     <Button
-                      onClick={() => document.getElementById('profile-picture-upload')?.click()}
+                      onClick={() =>
+                        document
+                          .getElementById("profile-picture-upload")
+                          ?.click()
+                      }
                       disabled={isUploadingPicture}
                       className="w-full rounded-xl"
                     >
@@ -538,9 +584,11 @@ export const ProfilePage: React.FC = () => {
                       ) : (
                         <Upload className="w-4 h-4 mr-2" />
                       )}
-                      {profile.profile_picture_url ? 'Change Picture' : 'Upload Picture'}
+                      {profile.profile_picture_url
+                        ? "Change Picture"
+                        : "Upload Picture"}
                     </Button>
-                    
+
                     {profile.profile_picture_url && (
                       <Button
                         onClick={handleProfilePictureDelete}
@@ -557,7 +605,7 @@ export const ProfilePage: React.FC = () => {
                       </Button>
                     )}
                   </div>
-                  
+
                   <p className="text-xs text-slate-500 text-center">
                     Supports JPEG, PNG, WEBP • Max 5MB
                   </p>
