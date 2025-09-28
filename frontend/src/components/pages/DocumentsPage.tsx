@@ -11,7 +11,6 @@ import {
   Edit2,
   Check,
   Loader2,
-  Plus,
   AlertTriangle,
   RotateCcw,
 } from "lucide-react";
@@ -24,7 +23,6 @@ import {
   DocumentDTO,
   DocumentUploadPayload,
   DocumentUpdatePayload,
-  DocumentsPaginatedResponse,
 } from "@/apis/DocumentsAPI";
 import {
   TablePagination,
@@ -33,9 +31,6 @@ import {
 
 interface Document extends DocumentDTO {}
 
-interface NewDocumentModalData {
-  show: boolean;
-}
 
 interface ConfirmModalData {
   show: boolean;
