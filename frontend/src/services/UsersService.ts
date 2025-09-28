@@ -1,15 +1,20 @@
 // src/services/UsersService.ts
-import { UsersAPI, UserDTO, UpdateProfilePayload } from "../apis/UsersAPI";
+import { UsersAPI, UserDTO, UpdateProfilePayload, OrganizationDTO } from "../apis/UsersAPI";
 
 export type User = {
   id: string;
   email: string;
   name: string;
+  role: string;
   phone_number?: string;
+  created_at: string;
+  updated_at: string;
+  organization: OrganizationDTO | null;
+  profile_picture_url?: string | null;
+  // Additional computed fields for backwards compatibility
   is_active: boolean;
   date_joined: Date;
   full_name: string;
-  profile_picture_url?: string | null;
 };
 
 export class UsersService {
@@ -25,10 +30,10 @@ export class UsersService {
 
   private normalizeUser(user: UserDTO): User {
     return {
-      ...user,
+      ...user, // Include all UserDTO properties (id, email, name, role, phone_number, created_at, updated_at, organization, profile_picture_url)
       is_active: true, // Default value since UserDTO doesn't have this field
       date_joined: new Date(user.created_at), // Map created_at to date_joined
-      full_name: user.name,
+      full_name: user.name, // Map name to full_name
     };
   }
 }

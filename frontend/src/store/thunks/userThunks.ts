@@ -44,7 +44,7 @@ import { addToast } from '../slices/uiSlice';
 // Helper function to convert UserDTO to User
 const normalizeUser = (userDTO: UserDTO): User => {
   return {
-    ...userDTO,
+    ...userDTO, // Include all UserDTO properties (id, email, name, role, phone_number, created_at, updated_at, organization, profile_picture_url)
     is_active: true, // Default value since UserDTO doesn't have this field
     date_joined: new Date(userDTO.created_at), // Map created_at to date_joined
     full_name: userDTO.name, // Map name to full_name

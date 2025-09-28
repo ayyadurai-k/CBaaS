@@ -21,12 +21,33 @@ import {
   Loader2,
   Camera,
   Upload,
-  X,
-  Move
+  X
 } from 'lucide-react';
 
+// Helper functions moved outside component to prevent re-declaration on each render
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
+
+const getRoleBadgeVariant = (role: string) => {
+  switch (role.toLowerCase()) {
+    case 'owner':
+      return 'default';
+    case 'admin':
+      return 'secondary';
+    case 'member':
+      return 'outline';
+    default:
+      return 'outline';
+  }
+};
+
 export const ProfilePage: React.FC = () => {
-  const { profile, isLoading, isUpdating, isUploadingPicture, error, profilePictureVersion, updateProfile, uploadProfilePicture, deleteProfilePicture, refetchProfile, initials, avatarUrl } = useProfile();
+  const { profile, isLoading, isUpdating, isUploadingPicture, error, updateProfile, uploadProfilePicture, deleteProfilePicture, initials, avatarUrl } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
@@ -210,28 +231,12 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role.toLowerCase()) {
-      case 'owner':
-        return 'default';
-      case 'admin':
-        return 'secondary';
-      case 'member':
-        return 'outline';
-      default:
-        return 'outline';
+  const handleModalClose = () => {
+    setShowProfilePictureModal(false);
+    setShowCropper(false);
+    if (selectedImageUrl) {
+      URL.revokeObjectURL(selectedImageUrl);
+      setSelectedImageUrl('');
     }
   };
 
@@ -482,14 +487,7 @@ export const ProfilePage: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-slate-900">Profile Picture</h3>
               <button 
-                onClick={() => {
-                  setShowProfilePictureModal(false);
-                  setShowCropper(false);
-                  if (selectedImageUrl) {
-                    URL.revokeObjectURL(selectedImageUrl);
-                    setSelectedImageUrl('');
-                  }
-                }}
+                onClick={handleModalClose}
                 className="text-slate-500 hover:text-slate-700"
                 disabled={isUploadingPicture}
               >
@@ -511,11 +509,11 @@ export const ProfilePage: React.FC = () => {
                 <div className="text-center">
                   <Avatar className="w-32 h-32 mx-auto mb-4">
                     <AvatarImage 
-                      src={profile.profile_picture_url ? `${profile.profile_picture_url}?v=${profilePictureVersion}` : ""} 
+                      src={avatarUrl || ""} 
                       alt={profile.name} 
                     />
                     <AvatarFallback className="text-2xl font-semibold bg-slate-100 text-slate-700">
-                      {getInitials(profile.name)}
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
                 </div>
