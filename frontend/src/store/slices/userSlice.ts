@@ -191,18 +191,21 @@ export const {
 // Export thunks for use in components
 export { getUserProfileThunk, updateProfileThunk };
 
+// Import RootState type for proper typing
+import type { RootState } from '../index';
+
 // Selectors
-export const selectUser = (state: { user: UserState }) => state.user;
-export const selectUserProfile = (state: { user: UserState }) => state.user.profile;
-export const selectUserLoading = (state: { user: UserState }) => state.user.isLoading;
-export const selectUserUpdating = (state: { user: UserState }) => state.user.isUpdating;
-export const selectUserUploadingPicture = (state: { user: UserState }) => state.user.isUploadingPicture;
-export const selectUserError = (state: { user: UserState }) => state.user.error;
-export const selectProfilePictureVersion = (state: { user: UserState }) => state.user.profilePictureVersion;
-export const selectUserLastUpdated = (state: { user: UserState }) => state.user.lastUpdated;
+export const selectUser = (state: RootState) => state.user;
+export const selectUserProfile = (state: RootState) => state.user.profile;
+export const selectUserLoading = (state: RootState) => state.user.isLoading;
+export const selectUserUpdating = (state: RootState) => state.user.isUpdating;
+export const selectUserUploadingPicture = (state: RootState) => state.user.isUploadingPicture;
+export const selectUserError = (state: RootState) => state.user.error;
+export const selectProfilePictureVersion = (state: RootState) => state.user.profilePictureVersion;
+export const selectUserLastUpdated = (state: RootState) => state.user.lastUpdated;
 
 // Complex selectors
-export const selectUserInitials = (state: { user: UserState }) => {
+export const selectUserInitials = (state: RootState) => {
   const profile = state.user.profile;
   if (!profile?.name) return '';
   
@@ -214,12 +217,12 @@ export const selectUserInitials = (state: { user: UserState }) => {
     .slice(0, 2);
 };
 
-export const selectUserDisplayName = (state: { user: UserState }) => {
+export const selectUserDisplayName = (state: RootState) => {
   const profile = state.user.profile;
   return profile?.name || 'Unknown User';
 };
 
-export const selectUserAvatarUrl = (state: { user: UserState }) => {
+export const selectUserAvatarUrl = (state: RootState) => {
   const profile = state.user.profile;
   const version = state.user.profilePictureVersion;
   
