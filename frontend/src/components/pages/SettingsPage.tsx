@@ -267,8 +267,7 @@ export const SettingsPage: React.FC = () => {
     const success = await deleteOrganization();
     if (success) {
       setShowDeleteModal(false);
-      // Redirect user or refresh data
-      window.location.href = '/dashboard'; // or use router navigation
+      // useOrganization hook will handle logout and redirect
     }
   };
 
@@ -725,7 +724,17 @@ export const SettingsPage: React.FC = () => {
               <h3 className="text-lg font-semibold text-slate-900">Confirm Deletion</h3>
             </div>
             <p className="text-slate-600 mb-6">
-              Are you sure you want to delete your organization? This action cannot be undone and all data will be permanently lost.
+              Are you sure you want to delete your organization? This will permanently delete:
+            </p>
+            <ul className="text-sm text-slate-600 mb-6 space-y-1 ml-4">
+              <li>• All user accounts and data</li>
+              <li>• All documents and files</li>
+              <li>• All API keys and integrations</li>
+              <li>• All chat sessions and history</li>
+              <li>• All organization settings</li>
+            </ul>
+            <p className="text-slate-600 mb-6 font-medium">
+              All users will be immediately logged out and lose access to the system.
             </p>
             <div className="flex space-x-3">
               <Button

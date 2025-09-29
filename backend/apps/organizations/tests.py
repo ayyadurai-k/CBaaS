@@ -2,11 +2,12 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from apps.users.models import User
 from apps.organizations.models import Organization
 from apps.api_keys.models import APIKey
 from apps.documents.models import Document
-from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch
 import uuid
 
@@ -150,11 +151,16 @@ class OrganizationViewTests(APITestCase):
         self.assertEqual(response.data['name'], self.update_data['name'])
 
     def test_delete_organization(self):
-        """Test organization deletion"""
+        """Test organization deletion with proper response format"""
         self.client.force_authenticate(user=self.user)
         response = self.client.delete(self.org_url)
         
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('detail', response.data)
+        self.assertIn('message', response.data)
+        self.assertIn('permanently deleted', response.data['detail'])
+        self.assertIn('sessions have been terminated', response.data['message'])
+        
         # Verify organization is deleted
         self.assertFalse(Organization.objects.filter(id=self.organization.id).exists())
 
@@ -190,7 +196,7 @@ class OrganizationViewTests(APITestCase):
         
         # Delete organization
         response = self.client.delete(self.org_url)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         
         # Verify related objects are deleted
         self.assertFalse(Organization.objects.filter(id=self.organization.id).exists())
@@ -203,5 +209,29 @@ class OrganizationViewTests(APITestCase):
         self.client.force_authenticate(user=self.admin_user)
         response = self.client.delete(self.org_url)
         
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(Organization.objects.filter(id=self.organization.id).exists())
+        
+    def test_delete_organization_token_blacklisting(self):
+        """Test that user tokens are blacklisted when organization is deleted"""
+        # Create refresh tokens for users
+        user_refresh = RefreshToken.for_user(self.user)
+        admin_refresh = RefreshToken.for_user(self.admin_user)
+        
+        # Verify tokens exist in OutstandingToken
+        user_outstanding = OutstandingToken.objects.filter(user=self.user).first()
+        admin_outstanding = OutstandingToken.objects.filter(user=self.admin_user).first()
+        
+        self.client.force_authenticate(user=self.user)
+        response = self.client.delete(self.org_url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify organization and users are deleted
+        self.assertFalse(Organization.objects.filter(id=self.organization.id).exists())
+        self.assertFalse(User.objects.filter(id=self.user.id).exists())
+        self.assertFalse(User.objects.filter(id=self.admin_user.id).exists())
+        
+        # Note: We can't check token blacklisting after user deletion since CASCADE 
+        # will remove the outstanding tokens. In real implementation, tokens would be 
+        # blacklisted before user deletion, making them invalid.

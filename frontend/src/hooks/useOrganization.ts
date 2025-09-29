@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { organizationsService, Organization } from '@/services/OrganizationsService';
 import { UpdateOrganizationPayload } from '@/apis/OrganizationsAPI';
+import { useAuth } from '@/hooks/redux/useAuth';
+import { SessionCleanupService } from '@/services/auth/SessionCleanupService';
 import { toast } from '@/hooks/use-toast';
 
 interface UseOrganizationReturn {
@@ -18,6 +20,7 @@ interface UseOrganizationReturn {
 }
 
 export const useOrganization = (): UseOrganizationReturn => {
+  const { logout } = useAuth();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -163,12 +166,29 @@ export const useOrganization = (): UseOrganizationReturn => {
     
     try {
       await organizationsService.deleteOrganization();
-      setOrganization(null);
+      
+      // Show success message immediately
       toast({
         title: "Organization deleted",
-        description: "Your organization has been permanently deleted",
+        description: "Your organization and all associated data have been permanently deleted. You will be logged out.",
         variant: "destructive",
       });
+      
+      // Clear local state
+      setOrganization(null);
+      
+      // Perform complete session cleanup and redirect
+      setTimeout(async () => {
+        try {
+          await logout();
+          await SessionCleanupService.cleanupAfterOrganizationDeletion();
+        } catch (cleanupError) {
+          console.error('Error during cleanup after organization deletion:', cleanupError);
+          // Force redirect even if cleanup fails
+          window.location.href = '/login';
+        }
+      }, 2000); // Give user time to see the success message
+      
       return true;
     } catch (err: any) {
       console.error('Failed to delete organization:', err);
@@ -177,6 +197,8 @@ export const useOrganization = (): UseOrganizationReturn => {
       if (err.response?.data) {
         if (typeof err.response.data === 'string') {
           errorMessage = err.response.data;
+        } else if (err.response.data.detail) {
+          errorMessage = err.response.data.detail;
         } else {
           const errorMessages = Object.values(err.response.data).flat().join(', ');
           errorMessage = errorMessages || errorMessage;
