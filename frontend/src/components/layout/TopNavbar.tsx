@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/redux/useAuth';
 export const TopNavbar: React.FC = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const navigate = useNavigate();
-  const { profile, profilePictureVersion, displayName, initials, avatarUrl } = useProfile();
+  const { displayName, initials, avatarUrl } = useProfile();
   const { logout } = useAuth();
 
   const handleNavigate = (path: string) => {
