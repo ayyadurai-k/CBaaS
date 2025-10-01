@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { ImageCropper } from '@/components/ui/image-cropper';
 import { useProfile } from '@/hooks/redux/useProfile';
 import { useOrganization } from '@/hooks/useOrganization';
 import { UpdateProfilePayload } from '@/apis/UsersAPI';
@@ -49,8 +50,14 @@ export const SettingsPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(null);
+  const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
+  const [showOrganizationLogoModal, setShowOrganizationLogoModal] = useState(false);
+  const [showProfileCropper, setShowProfileCropper] = useState(false);
+  const [showLogoCropper, setShowLogoCropper] = useState(false);
+  const [selectedProfileImageUrl, setSelectedProfileImageUrl] = useState<string>('');
+  const [selectedLogoImageUrl, setSelectedLogoImageUrl] = useState<string>('');
+  const [profileUploadProgress, setProfileUploadProgress] = useState(0);
+  const [logoUploadProgress, setLogoUploadProgress] = useState(0);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isEditingOrg, setIsEditingOrg] = useState(false);
   
@@ -140,54 +147,110 @@ export const SettingsPage: React.FC = () => {
       });
     }
     setIsEditingProfile(false);
-    setProfilePicturePreview(null);
   };
 
-  const handleProfilePictureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
-      const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
-      if (!allowedTypes.includes(file.type)) {
-        toast({
-          title: "Invalid file type",
-          description: "Please select a PNG, JPG, or WEBP image",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Validate file size (5MB max)
-      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-      if (file.size > maxSize) {
-        toast({
-          title: "File too large",
-          description: "Image size must be less than 5MB",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      uploadProfilePicture(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setProfilePicturePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+  const handleProfileFileSelect = (file: File) => {
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Image size must be less than 5MB",
+        variant: "destructive",
+      });
+      return;
     }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a JPEG, PNG, or WEBP image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create preview URL and show cropper
+    const imageUrl = URL.createObjectURL(file);
+    setSelectedProfileImageUrl(imageUrl);
+    setShowProfileCropper(true);
+  };
+
+  const handleProfileCropComplete = async (croppedImageBlob: Blob) => {
+    setProfileUploadProgress(0);
+
+    // Create artificial delay with progress
+    const progressInterval = setInterval(() => {
+      setProfileUploadProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 200);
+
+    // Convert blob to file
+    const croppedFile = new File([croppedImageBlob], 'profile-picture.jpg', {
+      type: 'image/jpeg',
+    });
+
+    try {
+      const success = await uploadProfilePicture(croppedFile);
+
+      // Complete progress
+      clearInterval(progressInterval);
+      setProfileUploadProgress(100);
+
+      if (success) {
+        setTimeout(() => {
+          setShowProfileCropper(false);
+          setShowProfilePictureModal(false);
+          setProfileUploadProgress(0);
+          // Clean up the preview URL
+          if (selectedProfileImageUrl) {
+            URL.revokeObjectURL(selectedProfileImageUrl);
+            setSelectedProfileImageUrl('');
+          }
+          toast({
+            title: "Success",
+            description: "Profile picture updated successfully",
+          });
+        }, 500);
+      } else {
+        setProfileUploadProgress(0);
+        clearInterval(progressInterval);
+      }
+    } catch (error) {
+      clearInterval(progressInterval);
+      setProfileUploadProgress(0);
+      console.error('Error uploading profile picture:', error);
+    }
+  };
+
+  const handleProfileCropCancel = () => {
+    setShowProfileCropper(false);
+    // Clean up the preview URL
+    if (selectedProfileImageUrl) {
+      URL.revokeObjectURL(selectedProfileImageUrl);
+      setSelectedProfileImageUrl('');
+    }
+  };
+
+  const handleProfilePictureUpload = async (file: File) => {
+    handleProfileFileSelect(file);
   };
 
   const handleRemoveProfilePicture = async () => {
     const success = await deleteProfilePicture();
     if (success) {
-      setProfilePicturePreview(null);
-      // Reset file input
-      const fileInput = document.getElementById('profilePicture') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
-      }
+      setShowProfilePictureModal(false);
+      toast({
+        title: "Success",
+        description: "Profile picture removed successfully",
+      });
     }
   };
 
@@ -212,54 +275,110 @@ export const SettingsPage: React.FC = () => {
       });
     }
     setIsEditingOrg(false);
-    setLogoPreview(null);
   };
 
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
-      const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
-      if (!allowedTypes.includes(file.type)) {
-        toast({
-          title: "Invalid file type",
-          description: "Please select a PNG, JPG, or WEBP image",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Validate file size (5MB max)
-      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-      if (file.size > maxSize) {
-        toast({
-          title: "File too large",
-          description: "Image size must be less than 5MB",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      uploadOrganizationLogo(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setLogoPreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+  const handleLogoFileSelect = (file: File) => {
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Image size must be less than 5MB",
+        variant: "destructive",
+      });
+      return;
     }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a JPEG, PNG, or WEBP image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create preview URL and show cropper
+    const imageUrl = URL.createObjectURL(file);
+    setSelectedLogoImageUrl(imageUrl);
+    setShowLogoCropper(true);
+  };
+
+  const handleLogoCropComplete = async (croppedImageBlob: Blob) => {
+    setLogoUploadProgress(0);
+
+    // Create artificial delay with progress
+    const progressInterval = setInterval(() => {
+      setLogoUploadProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 200);
+
+    // Convert blob to file
+    const croppedFile = new File([croppedImageBlob], 'organization-logo.jpg', {
+      type: 'image/jpeg',
+    });
+
+    try {
+      const success = await uploadOrganizationLogo(croppedFile);
+
+      // Complete progress
+      clearInterval(progressInterval);
+      setLogoUploadProgress(100);
+
+      if (success) {
+        setTimeout(() => {
+          setShowLogoCropper(false);
+          setShowOrganizationLogoModal(false);
+          setLogoUploadProgress(0);
+          // Clean up the preview URL
+          if (selectedLogoImageUrl) {
+            URL.revokeObjectURL(selectedLogoImageUrl);
+            setSelectedLogoImageUrl('');
+          }
+          toast({
+            title: "Success",
+            description: "Organization logo updated successfully",
+          });
+        }, 500);
+      } else {
+        setLogoUploadProgress(0);
+        clearInterval(progressInterval);
+      }
+    } catch (error) {
+      clearInterval(progressInterval);
+      setLogoUploadProgress(0);
+      console.error('Error uploading organization logo:', error);
+    }
+  };
+
+  const handleLogoCropCancel = () => {
+    setShowLogoCropper(false);
+    // Clean up the preview URL
+    if (selectedLogoImageUrl) {
+      URL.revokeObjectURL(selectedLogoImageUrl);
+      setSelectedLogoImageUrl('');
+    }
+  };
+
+  const handleLogoUpload = async (file: File) => {
+    handleLogoFileSelect(file);
   };
 
   const handleRemoveLogo = async () => {
     const success = await deleteOrganizationLogo();
     if (success) {
-      setLogoPreview(null);
-      // Reset file input
-      const fileInput = document.getElementById('orgLogo') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
-      }
+      setShowOrganizationLogoModal(false);
+      toast({
+        title: "Success",
+        description: "Organization logo removed successfully",
+      });
     }
   };
 
@@ -268,6 +387,24 @@ export const SettingsPage: React.FC = () => {
     if (success) {
       setShowDeleteModal(false);
       // useOrganization hook will handle logout and redirect
+    }
+  };
+
+  const handleProfilePictureModalClose = () => {
+    setShowProfilePictureModal(false);
+    setShowProfileCropper(false);
+    if (selectedProfileImageUrl) {
+      URL.revokeObjectURL(selectedProfileImageUrl);
+      setSelectedProfileImageUrl('');
+    }
+  };
+
+  const handleOrganizationLogoModalClose = () => {
+    setShowOrganizationLogoModal(false);
+    setShowLogoCropper(false);
+    if (selectedLogoImageUrl) {
+      URL.revokeObjectURL(selectedLogoImageUrl);
+      setSelectedLogoImageUrl('');
     }
   };
 
@@ -363,57 +500,27 @@ export const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <Label className="text-sm font-medium text-slate-700">Profile Picture</Label>
                 <div className="flex flex-col items-center space-y-4">
-                  <Avatar className="w-24 h-24">
-                    <AvatarImage
-                      src={profilePicturePreview || avatarUrl || ""}
-                      alt={profile.name || "User"}
-                    />
-                    <AvatarFallback className="text-xl font-semibold bg-slate-100 text-slate-700">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="flex space-x-2">
-                    <input
-                      id="profilePicture"
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={handleProfilePictureUpload}
-                      className="hidden"
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => document.getElementById('profilePicture')?.click()}
-                      variant="outline"
-                      className="rounded-xl"
-                      size="sm"
-                      disabled={isUploadingPicture}
+                  <div className="relative w-24 h-24">
+                    <Avatar className="w-24 h-24">
+                      <AvatarImage
+                        src={avatarUrl || ""}
+                        alt={profile.name || "User"}
+                      />
+                      <AvatarFallback className="text-xl font-semibold bg-slate-100 text-slate-700">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <button
+                      onClick={() => setShowProfilePictureModal(true)}
+                      className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                      title="Change profile picture"
                     >
-                      {isUploadingPicture ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Camera className="w-4 h-4 mr-2" />
-                      )}
-                      {avatarUrl ? 'Change' : 'Upload'}
-                    </Button>
-                    
-                    {avatarUrl && (
-                      <Button
-                        type="button"
-                        onClick={handleRemoveProfilePicture}
-                        variant="outline"
-                        className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
-                        size="sm"
-                        disabled={isUploadingPicture}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Remove
-                      </Button>
-                    )}
+                      <Camera className="w-4 h-4" />
+                    </button>
                   </div>
                   
                   <p className="text-xs text-slate-500 text-center">
-                    Max 5MB • JPEG, PNG, WEBP
+                    Click camera icon to upload/change picture
                   </p>
                 </div>
               </div>
@@ -564,59 +671,29 @@ export const SettingsPage: React.FC = () => {
                   <div className="space-y-4">
                     <Label className="text-sm font-medium text-slate-700">Organization Logo</Label>
                     <div className="flex flex-col items-center space-y-4">
-                      <div className="w-24 h-24 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden">
-                        {logoPreview || organization.logo_url ? (
-                          <img
-                            src={logoPreview || organization.logo_url || ''}
-                            alt="Organization Logo"
-                            className="w-full h-full object-cover rounded-xl"
-                          />
-                        ) : (
-                          <Building className="w-8 h-8 text-slate-500" />
-                        )}
-                      </div>
-                      
-                      <div className="flex space-x-2">
-                        <input
-                          id="orgLogo"
-                          type="file"
-                          accept="image/png,image/jpeg,image/jpg,image/webp"
-                          onChange={handleLogoUpload}
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          onClick={() => document.getElementById('orgLogo')?.click()}
-                          variant="outline"
-                          className="rounded-xl"
-                          size="sm"
-                          disabled={isUploadingLogo}
-                        >
-                          {isUploadingLogo ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <div className="relative w-24 h-24">
+                        <div className="w-24 h-24 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden">
+                          {organization.logo_url ? (
+                            <img
+                              src={organization.logo_url}
+                              alt="Organization Logo"
+                              className="w-full h-full object-cover rounded-xl"
+                            />
                           ) : (
-                            <Upload className="w-4 h-4 mr-2" />
+                            <Building className="w-8 h-8 text-slate-500" />
                           )}
-                          {organization.logo_url ? 'Replace' : 'Upload'}
-                        </Button>
-                        
-                        {organization.logo_url && (
-                          <Button
-                            type="button"
-                            onClick={handleRemoveLogo}
-                            variant="outline"
-                            className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
-                            size="sm"
-                            disabled={isUploadingLogo}
-                          >
-                            <X className="w-4 h-4 mr-2" />
-                            Remove
-                          </Button>
-                        )}
+                        </div>
+                        <button
+                          onClick={() => setShowOrganizationLogoModal(true)}
+                          className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-600 hover:bg-green-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                          title="Change organization logo"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
                       </div>
                       
                       <p className="text-xs text-slate-500 text-center">
-                        Max 5MB • PNG, JPEG, WEBP
+                        Click camera icon to upload/change logo
                       </p>
                     </div>
                   </div>
@@ -710,6 +787,203 @@ export const SettingsPage: React.FC = () => {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Profile Picture Upload Modal */}
+      {showProfilePictureModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-slate-900">
+                Profile Picture
+              </h3>
+              <button
+                onClick={handleProfilePictureModalClose}
+                className="text-slate-500 hover:text-slate-700"
+                disabled={isUploadingPicture}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {showProfileCropper ? (
+              <ImageCropper
+                src={selectedProfileImageUrl}
+                onCropComplete={handleProfileCropComplete}
+                onCancel={handleProfileCropCancel}
+                isUploading={isUploadingPicture}
+                uploadProgress={profileUploadProgress}
+              />
+            ) : (
+              <div className="space-y-6">
+                {/* Current Profile Picture */}
+                <div className="text-center">
+                  <Avatar className="w-32 h-32 mx-auto mb-4">
+                    <AvatarImage src={avatarUrl || ""} alt={profile?.name} />
+                    <AvatarFallback className="text-2xl font-semibold bg-slate-100 text-slate-700">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+
+                {/* Upload Options */}
+                <div className="space-y-4">
+                  <div className="flex flex-col space-y-3">
+                    <input
+                      id="profile-picture-upload-modal"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={(e) =>
+                        e.target.files?.[0] &&
+                        handleProfilePictureUpload(e.target.files[0])
+                      }
+                      className="hidden"
+                    />
+                    <Button
+                      onClick={() =>
+                        document
+                          .getElementById("profile-picture-upload-modal")
+                          ?.click()
+                      }
+                      disabled={isUploadingPicture}
+                      className="w-full rounded-xl"
+                    >
+                      {isUploadingPicture ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4 mr-2" />
+                      )}
+                      {avatarUrl
+                        ? "Change Picture"
+                        : "Upload Picture"}
+                    </Button>
+
+                    {avatarUrl && (
+                      <Button
+                        onClick={handleRemoveProfilePicture}
+                        disabled={isUploadingPicture}
+                        variant="outline"
+                        className="w-full rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        {isUploadingPicture ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 mr-2" />
+                        )}
+                        Remove Picture
+                      </Button>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-500 text-center">
+                    Supports JPEG, PNG, WEBP • Max 5MB
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Organization Logo Upload Modal */}
+      {showOrganizationLogoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-slate-900">
+                Organization Logo
+              </h3>
+              <button
+                onClick={handleOrganizationLogoModalClose}
+                className="text-slate-500 hover:text-slate-700"
+                disabled={isUploadingLogo}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {showLogoCropper ? (
+              <ImageCropper
+                src={selectedLogoImageUrl}
+                onCropComplete={handleLogoCropComplete}
+                onCancel={handleLogoCropCancel}
+                isUploading={isUploadingLogo}
+                uploadProgress={logoUploadProgress}
+              />
+            ) : (
+              <div className="space-y-6">
+                {/* Current Organization Logo */}
+                <div className="text-center">
+                  <div className="w-32 h-32 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden mx-auto mb-4">
+                    {organization?.logo_url ? (
+                      <img
+                        src={organization.logo_url}
+                        alt="Organization Logo"
+                        className="w-full h-full object-cover rounded-xl"
+                      />
+                    ) : (
+                      <Building className="w-12 h-12 text-slate-500" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Upload Options */}
+                <div className="space-y-4">
+                  <div className="flex flex-col space-y-3">
+                    <input
+                      id="organization-logo-upload-modal"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={(e) =>
+                        e.target.files?.[0] &&
+                        handleLogoUpload(e.target.files[0])
+                      }
+                      className="hidden"
+                    />
+                    <Button
+                      onClick={() =>
+                        document
+                          .getElementById("organization-logo-upload-modal")
+                          ?.click()
+                      }
+                      disabled={isUploadingLogo}
+                      className="w-full rounded-xl"
+                    >
+                      {isUploadingLogo ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4 mr-2" />
+                      )}
+                      {organization?.logo_url
+                        ? "Change Logo"
+                        : "Upload Logo"}
+                    </Button>
+
+                    {organization?.logo_url && (
+                      <Button
+                        onClick={handleRemoveLogo}
+                        disabled={isUploadingLogo}
+                        variant="outline"
+                        className="w-full rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        {isUploadingLogo ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 mr-2" />
+                        )}
+                        Remove Logo
+                      </Button>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-500 text-center">
+                    Supports JPEG, PNG, WEBP • Max 5MB
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
