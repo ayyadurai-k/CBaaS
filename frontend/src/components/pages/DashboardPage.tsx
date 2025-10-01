@@ -115,7 +115,7 @@ export const DashboardPage: React.FC = () => {
       {/* Charts - Responsive 2-column grid */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         {/* Usage Chart */}
-        <Card className="border-slate-200">
+        <Card className="border-slate-200 overflow-hidden">
           <CardHeader>
             <CardTitle className="text-lg text-slate-900">
               Daily API Usage
@@ -124,12 +124,16 @@ export const DashboardPage: React.FC = () => {
               Last 7 days
             </p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <ChartContainer config={chartConfig} className="h-[300px]">
-              <LineChart data={usageData}>
+              <LineChart data={usageData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 11 }}
+                  height={60}
+                />
+                <YAxis tick={{ fontSize: 11 }} width={40} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Line
                   type="monotone"
