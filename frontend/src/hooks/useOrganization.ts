@@ -4,6 +4,8 @@ import { UpdateOrganizationPayload } from '@/apis/OrganizationsAPI';
 import { useAuth } from '@/hooks/redux/useAuth';
 import { SessionCleanupService } from '@/services/auth/SessionCleanupService';
 import { toast } from '@/hooks/use-toast';
+import { useAppDispatch } from '@/store/hooks';
+import { updateProfileField } from '@/store/slices/userSlice';
 
 interface UseOrganizationReturn {
   organization: Organization | null;
@@ -21,6 +23,7 @@ interface UseOrganizationReturn {
 
 export const useOrganization = (): UseOrganizationReturn => {
   const { logout } = useAuth();
+  const dispatch = useAppDispatch();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -52,6 +55,19 @@ export const useOrganization = (): UseOrganizationReturn => {
     try {
       const updatedOrg = await organizationsService.updateUserOrganization(payload);
       setOrganization(updatedOrg);
+      
+      // Update Redux store to keep user profile in sync
+      dispatch(updateProfileField({ 
+        organization: {
+          id: updatedOrg.id,
+          name: updatedOrg.name,
+          slug: updatedOrg.slug,
+          logo_url: updatedOrg.logo_url,
+          created_at: updatedOrg.created_at,
+          updated_at: updatedOrg.updated_at,
+        }
+      }));
+      
       toast({
         title: "Organization updated",
         description: "Organization details have been updated successfully",
@@ -90,6 +106,19 @@ export const useOrganization = (): UseOrganizationReturn => {
       const updatedOrg = await organizationsService.uploadOrganizationLogo(file);
       setOrganization(updatedOrg);
       setLogoVersion(Date.now()); // Update version to bust cache
+      
+      // Update Redux store to keep user profile in sync
+      dispatch(updateProfileField({ 
+        organization: {
+          id: updatedOrg.id,
+          name: updatedOrg.name,
+          slug: updatedOrg.slug,
+          logo_url: updatedOrg.logo_url,
+          created_at: updatedOrg.created_at,
+          updated_at: updatedOrg.updated_at,
+        }
+      }));
+      
       toast({
         title: "Logo uploaded",
         description: "Organization logo has been updated successfully",
@@ -128,6 +157,19 @@ export const useOrganization = (): UseOrganizationReturn => {
       const updatedOrg = await organizationsService.deleteOrganizationLogo();
       setOrganization(updatedOrg);
       setLogoVersion(Date.now()); // Update version to bust cache
+      
+      // Update Redux store to keep user profile in sync
+      dispatch(updateProfileField({ 
+        organization: {
+          id: updatedOrg.id,
+          name: updatedOrg.name,
+          slug: updatedOrg.slug,
+          logo_url: updatedOrg.logo_url,
+          created_at: updatedOrg.created_at,
+          updated_at: updatedOrg.updated_at,
+        }
+      }));
+      
       toast({
         title: "Logo removed",
         description: "Organization logo has been removed successfully",
