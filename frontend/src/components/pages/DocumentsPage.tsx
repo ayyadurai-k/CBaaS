@@ -692,7 +692,14 @@ export const DocumentsPage: React.FC = () => {
         </div>
       </div>
 
-      {documents.length > 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
+          <div className="flex items-center justify-center space-x-2 text-slate-500">
+            <Loader2 className="w-8 h-8 animate-spin" />
+            <span className="text-lg">Loading documents...</span>
+          </div>
+        </div>
+      ) : documents.length > 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
           <div
             className="overflow-x-auto overflow-y-auto"
@@ -722,29 +729,7 @@ export const DocumentsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center">
-                      <div className="flex items-center justify-center space-x-2 text-slate-500">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Loading documents...</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : documents.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">
-                      <div className="flex flex-col items-center space-y-2">
-                        <FileText className="w-8 h-8 text-slate-300" />
-                        <p>No documents found</p>
-                        <p className="text-sm">
-                          Upload your first document to get started
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  documents.map((document) => (
+                {documents.map((document) => (
                     <tr
                       key={document.id}
                       className="hover:bg-slate-50 transition-colors"
@@ -866,8 +851,7 @@ export const DocumentsPage: React.FC = () => {
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
+                  ))}
               </tbody>
             </table>
           </div>

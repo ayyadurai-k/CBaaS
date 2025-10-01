@@ -13,7 +13,7 @@ export type User = {
   profile_picture_url?: string | null;
   // Additional computed fields for backwards compatibility
   is_active: boolean;
-  date_joined: Date;
+  date_joined: string;
   full_name: string;
 };
 
@@ -32,7 +32,7 @@ export class UsersService {
     return {
       ...user, // Include all UserDTO properties (id, email, name, role, phone_number, created_at, updated_at, organization, profile_picture_url)
       is_active: true, // Default value since UserDTO doesn't have this field
-      date_joined: new Date(user.created_at), // Map created_at to date_joined
+      date_joined: user.created_at, // Map created_at to date_joined (keep as string for Redux serialization)
       full_name: user.name, // Map name to full_name
     };
   }

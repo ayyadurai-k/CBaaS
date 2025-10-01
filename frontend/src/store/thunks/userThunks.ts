@@ -46,7 +46,7 @@ const normalizeUser = (userDTO: UserDTO): User => {
   return {
     ...userDTO, // Include all UserDTO properties (id, email, name, role, phone_number, created_at, updated_at, organization, profile_picture_url)
     is_active: true, // Default value since UserDTO doesn't have this field
-    date_joined: new Date(userDTO.created_at), // Map created_at to date_joined
+    date_joined: userDTO.created_at, // Map created_at to date_joined (keep as string for Redux serialization)
     full_name: userDTO.name, // Map name to full_name
   };
 };

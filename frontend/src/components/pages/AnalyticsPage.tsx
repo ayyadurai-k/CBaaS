@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { BarChart, TrendingUp, FileText, MessageSquare } from 'lucide-react';
 
 const apiUsageData = [
@@ -120,20 +120,18 @@ export const AnalyticsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={apiUsageData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line
-                    type="monotone"
-                    dataKey="requests"
-                    stroke="var(--color-requests)"
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <LineChart data={apiUsageData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="requests"
+                  stroke="var(--color-requests)"
+                  strokeWidth={2}
+                />
+              </LineChart>
             </ChartContainer>
           </CardContent>
         </Card>
@@ -146,22 +144,20 @@ export const AnalyticsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={documentUsageData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="usage"
-                  >
-                    {documentUsageData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                </PieChart>
-              </ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={documentUsageData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  dataKey="usage"
+                >
+                  {documentUsageData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <ChartTooltip content={<ChartTooltipContent />} />
+              </PieChart>
             </ChartContainer>
             <div className="mt-4 space-y-2">
               {documentUsageData.map((item, index) => (

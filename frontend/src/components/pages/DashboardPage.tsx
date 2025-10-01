@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Upload, FileText, Settings, Users, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
@@ -126,20 +126,18 @@ export const DashboardPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={usageData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line
-                    type="monotone"
-                    dataKey="requests"
-                    stroke="var(--color-requests)"
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <LineChart data={usageData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="requests"
+                  stroke="var(--color-requests)"
+                  strokeWidth={2}
+                />
+              </LineChart>
             </ChartContainer>
           </CardContent>
         </Card>
