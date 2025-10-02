@@ -12,7 +12,7 @@ env:
   FRONTEND_REPO: frontend
   BACKEND_REPO: backend
   WORKER_REPO: worker
-  ECS_CLUSTER: my-app-cluster
+  ECS_CLUSTER: cbaas-cluster
   FRONTEND_SERVICE: frontend-service
   BACKEND_SERVICE: backend-service
   WORKER_SERVICE: worker-service
