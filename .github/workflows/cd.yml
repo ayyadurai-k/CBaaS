@@ -51,7 +51,7 @@ jobs:
 
       - name: Build & Push Worker
         run: |
-          docker build -t $WORKER_REPO -f ./backend/Dockerfile.worker ./backend
+          docker build -t $WORKER_REPO -f ./backend/Dockerfile.prod ./backend
           docker tag $WORKER_REPO:latest $ECR_REGISTRY/$WORKER_REPO:latest
           docker push $ECR_REGISTRY/$WORKER_REPO:latest
 
