@@ -9,13 +9,13 @@ env:
   AWS_REGION: ap-south-1
   ACCOUNT_ID: 577897067437
   ECR_REGISTRY: 577897067437.dkr.ecr.ap-south-1.amazonaws.com
-  FRONTEND_REPO: frontend
-  BACKEND_REPO: backend
-  WORKER_REPO: worker
+  FRONTEND_REPO: cbaas-frontend
+  BACKEND_REPO: cbaas-backend
+  WORKER_REPO: cbaas-worker
   ECS_CLUSTER: cbaas-cluster
-  FRONTEND_SERVICE: frontend-service
-  BACKEND_SERVICE: backend-service
-  WORKER_SERVICE: worker-service
+  FRONTEND_SERVICE: cbaas-frontend-service
+  BACKEND_SERVICE: cbaas-backend-service
+  WORKER_SERVICE: cbaas-worker-service
 
 jobs:
   deploy:
@@ -41,19 +41,25 @@ jobs:
         run: |
           docker build -t $FRONTEND_REPO -f ./frontend/Dockerfile.prod ./frontend
           docker tag $FRONTEND_REPO:latest $ECR_REGISTRY/$FRONTEND_REPO:latest
+          docker tag $FRONTEND_REPO:latest $ECR_REGISTRY/$FRONTEND_REPO:${GITHUB_SHA}
           docker push $ECR_REGISTRY/$FRONTEND_REPO:latest
+          docker push $ECR_REGISTRY/$FRONTEND_REPO:${GITHUB_SHA}
 
       - name: Build & Push Backend
         run: |
           docker build -t $BACKEND_REPO -f ./backend/Dockerfile.prod ./backend
           docker tag $BACKEND_REPO:latest $ECR_REGISTRY/$BACKEND_REPO:latest
+          docker tag $BACKEND_REPO:latest $ECR_REGISTRY/$BACKEND_REPO:${GITHUB_SHA}
           docker push $ECR_REGISTRY/$BACKEND_REPO:latest
+          docker push $ECR_REGISTRY/$BACKEND_REPO:${GITHUB_SHA}
 
       - name: Build & Push Worker
         run: |
           docker build -t $WORKER_REPO -f ./backend/Dockerfile.prod ./backend
           docker tag $WORKER_REPO:latest $ECR_REGISTRY/$WORKER_REPO:latest
+          docker tag $WORKER_REPO:latest $ECR_REGISTRY/$WORKER_REPO:${GITHUB_SHA}
           docker push $ECR_REGISTRY/$WORKER_REPO:latest
+          docker push $ECR_REGISTRY/$WORKER_REPO:${GITHUB_SHA}
 
       - name: Update ECS Frontend Service
         run: |
