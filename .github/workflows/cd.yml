@@ -7,8 +7,8 @@ on:
 
 env:
   AWS_REGION: ap-south-1
-  ACCOUNT_ID : 577897067437
-  ECR_REGISTRY: ${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+  ACCOUNT_ID: 577897067437
+  ECR_REGISTRY: 577897067437.dkr.ecr.ap-south-1.amazonaws.com
   FRONTEND_REPO: frontend
   BACKEND_REPO: backend
   WORKER_REPO: worker
