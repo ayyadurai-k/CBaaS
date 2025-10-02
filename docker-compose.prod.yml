@@ -50,24 +50,20 @@ services:
     env_file: ./backend/.env.prod
     command: celery -A config.celery.app worker -l info
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}   # from global env or .env file
     restart: always
     ports:
       - "80:80"
     depends_on:
       - web
-    environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL}   # ensure available in runtime too, if needed
-    volumes:
-      - static_data:/app/staticfiles
 
 volumes:
   db_data:
