@@ -1,28 +1,77 @@
-name: CD to EC2
+name: Deploy to AWS ECS
 
 on:
   push:
     branches:
       - release   # trigger only on release branch
 
+env:
+  AWS_REGION: ap-south-1
+  ACCOUNT_ID : 577897067437
+  ECR_REGISTRY: ${{ env.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+  FRONTEND_REPO: frontend
+  BACKEND_REPO: backend
+  WORKER_REPO: worker
+  ECS_CLUSTER: my-app-cluster
+  FRONTEND_SERVICE: frontend-service
+  BACKEND_SERVICE: backend-service
+  WORKER_SERVICE: worker-service
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.2.0
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/CBaaS
-            git fetch --all
-            git reset --hard origin/release
-            export VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
-            docker compose -f docker-compose.prod.yml down
-            docker compose -f docker-compose.prod.yml up -d --build
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | \
+          docker login --username AWS --password-stdin $ECR_REGISTRY
+
+      - name: Build & Push Frontend
+        run: |
+          docker build -t $FRONTEND_REPO -f ./frontend/Dockerfile.prod ./frontend
+          docker tag $FRONTEND_REPO:latest $ECR_REGISTRY/$FRONTEND_REPO:latest
+          docker push $ECR_REGISTRY/$FRONTEND_REPO:latest
+
+      - name: Build & Push Backend
+        run: |
+          docker build -t $BACKEND_REPO -f ./backend/Dockerfile.prod ./backend
+          docker tag $BACKEND_REPO:latest $ECR_REGISTRY/$BACKEND_REPO:latest
+          docker push $ECR_REGISTRY/$BACKEND_REPO:latest
+
+      - name: Build & Push Worker
+        run: |
+          docker build -t $WORKER_REPO -f ./backend/Dockerfile.worker ./backend
+          docker tag $WORKER_REPO:latest $ECR_REGISTRY/$WORKER_REPO:latest
+          docker push $ECR_REGISTRY/$WORKER_REPO:latest
+
+      - name: Update ECS Frontend Service
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $FRONTEND_SERVICE \
+            --force-new-deployment
+
+      - name: Update ECS Backend Service
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $BACKEND_SERVICE \
+            --force-new-deployment
+
+      - name: Update ECS Worker Service
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $WORKER_SERVICE \
+            --force-new-deployment
