@@ -1,3 +1,8 @@
 -r base.txt
 gunicorn
 whitenoise
+
+# AWS integrations
+boto3>=1.34.0
+django-storages[s3]>=1.14.0
+python-json-logger>=2.0.7  # For structured CloudWatch logging
