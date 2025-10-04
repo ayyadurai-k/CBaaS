@@ -26,11 +26,14 @@ COPY . .
 # Change ownership to django user
 RUN chown -R django:django /app
 
+# Verify files were copied correctly
+RUN ls -la /app && ls -la /app/manage.py
+
 # Switch to non-root user
 USER django
 
-# Collect static files (if using Django's static files)
-RUN python manage.py collectstatic --noinput --settings=config.environments.prod
+# Collect static files (skip for now to avoid DB dependency)
+# RUN python manage.py collectstatic --noinput --settings=config.environments.prod
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
