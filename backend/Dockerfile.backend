@@ -16,7 +16,7 @@ RUN groupadd -r django && useradd -r -g django django
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements/prod.txt requirements/
+COPY requirements/ requirements/
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements/prod.txt
 
