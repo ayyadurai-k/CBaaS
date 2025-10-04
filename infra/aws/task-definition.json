@@ -9,7 +9,7 @@
   "containerDefinitions": [
     {
       "name": "cbaas-backend",
-      "image": "577897067437.dkr.ecr.ap-south-1.amazonaws.com/cbaas-backend:20241005-211000",
+      "image": "577897067437.dkr.ecr.ap-south-1.amazonaws.com/cbaas-backend:latest",
       "portMappings": [
         {
           "containerPort": 8000,

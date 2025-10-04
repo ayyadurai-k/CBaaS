@@ -83,12 +83,14 @@ aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS 
 
 # Step 2: Build Docker image
 log_step "Building Docker image..."
-docker build -f backend/Dockerfile.backend -t "$FULL_IMAGE_URI" backend/
+docker build -f backend/Dockerfile.backend -t "$FULL_IMAGE_URI" -t "${ECR_URI}:latest" backend/
 
 # Step 3: Push image to ECR
 log_step "Pushing image to ECR..."
 docker push "$FULL_IMAGE_URI"
+docker push "${ECR_URI}:latest"
 log_info "Image pushed: $FULL_IMAGE_URI"
+log_info "Latest tag pushed: ${ECR_URI}:latest"
 
 # Step 4: Get current task definition
 log_step "Updating ECS task definition..."

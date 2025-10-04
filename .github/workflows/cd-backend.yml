@@ -59,12 +59,17 @@ jobs:
         working-directory: ./backend
         run: |
           echo "Building Django backend image..."
-          docker build -f Dockerfile.backend -t ${{ steps.image-tag.outputs.FULL_IMAGE_URI }} .
+          docker build -f Dockerfile.backend -t ${{ steps.image-tag.outputs.FULL_IMAGE_URI }} -t ${{ secrets.ECR_REPOSITORY }}:latest .
           
-          echo "Pushing image to ECR..."
+          echo "Pushing versioned image to ECR..."
           docker push ${{ steps.image-tag.outputs.FULL_IMAGE_URI }}
           
-          echo "Image pushed: ${{ steps.image-tag.outputs.FULL_IMAGE_URI }}"
+          echo "Pushing latest tag to ECR..."
+          docker push ${{ secrets.ECR_REPOSITORY }}:latest
+          
+          echo "Images pushed:"
+          echo "  Versioned: ${{ steps.image-tag.outputs.FULL_IMAGE_URI }}"
+          echo "  Latest: ${{ secrets.ECR_REPOSITORY }}:latest"
 
       # Step 6: Update ECS task definition
       - name: Update ECS task definition

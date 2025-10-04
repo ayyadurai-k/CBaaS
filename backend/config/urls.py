@@ -27,7 +27,7 @@ urlpatterns = [
     path("api/", include("apps.organizations.urls")),
 
     # Domain
-    # path("api/", include("apps.documents.urls")),  # Temporarily disabled due to libmagic dependency
+    path("api/", include("apps.documents.urls")),
     path("api/", include("apps.chatbot.urls")),
     path("api/", include("apps.api_keys.urls")),
     path("api/", include("apps.search.urls")),
