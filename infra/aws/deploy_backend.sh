@@ -104,17 +104,93 @@ if [ "$CURRENT_TASK_DEF" = "null" ]; then
     exit 1
 fi
 
-# Create new task definition with updated image
-NEW_TASK_DEF=$(echo "$CURRENT_TASK_DEF" | jq --arg IMAGE "$FULL_IMAGE_URI" '
-    .containerDefinitions[0].image = $IMAGE |
-    del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)
-')
-
-# Register new task definition
-NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition \
-    --cli-input-json file:///dev/stdin \
+# Create new task definition with updated image using AWS CLI
+# Get current revision to increment
+CURRENT_REVISION=$(aws ecs describe-task-definition \
+    --task-definition "$TASK_FAMILY" \
     --query 'taskDefinition.revision' \
     --output text)
+
+# Create a temporary task definition file with updated image
+cat > temp-task-def.json <<EOF
+{
+  "family": "$TASK_FAMILY",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::577897067437:role/cbaas-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::577897067437:role/cbaas-task-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "cbaas-backend",
+      "image": "$FULL_IMAGE_URI",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "secrets": [
+        {
+          "name": "DJANGO_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:577897067437:secret:cbaas/backend/env:DJANGO_SECRET_KEY::"
+        },
+        {
+          "name": "DEBUG",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:577897067437:secret:cbaas/backend/env:DEBUG::"
+        },
+        {
+          "name": "ALLOWED_HOSTS",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:577897067437:secret:cbaas/backend/env:ALLOWED_HOSTS::"
+        },
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:577897067437:secret:cbaas/backend/env:DATABASE_URL::"
+        },
+        {
+          "name": "CORS_ALLOWED_ORIGINS",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:577897067437:secret:cbaas/backend/env:CORS_ALLOWED_ORIGINS::"
+        },
+        {
+          "name": "CORS_ALLOW_CREDENTIALS",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:577897067437:secret:cbaas/backend/env:CORS_ALLOW_CREDENTIALS::"
+        }
+      ],
+      "environment": [
+        {
+          "name": "DJANGO_ENV",
+          "value": "prod"
+        },
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "$AWS_REGION"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8000/api/healthz || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}
+EOF
+
+# Register new task definition
+NEW_REVISION=$(aws ecs register-task-definition \
+    --cli-input-json file://temp-task-def.json \
+    --query 'taskDefinition.revision' \
+    --output text)
+
+# Clean up temporary file
+rm -f temp-task-def.json
 
 log_info "New task definition registered: ${TASK_FAMILY}:${NEW_REVISION}"
 
