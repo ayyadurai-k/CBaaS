@@ -51,9 +51,10 @@ jobs:
           # Make script executable
           chmod +x infra/aws/deploy_frontend.sh
           
-          # Run deployment script from frontend/dist directory
-          cd frontend/dist
-          bash ../../infra/aws/deploy_frontend.sh \
+          # Run deployment script from frontend directory
+          # (script expects to find dist/ in current directory)
+          cd frontend
+          bash ../infra/aws/deploy_frontend.sh \
             ${{ secrets.S3_BUCKET }} \
             ${{ secrets.CF_DIST_ID }}
 
