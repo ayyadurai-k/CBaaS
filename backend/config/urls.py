@@ -34,7 +34,6 @@ urlpatterns = [
     path("api/", include("apps.chat.urls")),
 ]
 
-# Always serve static files in this deployment setup
-# Since we're not using a separate web server like Nginx
+# Always serve static files in ECS deployment - no conditions needed
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

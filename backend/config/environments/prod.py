@@ -5,25 +5,61 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Static files configuration for production
-STATIC_URL = "/static/"
-STATIC_ROOT = "/app/staticfiles"
+# Debug and security
+DEBUG = False
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else []
 
-# Use default Django static file storage
-STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+# Static files configuration for ECS deployment
+STATIC_URL = '/static/'
+STATIC_ROOT = '/app/staticfiles'
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
-# Media files configuration
-MEDIA_URL = "/media/"
-MEDIA_ROOT = "/app/media"
+# Force static file serving in production (safe behind ALB)
+# This is required for ECS deployment where Django serves static files directly
+FORCE_SERVE_STATIC = True
+
+# Media files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = '/app/media'
+
+# Database configuration
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'cbaasdb'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+    }
+}
 
 # Security settings
-DEBUG = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 
-# Force Django to serve static files in production (for containers without nginx)
-SERVE_STATIC_FILES = True
+# Enable static file serving logging for debugging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django.contrib.staticfiles': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
 FORCE_SERVE_STATIC = True
 
 # Add localhost and internal IPs to ALLOWED_HOSTS

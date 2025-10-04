@@ -23,6 +23,43 @@ class HealthzView(APIView):
             "version": "1.0.0"
         }, status=status.HTTP_200_OK)
 
+
+class StaticDebugView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """Debug endpoint to check static file configuration"""
+        import os
+        from django.conf import settings
+        
+        static_info = {
+            'STATIC_URL': getattr(settings, 'STATIC_URL', 'Not set'),
+            'STATIC_ROOT': getattr(settings, 'STATIC_ROOT', 'Not set'),
+            'DEBUG': getattr(settings, 'DEBUG', False),
+            'FORCE_SERVE_STATIC': getattr(settings, 'FORCE_SERVE_STATIC', False),
+            'STATICFILES_STORAGE': getattr(settings, 'STATICFILES_STORAGE', 'Not set'),
+        }
+        
+        # Check if static files exist
+        static_root = getattr(settings, 'STATIC_ROOT', '')
+        if static_root and os.path.exists(static_root):
+            try:
+                admin_css = os.path.join(static_root, 'admin', 'css', 'base.css')
+                drf_css = os.path.join(static_root, 'rest_framework', 'css', 'bootstrap.min.css')
+                
+                static_info.update({
+                    'static_root_exists': True,
+                    'admin_css_exists': os.path.exists(admin_css),
+                    'drf_css_exists': os.path.exists(drf_css),
+                    'static_files_count': len([f for f in os.listdir(static_root) if os.path.isdir(os.path.join(static_root, f))]),
+                })
+            except Exception as e:
+                static_info['error'] = str(e)
+        else:
+            static_info['static_root_exists'] = False
+        
+        return Response(static_info, status=status.HTTP_200_OK)
+
         # Check Redis connection with performance logging
         try:
             @log_performance("redis_health_check")
