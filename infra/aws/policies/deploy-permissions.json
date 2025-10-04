@@ -19,7 +19,8 @@
       "Effect": "Allow",
       "Action": [
         "cloudfront:CreateInvalidation",
-        "cloudfront:GetInvalidation"
+        "cloudfront:GetInvalidation",
+        "cloudfront:GetDistribution"
       ],
       "Resource": "arn:aws:cloudfront::YOUR_AWS_ACCOUNT_ID:distribution/*"
     }

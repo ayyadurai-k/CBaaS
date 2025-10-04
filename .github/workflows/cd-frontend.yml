@@ -60,17 +60,15 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          # Get CloudFront URL
-          CLOUDFRONT_URL=$(aws cloudfront get-distribution \
-            --id ${{ secrets.CF_DIST_ID }} \
-            --query 'Distribution.DomainName' \
-            --output text)
-          
-          # Output to job summary
-          echo "## 🚀 Frontend Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Frontend Deployment Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**CloudFront URL:** https://$CLOUDFRONT_URL" >> $GITHUB_STEP_SUMMARY
-          echo "**S3 Bucket:** ${{ secrets.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Distribution ID:** ${{ secrets.CF_DIST_ID }}" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket:** \`${{ secrets.S3_BUCKET }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront Distribution:** \`${{ secrets.CF_DIST_ID }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region:** \`ap-south-1\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Cache invalidation completed. Changes are live globally! ✨" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 Access Your App" >> $GITHUB_STEP_SUMMARY
+          echo "Your frontend is now live and cached globally via CloudFront CDN!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 💡 **Tip:** Changes may take 1-2 minutes to propagate globally due to cache invalidation." >> $GITHUB_STEP_SUMMARY
