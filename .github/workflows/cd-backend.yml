@@ -1,0 +1,222 @@
+name: Deploy Backend to AWS ECS
+
+on:
+  push:
+    branches: [ release ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/cd-backend.yml'
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even without backend changes'
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: ap-south-1
+  PROJECT_NAME: cbaas
+
+jobs:
+  deploy:
+    name: Build and Deploy Django Backend
+    runs-on: ubuntu-latest
+    
+    # OIDC permissions
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Configure AWS credentials using OIDC
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-BackendDeploy
+
+      # Step 3: Login to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Step 4: Set up image tag
+      - name: Set image tag
+        id: image-tag
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+          IMAGE_TAG="release-${SHORT_SHA}"
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "FULL_IMAGE_URI=${{ secrets.ECR_REPOSITORY }}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+      # Step 5: Build and push Docker image to ECR
+      - name: Build and push Docker image
+        working-directory: ./backend
+        run: |
+          echo "Building Django backend image..."
+          docker build -f Dockerfile.backend -t ${{ steps.image-tag.outputs.FULL_IMAGE_URI }} .
+          
+          echo "Pushing image to ECR..."
+          docker push ${{ steps.image-tag.outputs.FULL_IMAGE_URI }}
+          
+          echo "Image pushed: ${{ steps.image-tag.outputs.FULL_IMAGE_URI }}"
+
+      # Step 6: Update ECS task definition
+      - name: Update ECS task definition
+        id: update-task-def
+        run: |
+          echo "Retrieving current task definition..."
+          
+          # Get current task definition
+          CURRENT_TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition ${{ env.PROJECT_NAME }}-backend-task \
+            --query 'taskDefinition' \
+            --output json)
+          
+          if [ "$CURRENT_TASK_DEF" = "null" ]; then
+            echo "ERROR: Task definition not found. Run setup-aws-backend.sh first."
+            exit 1
+          fi
+          
+          # Update image in task definition
+          NEW_TASK_DEF=$(echo "$CURRENT_TASK_DEF" | jq --arg IMAGE "${{ steps.image-tag.outputs.FULL_IMAGE_URI }}" '
+            .containerDefinitions[0].image = $IMAGE |
+            del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)
+          ')
+          
+          # Register new task definition
+          NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition \
+            --cli-input-json file:///dev/stdin \
+            --query 'taskDefinition.revision' \
+            --output text)
+          
+          echo "NEW_REVISION=${NEW_REVISION}" >> $GITHUB_OUTPUT
+          echo "New task definition registered: ${{ env.PROJECT_NAME }}-backend-task:${NEW_REVISION}"
+
+      # Step 7: Deploy to ECS
+      - name: Deploy to ECS
+        run: |
+          echo "Updating ECS service..."
+          
+          # Check if service exists
+          if aws ecs describe-services \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --services ${{ secrets.ECS_SERVICE }} \
+            --query 'services[0].serviceName' \
+            --output text 2>/dev/null | grep -q "${{ secrets.ECS_SERVICE }}"; then
+            
+            echo "Service exists, updating..."
+            aws ecs update-service \
+              --cluster ${{ secrets.ECS_CLUSTER }} \
+              --service ${{ secrets.ECS_SERVICE }} \
+              --task-definition ${{ env.PROJECT_NAME }}-backend-task:${{ steps.update-task-def.outputs.NEW_REVISION }} \
+              --force-new-deployment > /dev/null
+            
+          else
+            echo "Service doesn't exist, creating..."
+            
+            # Get network configuration
+            VPC_ID=$(aws ec2 describe-vpcs --filters "Name=is-default,Values=true" --query 'Vpcs[0].VpcId' --output text)
+            SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query 'Subnets[*].SubnetId' --output text)
+            SUBNET_ID_1=$(echo $SUBNET_IDS | cut -d' ' -f1)
+            SUBNET_ID_2=$(echo $SUBNET_IDS | cut -d' ' -f2)
+            if [ -z "$SUBNET_ID_2" ]; then SUBNET_ID_2="$SUBNET_ID_1"; fi
+            
+            ECS_SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=${{ env.PROJECT_NAME }}-ecs-sg" --query 'SecurityGroups[0].GroupId' --output text)
+            
+            # Create service
+            aws ecs create-service \
+              --cluster ${{ secrets.ECS_CLUSTER }} \
+              --service-name ${{ secrets.ECS_SERVICE }} \
+              --task-definition ${{ env.PROJECT_NAME }}-backend-task:${{ steps.update-task-def.outputs.NEW_REVISION }} \
+              --desired-count 1 \
+              --launch-type FARGATE \
+              --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID_1,$SUBNET_ID_2],securityGroups=[$ECS_SG_ID],assignPublicIp=ENABLED}" \
+              --load-balancers "targetGroupArn=${{ secrets.TARGET_GROUP_ARN }},containerName=${{ env.PROJECT_NAME }}-backend,containerPort=8000" \
+              --enable-execute-command > /dev/null
+          fi
+
+      # Step 8: Wait for deployment
+      - name: Wait for stable deployment
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          aws ecs wait services-stable \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --services ${{ secrets.ECS_SERVICE }}
+          
+          echo "Deployment completed successfully!"
+
+      # Step 9: Get deployment status
+      - name: Get deployment summary
+        id: deployment-summary
+        run: |
+          # Get service status
+          SERVICE_STATUS=$(aws ecs describe-services \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --services ${{ secrets.ECS_SERVICE }} \
+            --query 'services[0].{running:runningCount,desired:desiredCount,pending:pendingCount}' \
+            --output json)
+          
+          RUNNING_COUNT=$(echo "$SERVICE_STATUS" | jq -r '.running')
+          DESIRED_COUNT=$(echo "$SERVICE_STATUS" | jq -r '.desired')
+          
+          # Get ALB DNS
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names ${{ env.PROJECT_NAME }}-alb \
+            --query 'LoadBalancers[0].DNSName' \
+            --output text)
+          
+          echo "ALB_DNS=${ALB_DNS}" >> $GITHUB_OUTPUT
+          echo "RUNNING_COUNT=${RUNNING_COUNT}" >> $GITHUB_OUTPUT
+          echo "DESIRED_COUNT=${DESIRED_COUNT}" >> $GITHUB_OUTPUT
+
+      # Step 10: Verify deployment health
+      - name: Verify deployment health
+        run: |
+          echo "Waiting for targets to be healthy..."
+          sleep 60
+          
+          # Check if the service is responding
+          BACKEND_URL="http://${{ steps.deployment-summary.outputs.ALB_DNS }}"
+          
+          echo "Testing backend endpoint: ${BACKEND_URL}/api/healthz"
+          
+          # Try to reach the health endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BACKEND_URL}/api/healthz" || echo "000")
+          
+          if [[ "$HTTP_CODE" == "200" ]]; then
+            echo "✅ Backend is healthy and responding!"
+          elif [[ "$HTTP_CODE" == "000" ]]; then
+            echo "⚠️  Could not connect to backend. It might still be starting up."
+            echo "Check the ECS service logs if the issue persists."
+          else
+            echo "⚠️  Backend returned HTTP $HTTP_CODE. Check the application logs."
+          fi
+
+      # Step 11: Output deployment summary
+      - name: Output deployment summary
+        run: |
+          echo "## 🚀 Backend Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Image** | \`${{ steps.image-tag.outputs.FULL_IMAGE_URI }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Task Definition** | \`${{ env.PROJECT_NAME }}-backend-task:${{ steps.update-task-def.outputs.NEW_REVISION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **ECS Service** | \`${{ secrets.ECS_SERVICE }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Running Tasks** | ${{ steps.deployment-summary.outputs.RUNNING_COUNT }}/${{ steps.deployment-summary.outputs.DESIRED_COUNT }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Backend URL** | http://${{ steps.deployment-summary.outputs.ALB_DNS }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Health Check** | http://${{ steps.deployment-summary.outputs.ALB_DNS }}/api/healthz |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 Monitoring Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Check service status" >> $GITHUB_STEP_SUMMARY
+          echo "aws ecs describe-services --cluster ${{ secrets.ECS_CLUSTER }} --services ${{ secrets.ECS_SERVICE }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Access container for debugging" >> $GITHUB_STEP_SUMMARY
+          echo "aws ecs execute-command --cluster ${{ secrets.ECS_CLUSTER }} --task <task-arn> --container ${{ env.PROJECT_NAME }}-backend --interactive --command '/bin/bash'" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

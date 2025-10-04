@@ -1,0 +1,43 @@
+# Multi-stage Dockerfile for Django Backend Production Deployment
+# Optimized for AWS ECS Fargate with minimal attack surface
+FROM python:3.11-slim as base
+
+# Install system dependencies and security updates
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd -r django && useradd -r -g django django
+
+# Set work directory
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements/prod.txt requirements/
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements/prod.txt
+
+# Copy application code
+COPY . .
+
+# Change ownership to django user
+RUN chown -R django:django /app
+
+# Switch to non-root user
+USER django
+
+# Collect static files (if using Django's static files)
+RUN python manage.py collectstatic --noinput --settings=config.environments.prod
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health/ || exit 1
+
+# Expose port
+EXPOSE 8000
+
+# Run gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-", "config.wsgi:application"]
