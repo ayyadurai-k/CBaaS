@@ -34,7 +34,7 @@ urlpatterns = [
     path("api/", include("apps.chat.urls")),
 ]
 
-# Serve static and media files in production
-if settings.DEBUG or getattr(settings, 'FORCE_SERVE_STATIC', False):
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Always serve static files in this deployment setup
+# Since we're not using a separate web server like Nginx
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

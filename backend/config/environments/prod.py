@@ -22,7 +22,8 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
 
-# Force Django to serve static files in production (for containers)
+# Force Django to serve static files in production (for containers without nginx)
+SERVE_STATIC_FILES = True
 FORCE_SERVE_STATIC = True
 
 # Add localhost and internal IPs to ALLOWED_HOSTS

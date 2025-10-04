@@ -39,10 +39,13 @@ RUN ls -la /app && ls -la /app/manage.py
 # Switch to non-root user
 USER django
 
-# Collect static files (now that dependencies are resolved)
-RUN python manage.py collectstatic --noinput --settings=config.environments.prod
+# Collect static files with verbose output to see what's happening
+RUN python manage.py collectstatic --noinput --verbosity=2 --settings=config.environments.prod
 
 # Verify static files were collected and check permissions
+RUN ls -la /app/staticfiles/ && \
+    ls -la /app/staticfiles/admin/ && \
+    ls -la /app/staticfiles/rest_framework/ || echo "REST framework static files not found"
 RUN ls -la /app/staticfiles/ && \
     find /app/staticfiles -name "*.css" | head -5
 
