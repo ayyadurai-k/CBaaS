@@ -1,0 +1,85 @@
+name: CD - Frontend to S3 + CloudFront
+
+on:
+  push:
+    branches:
+      - release
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/cd-frontend.yml'
+
+env:
+  AWS_REGION: ap-south-1
+
+# Permissions for OIDC authentication
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and Deploy Frontend
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Configure AWS credentials using OIDC
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GitHubActions-FrontendDeploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Step 3: Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 4: Build React app using Docker
+      - name: Build React app in Docker
+        run: |
+          cd frontend
+          docker build -f Dockerfile.s3 -t cbaas-frontend-build .
+          
+      # Step 5: Extract build output from Docker container
+      - name: Extract build artifacts
+        run: |
+          cd frontend
+          # Create a temporary container and copy the build output
+          docker create --name temp-container cbaas-frontend-build
+          docker cp temp-container:/dist ./dist
+          docker rm temp-container
+          
+          # Verify build output
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ Build failed - index.html not found"
+            exit 1
+          fi
+          
+          echo "✅ Build artifacts extracted successfully"
+          ls -lh dist/
+
+      # Step 6: Deploy to S3 and invalidate CloudFront
+      - name: Deploy to S3 and CloudFront
+        env:
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          CF_DIST_ID: ${{ secrets.CF_DIST_ID }}
+        run: |
+          cd frontend
+          chmod +x ../infra/aws/deploy_frontend.sh
+          ../infra/aws/deploy_frontend.sh "$S3_BUCKET" "$CF_DIST_ID"
+
+      # Step 7: Summary
+      - name: Deployment Summary
+        run: |
+          echo "## 🚀 Frontend Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket:** ${{ secrets.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront Distribution:** ${{ secrets.CF_DIST_ID }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Your app should be live at your CloudFront URL!" >> $GITHUB_STEP_SUMMARY

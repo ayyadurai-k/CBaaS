@@ -1,0 +1,27 @@
+# Dockerfile for building React app for S3 deployment
+# Purpose: Ensure consistent builds across environments without hosting in Docker
+
+FROM node:20-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lockb ./
+
+# Install dependencies using npm (bun.lockb can be used with npm)
+RUN npm install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Build the React app
+# This will use the .env.production file for environment variables
+RUN npm run build
+
+# The build output will be in /app/dist
+# We'll extract this in the CI/CD pipeline
+
+# Verification stage (optional, helps catch build errors)
+FROM scratch AS export
+COPY --from=builder /app/dist /
