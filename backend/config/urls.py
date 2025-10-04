@@ -34,6 +34,7 @@ urlpatterns = [
     path("api/", include("apps.chat.urls")),
 ]
 
-# Serve media files in development
-if settings.DEBUG:
+# Serve static and media files in production
+if settings.DEBUG or getattr(settings, 'FORCE_SERVE_STATIC', False):
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
