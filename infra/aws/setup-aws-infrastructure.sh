@@ -38,7 +38,6 @@ BUCKET_NAME=$1
 AWS_ACCOUNT_ID=$2
 AWS_REGION="ap-south-1"
 ROLE_NAME="GitHubActionsDeployRole"
-POLICY_DIR="$(dirname "$0")/policies"
 
 # Verify AWS CLI
 if ! command -v aws &> /dev/null; then
@@ -81,10 +80,21 @@ aws s3api put-public-access-block \
 
 # Step 4: Apply bucket policy
 log_step "Applying S3 bucket policy..."
-BUCKET_POLICY=$(cat "$POLICY_DIR/s3-public-policy.json" | sed "s/your-app-bucket-name/$BUCKET_NAME/g")
-# Create temp file for Windows compatibility
 TEMP_POLICY="./temp-bucket-policy.json"
-echo "$BUCKET_POLICY" > "$TEMP_POLICY"
+cat > "$TEMP_POLICY" <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadGetObject",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::${BUCKET_NAME}/*"
+    }
+  ]
+}
+EOF
 aws s3api put-bucket-policy \
     --bucket "$BUCKET_NAME" \
     --policy "file://$TEMP_POLICY"
@@ -107,9 +117,29 @@ fi
 
 # Step 6: Create IAM role
 log_step "Creating IAM role for GitHub Actions..."
-TRUST_POLICY=$(cat "$POLICY_DIR/github-trust-policy.json" | sed "s/YOUR_AWS_ACCOUNT_ID/$AWS_ACCOUNT_ID/g")
 TEMP_TRUST="./temp-trust-policy.json"
-echo "$TRUST_POLICY" > "$TEMP_TRUST"
+cat > "$TEMP_TRUST" <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:ayyadurai-k/CBaaS:ref:refs/heads/release"
+        }
+      }
+    }
+  ]
+}
+EOF
 
 if aws iam get-role --role-name "$ROLE_NAME" &>/dev/null; then
     log_warn "Role $ROLE_NAME already exists, updating trust policy"
@@ -126,11 +156,37 @@ rm -f "$TEMP_TRUST"
 
 # Step 7: Attach permissions policy
 log_step "Attaching permissions policy to role..."
-PERMISSIONS_POLICY=$(cat "$POLICY_DIR/deploy-permissions.json" | \
-    sed "s/your-app-bucket-name/$BUCKET_NAME/g" | \
-    sed "s/YOUR_AWS_ACCOUNT_ID/$AWS_ACCOUNT_ID/g")
 TEMP_PERMS="./temp-permissions-policy.json"
-echo "$PERMISSIONS_POLICY" > "$TEMP_PERMS"
+cat > "$TEMP_PERMS" <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket",
+        "s3:PutBucketPolicy"
+      ],
+      "Resource": [
+        "arn:aws:s3:::${BUCKET_NAME}",
+        "arn:aws:s3:::${BUCKET_NAME}/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateInvalidation",
+        "cloudfront:GetInvalidation",
+        "cloudfront:GetDistribution"
+      ],
+      "Resource": "arn:aws:cloudfront::${AWS_ACCOUNT_ID}:distribution/*"
+    }
+  ]
+}
+EOF
 aws iam put-role-policy \
     --role-name "$ROLE_NAME" \
     --policy-name DeployFrontendPolicy \
@@ -144,11 +200,6 @@ log_step "Creating CloudFront distribution..."
 # Get S3 website endpoint
 S3_WEBSITE_ENDPOINT="${BUCKET_NAME}.s3-website.${AWS_REGION}.amazonaws.com"
 
-# Create distribution config
-DIST_CONFIG=$(cat "$POLICY_DIR/cloudfront-distribution.json" | \
-    sed "s/your-app-bucket-name.s3-website.ap-south-1.amazonaws.com/$S3_WEBSITE_ENDPOINT/g" | \
-    sed "s/cbaas-frontend-2025/cbaas-frontend-$(date +%s)/g")
-
 # Check if distribution already exists for this origin
 EXISTING_DIST=$(aws cloudfront list-distributions --query "DistributionList.Items[?Origins.Items[?DomainName=='$S3_WEBSITE_ENDPOINT']].Id" --output text 2>/dev/null || true)
 
@@ -157,7 +208,69 @@ if [ -n "$EXISTING_DIST" ]; then
     CF_DIST_ID="$EXISTING_DIST"
 else
     TEMP_DIST="./temp-cloudfront-config.json"
-    echo "$DIST_CONFIG" > "$TEMP_DIST"
+    cat > "$TEMP_DIST" <<EOF
+{
+  "Comment": "CloudFront distribution for ${BUCKET_NAME}",
+  "CallerReference": "${BUCKET_NAME}-$(date +%s)",
+  "Aliases": {
+    "Quantity": 0
+  },
+  "DefaultRootObject": "index.html",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "S3-${BUCKET_NAME}",
+        "DomainName": "${S3_WEBSITE_ENDPOINT}",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "http-only",
+          "OriginSslProtocols": {
+            "Quantity": 1,
+            "Items": ["TLSv1.2"]
+          }
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "S3-${BUCKET_NAME}",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 2,
+      "Items": ["GET", "HEAD"],
+      "CachedMethods": {
+        "Quantity": 2,
+        "Items": ["GET", "HEAD"]
+      }
+    },
+    "Compress": true,
+    "MinTTL": 0,
+    "DefaultTTL": 86400,
+    "MaxTTL": 31536000,
+    "ForwardedValues": {
+      "QueryString": false,
+      "Cookies": {
+        "Forward": "none"
+      }
+    }
+  },
+  "CustomErrorResponses": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "ErrorCode": 404,
+        "ResponsePagePath": "/index.html",
+        "ResponseCode": "200",
+        "ErrorCachingMinTTL": 300
+      }
+    ]
+  },
+  "Enabled": true,
+  "PriceClass": "PriceClass_All"
+}
+EOF
     CF_DIST_ID=$(aws cloudfront create-distribution \
         --distribution-config "file://$TEMP_DIST" \
         --query 'Distribution.Id' \

@@ -7,13 +7,9 @@ This directory contains scripts and policy files for setting up AWS infrastructu
 ```
 infra/aws/
 ├── README.md                          # This file
-├── setup-aws-infrastructure.sh        # Automated setup script
+├── setup-aws-infrastructure.sh        # Automated setup script (all policies embedded)
 ├── deploy_frontend.sh                 # Deployment script (used by CI/CD)
-└── policies/
-    ├── github-trust-policy.json       # OIDC trust policy for GitHub Actions
-    ├── deploy-permissions.json        # IAM permissions for deployment
-    ├── s3-public-policy.json          # S3 bucket public read policy
-    └── cloudfront-distribution.json   # CloudFront distribution config
+└── quick-deploy.sh                    # One-command manual deployment
 ```
 
 ## 🚀 Quick Start
@@ -49,35 +45,38 @@ If you prefer manual setup or need to customize, follow the detailed instruction
 
 ## 📝 Policy Files Explained
 
-### `github-trust-policy.json`
-Allows GitHub Actions from your repository to assume the IAM role using OIDC authentication.
+All IAM policies and CloudFront configurations are now **embedded directly in `setup-aws-infrastructure.sh`** for easier portability and learning.
 
-**What to replace:**
-- `YOUR_AWS_ACCOUNT_ID`: Your AWS account ID
-- Repository is hardcoded to `ayyadurai-k/CBaaS` - change if needed
+### Embedded Policies in Script
 
-### `deploy-permissions.json`
-Grants the IAM role permissions to deploy to S3 and invalidate CloudFront.
+The script contains these policies as heredocs:
 
-**What to replace:**
-- `your-app-bucket-name`: Your S3 bucket name
-- `YOUR_AWS_ACCOUNT_ID`: Your AWS account ID
+**1. S3 Bucket Policy** (Public Read Access)
+- Allows anyone on the internet to read files
+- Applied after bucket creation
+- Required for public website hosting
 
-### `s3-public-policy.json`
-Makes S3 bucket objects publicly readable (required for website hosting).
+**2. GitHub Trust Policy** (OIDC Authentication)  
+- Allows GitHub Actions to assume IAM role
+- Scoped to `ayyadurai-k/CBaaS:release` branch only
+- Uses temporary credentials (expire in 1 hour)
 
-**What to replace:**
-- `your-app-bucket-name`: Your S3 bucket name
+**3. IAM Permissions Policy** (Deployment Permissions)
+- S3 permissions: Upload, delete, list files
+- CloudFront permissions: Create/check invalidations
+- Least-privilege principle (only what's needed)
 
-### `cloudfront-distribution.json`
-Configuration for CloudFront distribution with SPA routing support.
+**4. CloudFront Distribution Config**
+- Origin: S3 website endpoint
+- HTTPS redirect enabled
+- SPA routing support (404 → index.html)
+- Cache settings optimized for React apps
 
-**What to replace:**
-- `your-app-bucket-name.s3-website.ap-south-1.amazonaws.com`: Your S3 website endpoint
+To view these policies, open `setup-aws-infrastructure.sh` and search for the relevant sections.
 
 ## 🔧 Manual Commands
 
-If you want to run individual steps:
+If you want to run individual steps (not recommended - use `setup-aws-infrastructure.sh` instead):
 
 ### Create S3 Bucket
 ```bash
@@ -101,27 +100,32 @@ aws iam create-open-id-connect-provider \
 
 ### Create IAM Role
 ```bash
-# Update policies/github-trust-policy.json first
+# Policy is embedded in setup-aws-infrastructure.sh
+# See script for complete trust policy with OIDC configuration
 aws iam create-role \
   --role-name GitHubActionsDeployRole \
-  --assume-role-policy-document file://policies/github-trust-policy.json
+  --assume-role-policy-document '{ "Version": "2012-10-17", ... }'
 ```
 
 ### Attach Permissions
 ```bash
-# Update policies/deploy-permissions.json first
+# Policy is embedded in setup-aws-infrastructure.sh
+# See script for complete permissions policy
 aws iam put-role-policy \
   --role-name GitHubActionsDeployRole \
   --policy-name DeployFrontendPolicy \
-  --policy-document file://policies/deploy-permissions.json
+  --policy-document '{ "Version": "2012-10-17", ... }'
 ```
 
 ### Create CloudFront Distribution
 ```bash
-# Update policies/cloudfront-distribution.json first
+# Configuration is embedded in setup-aws-infrastructure.sh
+# See script for complete distribution config with SPA routing
 aws cloudfront create-distribution \
-  --distribution-config file://policies/cloudfront-distribution.json
+  --distribution-config '{ "CallerReference": "...", ... }'
 ```
+
+**Note:** These manual commands are complex. The automated script handles all edge cases and proper variable substitution. Use `setup-aws-infrastructure.sh` instead!
 
 ## 🧹 Cleanup
 
