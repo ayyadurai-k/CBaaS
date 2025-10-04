@@ -5,6 +5,7 @@ import { AxiosResponse } from "axios";
 export type OrganizationDTO = {
   id: string;
   name: string;
+  slug: string;
   logo_url: string | null;
   created_at: string;
   updated_at: string;

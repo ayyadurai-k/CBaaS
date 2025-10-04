@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { authService } from '@/services/auth/AuthService';
+import { useAuth } from '@/hooks/redux/useAuth';
 import { Checkbox } from '@/components/ui/checkbox';
 
 export const LoginPage: React.FC = () => {
@@ -14,13 +14,13 @@ export const LoginPage: React.FC = () => {
     password: ''
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [touchedFields, setTouchedFields] = useState<{[key: string]: boolean}>({});
   
   const navigate = useNavigate();
   const location = useLocation();
+  const { login, isLoading, error } = useAuth();
   
   // Check for return URL from query params
   const from = new URLSearchParams(location.search).get('from') || '/dashboard';
@@ -84,16 +84,12 @@ export const LoginPage: React.FC = () => {
 
     // Clear any previous errors
     setErrors({});
-    setIsLoading(true);
 
     try {
-      // API call for login using AuthService
-      const result = await authService.login({
-        email: formData.email,
-        password: formData.password
-      });
+      // Use Redux login
+      const success = await login(formData.email, formData.password);
       
-      if (result.success) {
+      if (success) {
         // Save remember me preference if selected
         if (rememberMe) {
           localStorage.setItem('rememberedEmail', formData.email);
@@ -109,19 +105,18 @@ export const LoginPage: React.FC = () => {
           navigate(from);
         }, 800);
       } else {
-        // Specific error messages based on error type
-        if (result.message?.toLowerCase().includes('credentials')) {
+        // Handle login failure - error is managed by Redux
+        const errorMessage = error || 'Login failed. Please try again.';
+        if (errorMessage.toLowerCase().includes('credentials')) {
           setErrors({ general: 'Invalid email or password. Please try again.' });
-        } else if (result.message?.toLowerCase().includes('many')) {
+        } else if (errorMessage.toLowerCase().includes('many')) {
           setErrors({ general: 'Too many login attempts. Please try again later.' });
         } else {
-          setErrors({ general: result.message || 'Login failed. Please try again.' });
+          setErrors({ general: errorMessage });
         }
       }
-    } catch (error) {
+    } catch (err) {
       setErrors({ general: 'Network error. Please check your connection and try again.' });
-    } finally {
-      setIsLoading(false);
     }
   };
   
@@ -147,7 +142,7 @@ export const LoginPage: React.FC = () => {
             <h1 
               className="font-bold text-slate-900 text-2xl sm:text-3xl mb-2"
             >
-              Welcome Front
+              Welcome Back
             </h1>
             <p 
               className="text-slate-600 text-base"

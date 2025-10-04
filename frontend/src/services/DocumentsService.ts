@@ -19,7 +19,7 @@ export type Document = {
 export class DocumentsService {
   async list(): Promise<Document[]> {
     const { data } = await DocumentsAPI.getAll();
-    return data.map(this.normalizeDocument);
+    return data.results.map(this.normalizeDocument);
   }
 
   async getById(id: string): Promise<Document> {
@@ -33,7 +33,9 @@ export class DocumentsService {
   }
 
   async reprocess(id: string): Promise<Document> {
-    const { data } = await DocumentsAPI.reprocess(id);
+    await DocumentsAPI.reprocess(id);
+    // Fetch the updated document after reprocessing
+    const { data } = await DocumentsAPI.getById(id);
     return this.normalizeDocument(data);
   }
 

@@ -11,6 +11,7 @@
  */
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { loginThunk, logoutThunk, refreshTokenThunk } from '../services/authApi';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -34,47 +35,6 @@ export const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    // Login actions
-    loginStart: (state) => {
-      state.isLoading = true;
-      state.error = null;
-    },
-    loginSuccess: (state, action: PayloadAction<{
-      accessToken: string;
-      refreshToken?: string;
-    }>) => {
-      state.isAuthenticated = true;
-      state.accessToken = action.payload.accessToken;
-      state.refreshToken = action.payload.refreshToken || null;
-      state.isLoading = false;
-      state.error = null;
-      state.lastLoginTime = Date.now();
-    },
-    loginFailure: (state, action: PayloadAction<string>) => {
-      state.isAuthenticated = false;
-      state.accessToken = null;
-      state.refreshToken = null;
-      state.isLoading = false;
-      state.error = action.payload;
-      state.lastLoginTime = null;
-    },
-
-    // Logout action
-    logout: (state) => {
-      state.isAuthenticated = false;
-      state.accessToken = null;
-      state.refreshToken = null;
-      state.isLoading = false;
-      state.error = null;
-      state.lastLoginTime = null;
-    },
-
-    // Token refresh
-    refreshTokenSuccess: (state, action: PayloadAction<string>) => {
-      state.accessToken = action.payload;
-      state.error = null;
-    },
-
     // Clear error
     clearError: (state) => {
       state.error = null;
@@ -84,25 +44,93 @@ export const authSlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
+
+    // Manual logout (for immediate local logout)
+    logout: (state) => {
+      state.isAuthenticated = false;
+      state.accessToken = null;
+      state.refreshToken = null;
+      state.isLoading = false;
+      state.error = null;
+      state.lastLoginTime = null;
+    },
+  },
+  extraReducers: (builder) => {
+    // Login thunk
+    builder
+      .addCase(loginThunk.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(loginThunk.fulfilled, (state, action) => {
+        state.isAuthenticated = true;
+        state.accessToken = action.payload.accessToken;
+        state.refreshToken = action.payload.refreshToken || null;
+        state.isLoading = false;
+        state.error = null;
+        state.lastLoginTime = Date.now();
+      })
+      .addCase(loginThunk.rejected, (state, action) => {
+        state.isAuthenticated = false;
+        state.accessToken = null;
+        state.refreshToken = null;
+        state.isLoading = false;
+        state.error = action.payload || 'Login failed';
+        state.lastLoginTime = null;
+      })
+
+    // Logout thunk
+    builder
+      .addCase(logoutThunk.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(logoutThunk.fulfilled, (state) => {
+        state.isAuthenticated = false;
+        state.accessToken = null;
+        state.refreshToken = null;
+        state.isLoading = false;
+        state.error = null;
+        state.lastLoginTime = null;
+      })
+      .addCase(logoutThunk.rejected, (state) => {
+        // Even if logout API fails, clear local state
+        state.isAuthenticated = false;
+        state.accessToken = null;
+        state.refreshToken = null;
+        state.isLoading = false;
+        state.error = null;
+        state.lastLoginTime = null;
+      })
+
+    // Refresh token thunk
+    builder
+      .addCase(refreshTokenThunk.fulfilled, (state, action) => {
+        state.accessToken = action.payload;
+        state.error = null;
+      })
+      .addCase(refreshTokenThunk.rejected, (state) => {
+        state.isAuthenticated = false;
+        state.accessToken = null;
+        state.refreshToken = null;
+      });
   },
 });
 
 // Action creators
 export const {
-  loginStart,
-  loginSuccess,
-  loginFailure,
-  logout,
-  refreshTokenSuccess,
   clearError,
   setLoading,
+  logout,
 } = authSlice.actions;
 
-// Selectors
-export const selectAuth = (state: { auth: AuthState }) => state.auth;
-export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
-export const selectAccessToken = (state: { auth: AuthState }) => state.auth.accessToken;
-export const selectAuthLoading = (state: { auth: AuthState }) => state.auth.isLoading;
-export const selectAuthError = (state: { auth: AuthState }) => state.auth.error;
+// Export thunks for use in components
+export { loginThunk, logoutThunk, refreshTokenThunk };
+
+// Selectors - Updated to handle redux-persist partial state
+export const selectAuth = (state: any) => state.auth || initialState;
+export const selectIsAuthenticated = (state: any) => state.auth?.isAuthenticated ?? false;
+export const selectAccessToken = (state: any) => state.auth?.accessToken ?? null;
+export const selectAuthLoading = (state: any) => state.auth?.isLoading ?? false;
+export const selectAuthError = (state: any) => state.auth?.error ?? null;
 
 export default authSlice.reducer;

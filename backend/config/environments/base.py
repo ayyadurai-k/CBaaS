@@ -35,7 +35,6 @@ INSTALLED_APPS = [
     "apps.organizations",
     "apps.documents",
     "apps.chatbot",
-    "apps.chatbot_provider",
     "apps.api_keys",
     "apps.chat",
     "apps.search",
@@ -44,6 +43,8 @@ INSTALLED_APPS = [
     "apps.auth.login",
     "apps.auth.logout",
     "apps.auth.reset",
+    "apps.auth.status",
+
 ]
 
 AUTH_USER_MODEL = "users.User"
@@ -135,7 +136,7 @@ REST_FRAMEWORK = {
 
 # JWT
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -150,24 +151,34 @@ SPECTACULAR_SETTINGS = {"TITLE": "Org Chatbot API", "VERSION": "0.1.0"}
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
 
+# Celery Configuration
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = os.environ.get("TIME_ZONE", "UTC")
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_CONNECTION_RETRY = True
+
 # Secrets-at-rest
 ENCRYPTION_SECRET_KEY = os.environ.get("ENCRYPTION_SECRET_KEY", "")
 
 # Email
-EMAIL_BACKEND = os.environ.get(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend",
-)
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@example.com")
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv("SMTP_USER")
+EMAIL_HOST_PASSWORD = os.getenv("SMTP_PASSWORD")
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# ---- LLM / Chat ----
+# ---- LLM / Chat ---- 
 LLM_CHAT_TIMEOUT_S = int(os.environ.get("LLM_CHAT_TIMEOUT_S", 30))
 
 # ---- RAG / retrieval ----
-EMBEDDING_PROVIDER = os.environ.get("EMBEDDING_PROVIDER", "openai")
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
-# MUST match your embedding model; 1536 is correct for OpenAI text-embedding-3-small
-EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", 1536))
+EMBEDDING_PROVIDER = os.environ.get("EMBEDDING_PROVIDER", "gemini")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-004")
+# MUST match your embedding model; 768 is correct for Gemini text-embedding-004
+EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", 768))
 
 TOP_K = int(os.environ.get("TOP_K", 6))
 MAX_CONTEXT_CHARS = int(os.environ.get("MAX_CONTEXT_CHARS", 12000))
@@ -215,17 +226,49 @@ CORS_ALLOW_CREDENTIALS = True
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:8080")
 
-# ---- Email Configuration (Postmark) ----
-POSTMARK_API_KEY = os.environ.get("POSTMARK_API_KEY")
-POSTMARK_FROM_EMAIL = os.environ.get("POSTMARK_FROM_EMAIL")
-
-# Email settings for Django (fallback)
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"  # For development
-DEFAULT_FROM_EMAIL = POSTMARK_FROM_EMAIL
 
 # ---- Logging Configuration ----
-from common.utils.logging_config import get_logging_config
-LOGGING = get_logging_config()
+# from common.utils.logging_config import get_logging_config
+# LOGGING = get_logging_config()
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,  # don't override Django's default loggers
+    "formatters": {
+        "standard": {
+            "format": "[{asctime}] {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "logs", "django.log"),
+            "formatter": "standard",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "django.request": {  # capture 5xx errors
+            "handlers": ["file"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "apps": {  # replace with your app name
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}
 
 # Logging settings for request/response middleware
 LOG_REQUEST_BODY = os.environ.get("LOG_REQUEST_BODY", "true").lower() == "true"

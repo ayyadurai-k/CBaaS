@@ -20,6 +20,7 @@ urlpatterns = [
     path("api/", include("apps.auth.login.urls")),
     path("api/", include("apps.auth.logout.urls")),
     path("api/", include("apps.auth.reset.urls")),
+    path("api/", include("apps.auth.status.urls")),
 
     # User/org
     path("api/", include("apps.users.urls")),
@@ -28,7 +29,6 @@ urlpatterns = [
     # Domain
     path("api/", include("apps.documents.urls")),
     path("api/", include("apps.chatbot.urls")),
-    path("api/", include("apps.chatbot_provider.urls")),
     path("api/", include("apps.api_keys.urls")),
     path("api/", include("apps.search.urls")),
     path("api/", include("apps.chat.urls")),

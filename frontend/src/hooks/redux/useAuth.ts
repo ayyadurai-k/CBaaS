@@ -15,20 +15,17 @@ import {
   selectAccessToken,
   selectAuthLoading,
   selectAuthError,
-  loginStart,
-  loginSuccess,
-  loginFailure,
   logout as logoutAction,
   clearError,
+  loginThunk,
+  logoutThunk,
+  refreshTokenThunk,
 } from '@/store/slices/authSlice';
 import { clearProfile } from '@/store/slices/userSlice';
 import { resetUIState } from '@/store/slices/uiSlice';
-import { useLoginMutation, useLogoutMutation } from '@/store/services/authApi';
 
 export const useAuth = () => {
   const dispatch = useAppDispatch();
-  const [loginMutation] = useLoginMutation();
-  const [logoutMutation] = useLogoutMutation();
   
   // Select state from Redux store
   const auth = useAppSelector(selectAuth);
@@ -40,19 +37,9 @@ export const useAuth = () => {
   // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      dispatch(loginStart());
-      
-      const result = await loginMutation({ email, password }).unwrap();
-      
-      dispatch(loginSuccess({
-        accessToken: result.access_token,
-        refreshToken: result.refresh_token,
-      }));
-      
+      await dispatch(loginThunk({ email, password })).unwrap();
       return true;
     } catch (error: any) {
-      const message = error.data?.message || 'Login failed';
-      dispatch(loginFailure(message));
       return false;
     }
   };
@@ -60,8 +47,8 @@ export const useAuth = () => {
   // Logout function
   const logout = async (): Promise<void> => {
     try {
-      // Call logout API
-      await logoutMutation().unwrap();
+      // Call logout API through thunk
+      await dispatch(logoutThunk()).unwrap();
     } catch (error) {
       // Even if API call fails, we still logout locally
       console.warn('Logout API call failed, logging out locally');
@@ -78,10 +65,23 @@ export const useAuth = () => {
     dispatch(clearError());
   };
 
+  // Refresh token
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      await dispatch(refreshTokenThunk()).unwrap();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
   // Check if user has specific role
   const hasRole = (role: string): boolean => {
-    // You would need to store user role in auth state or get it from profile
-    return false; // Implement based on your auth structure
+    // TODO: Implement based on your auth structure
+    // This would typically check user roles from the user profile or auth state
+    // For now, returning false as a placeholder
+    console.warn('hasRole function not implemented yet');
+    return false;
   };
 
   // Check if user is admin
@@ -101,6 +101,7 @@ export const useAuth = () => {
     login,
     logout,
     clearAuthError,
+    refreshToken,
     
     // Utilities
     hasRole,

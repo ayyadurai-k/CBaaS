@@ -2,9 +2,11 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ReduxProvider } from "@/store/ReduxProvider";
+import { ProtectedRoute } from "@/components/common/ProtectedRoute";
+import { PublicRoute } from "@/components/common/PublicRoute";
+import { AuthInitializer } from "@/components/common/AuthInitializer";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { LoginPage } from "./components/auth/LoginPage";
 import { SignupPage } from "./components/auth/SignupPage";
@@ -22,78 +24,119 @@ import { ProfilePage } from "./components/pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 import { BillingPage } from "./components/pages/BillingPage";
 
-const queryClient = new QueryClient();
-
 const App = () => (
   // test
   <ReduxProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
+    <TooltipProvider>
         <Toaster />
         <Sonner />
-      <BrowserRouter>
+        <AuthInitializer>
+          <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          {/* Public Routes - redirect to dashboard if already authenticated */}
+          <Route path="/login" element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          } />
+          <Route path="/signup" element={
+            <PublicRoute>
+              <SignupPage />
+            </PublicRoute>
+          } />
+          <Route path="/forgot-password" element={
+            <PublicRoute>
+              <ForgotPasswordPage />
+            </PublicRoute>
+          } />
+          <Route path="/reset-password" element={
+            <PublicRoute>
+              <ResetPasswordPage />
+            </PublicRoute>
+          } />
+          
+          {/* Root redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {/* Protected Routes - require authentication */}
           <Route path="/dashboard" element={
-            <DashboardLayout>
-              <DashboardPage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <DashboardPage />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
           <Route path="/documents" element={
-            <DashboardLayout>
-              <DocumentsPage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <DocumentsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
           <Route path="/chatbot" element={
-            <DashboardLayout>
-              <ChatbotPage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <ChatbotPage />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
           <Route path="/analytics" element={
-            <DashboardLayout>
-              <AnalyticsPage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <AnalyticsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
           <Route path="/documentation" element={
-            <DashboardLayout>
-              <DocumentationPage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <DocumentationPage />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
           <Route path="/api-keys" element={
-            <DashboardLayout>
-              <ApiKeysPage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <ApiKeysPage />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
           <Route path="/team" element={
-            <DashboardLayout>
-              <TeamPage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <TeamPage />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
           <Route path="/billing" element={
-            <DashboardLayout>
-              <BillingPage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <BillingPage />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
           <Route path="/settings" element={
-            <DashboardLayout>
-              <SettingsPage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <SettingsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
           <Route path="/profile" element={
-            <DashboardLayout>
-              <ProfilePage />
-            </DashboardLayout>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <ProfilePage />
+              </DashboardLayout>
+            </ProtectedRoute>
           } />
+          
+          {/* Catch all route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+    </AuthInitializer>
     </TooltipProvider>
-  </QueryClientProvider>
-</ReduxProvider>
+  </ReduxProvider>
 );
 
 export default App;

@@ -1,10 +1,13 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Upload, FileText, Settings, Users, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { getUserProfileThunk } from '@/store/services/userApi';
 
 const statsData = [
   { name: 'Your Chatbot', value: 'Active', icon: MessageSquare, trend: 'positive' },
@@ -38,23 +41,39 @@ const chartConfig = {
 };
 
 export const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  
+  // Get user profile from Redux store
+  const { profile, isLoading } = useAppSelector((state) => state.user);
+  
+  // Fetch user profile on component mount if not already loaded
+  useEffect(() => {
+    if (!profile) {
+      dispatch(getUserProfileThunk());
+    }
+  }, [dispatch, profile]);
+  
+  // Get organization name with fallback
+  const organizationName = profile?.organization?.name || 'User';
+  
   return (
     <div className="space-y-8">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            Welcome, Acme Corp
+            Welcome, {organizationName}
           </h1>
           <p className="text-base text-slate-600">
             Here's what's happening with your ChatFlow platform today.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button variant="outline" className="px-5 py-3">
+          <Button  onClick={()=>navigate("/documents")}  variant="outline" className="px-5 py-3">
             <Upload className="w-4 h-4 mr-2" />
             Upload Document
           </Button>
-          <Button className="px-5 py-3">
+          <Button onClick={()=>navigate("/chatbot")} className="px-5 py-3">
             <Settings className="w-4 h-4 mr-2" />
             Configure Chatbot
           </Button>
@@ -96,7 +115,7 @@ export const DashboardPage: React.FC = () => {
       {/* Charts - Responsive 2-column grid */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         {/* Usage Chart */}
-        <Card className="border-slate-200">
+        <Card className="border-slate-200 overflow-hidden">
           <CardHeader>
             <CardTitle className="text-lg text-slate-900">
               Daily API Usage
@@ -105,22 +124,24 @@ export const DashboardPage: React.FC = () => {
               Last 7 days
             </p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-2">
             <ChartContainer config={chartConfig} className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={usageData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line
-                    type="monotone"
-                    dataKey="requests"
-                    stroke="var(--color-requests)"
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <LineChart data={usageData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 11 }}
+                  height={60}
+                />
+                <YAxis tick={{ fontSize: 11 }} width={40} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="requests"
+                  stroke="var(--color-requests)"
+                  strokeWidth={2}
+                />
+              </LineChart>
             </ChartContainer>
           </CardContent>
         </Card>

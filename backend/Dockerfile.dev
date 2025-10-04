@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.4
+
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -6,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install system deps (needed for psycopg2, Pillow, etc.)
+# Install system dependencies (needed for psycopg2, Pillow, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -14,13 +16,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagic-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dev dependencies
-COPY requirements /app/requirements
+# Copy only requirements first (better caching)
+COPY requirements/base.txt requirements/dev.txt /app/requirements/
 
-# Install dev dependencies (includes base.txt via -r)
-RUN pip install --no-cache-dir -r /app/requirements/dev.txt
+# Install dependencies with pip cache preserved between builds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r /app/requirements/dev.txt
 
-# Code will be mounted via volumes (no COPY here)
+# Add non-root user for safety
+RUN useradd -m appuser && chown -R appuser /app
+USER appuser
 
-# Run Django dev server with autoreload
-CMD ["bash", "-lc", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+# Code will be mounted via volumes in docker-compose
+CMD ["bash", "-lc", "python manage.py runserver 0.0.0.0:8000"]

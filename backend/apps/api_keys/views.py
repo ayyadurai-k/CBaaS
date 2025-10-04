@@ -7,9 +7,7 @@ from apps.api_keys.serializers import APIKeySerializer, APIKeyCreateSerializer
 
 class APIKeyListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsOwnerOrAdmin]
-
-    def get_queryset(self):
-        return APIKey.objects.all()
+    queryset = APIKey.objects.all()  # Will be filtered by OrganizationFilterBackend
 
     def get_serializer_class(self):
         return (
@@ -26,20 +24,20 @@ class APIKeyListCreateView(generics.ListCreateAPIView):
         key = serializer.save()
         data = APIKeySerializer(key).data
         data["api_key"] = getattr(key, "_plaintext", None)
-        return Response(data, status=201)
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class APIKeyRevokeView(generics.UpdateAPIView):
     permission_classes = [IsOwnerOrAdmin]
-    queryset = APIKey.objects.all()
+    queryset = APIKey.objects.all()  # Will be filtered by OrganizationFilterBackend
 
     def patch(self, request, *args, **kwargs):
         key = self.get_object()
         key.status = APIKey.Status.REVOKED
         key.save(update_fields=["status"])
-        return Response(status=204)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class APIKeyDeleteView(generics.DestroyAPIView):
     permission_classes = [IsOwnerOrAdmin]
-    queryset = APIKey.objects.all()
+    queryset = APIKey.objects.all()  # Will be filtered by OrganizationFilterBackend

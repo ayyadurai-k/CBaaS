@@ -2,11 +2,15 @@
 import { api } from "../configs/axiosConfig";
 import { AxiosResponse } from "axios";
 
+export type LogoutPayload = {
+  refresh: string;
+};
+
 export type LogoutResponse = {
-  message: string;
+  detail: string;
 };
 
 export const LogoutAPI = {
-  logout: (): Promise<AxiosResponse<LogoutResponse>> => 
-    api.post<LogoutResponse>("/auth/logout/", {}),
+  logout: (payload: LogoutPayload): Promise<AxiosResponse<LogoutResponse>> => 
+    api.post<LogoutResponse>("/auth/logout/", payload),
 };

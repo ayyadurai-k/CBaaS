@@ -21,9 +21,20 @@ export type DocumentUploadPayload = {
   file: File;
 };
 
+export type DocumentUpdatePayload = {
+  name: string;
+};
+
+export type DocumentsPaginatedResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: DocumentDTO[];
+};
+
 export const DocumentsAPI = {
-  getAll: (): Promise<AxiosResponse<DocumentDTO[]>> => 
-    api.get<DocumentDTO[]>("/documents/"),
+  getAll: (params?: { page?: number; page_size?: number }): Promise<AxiosResponse<DocumentsPaginatedResponse>> => 
+    api.get<DocumentsPaginatedResponse>("/documents/", { params }),
   
   getById: (id: string): Promise<AxiosResponse<DocumentDTO>> => 
     api.get<DocumentDTO>(`/documents/${id}/`),
@@ -40,9 +51,19 @@ export const DocumentsAPI = {
     });
   },
   
-  reprocess: (id: string): Promise<AxiosResponse<DocumentDTO>> => 
-    api.post<DocumentDTO>(`/documents/${id}/reprocess/`, {}),
+  update: (id: string, payload: DocumentUpdatePayload): Promise<AxiosResponse<DocumentDTO>> =>
+    api.patch<DocumentDTO>(`/documents/${id}/`, payload),
+  
+  reprocess: (id: string): Promise<AxiosResponse<void>> => 
+    api.post<void>(`/documents/${id}/reprocess/`, {}),
   
   remove: (id: string): Promise<AxiosResponse<void>> => 
     api.delete<void>(`/documents/${id}/`),
+  
+  download: (document: DocumentDTO): Promise<AxiosResponse<Blob>> => {
+    // Use the dedicated download endpoint
+    return api.get<Blob>(`/documents/${document.id}/download/`, {
+      responseType: 'blob',
+    });
+  },
 };

@@ -2,11 +2,29 @@
  * User Thunks
  * 
  * Complex async operations for user management.
- * These thunks combine multiple actions and handle business logic.
+ * These thunks combine multiple actions and h// Delete profile picture
+export const deleteUserProfilePicture = createAsyncThunk(
+  'user/deleteProfilePicture',
+  async (_, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(deletePictureStart());
+      const response = await UsersAPI.deleteProfilePicture();
+      const normalizedUser = normalizeUser(response.data);
+      dispatch(deletePictureSuccess(normalizedUser));
+      
+      dispatch(addToast({
+        title: 'Picture Deleted',
+        description: 'Your profile picture has been successfully deleted.',
+        type: 'success',
+        duration: 3000,
+      }));
+      
+      return normalizedUser;gic.
  */
 
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { UsersAPI, UpdateProfilePayload } from '@/apis/UsersAPI';
+import { UsersAPI, UpdateProfilePayload, UserDTO } from '@/apis/UsersAPI';
+import { User } from '@/services/UsersService';
 import {
   fetchProfileStart,
   fetchProfileSuccess,
@@ -23,6 +41,16 @@ import {
 } from '../slices/userSlice';
 import { addToast } from '../slices/uiSlice';
 
+// Helper function to convert UserDTO to User
+const normalizeUser = (userDTO: UserDTO): User => {
+  return {
+    ...userDTO, // Include all UserDTO properties (id, email, name, role, phone_number, created_at, updated_at, organization, profile_picture_url)
+    is_active: true, // Default value since UserDTO doesn't have this field
+    date_joined: userDTO.created_at, // Map created_at to date_joined (keep as string for Redux serialization)
+    full_name: userDTO.name, // Map name to full_name
+  };
+};
+
 // Fetch user profile
 export const fetchUserProfile = createAsyncThunk(
   'user/fetchProfile',
@@ -30,8 +58,9 @@ export const fetchUserProfile = createAsyncThunk(
     try {
       dispatch(fetchProfileStart());
       const response = await UsersAPI.getProfile();
-      dispatch(fetchProfileSuccess(response.data));
-      return response.data;
+      const normalizedUser = normalizeUser(response.data);
+      dispatch(fetchProfileSuccess(normalizedUser));
+      return normalizedUser;
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to fetch profile';
       dispatch(fetchProfileFailure(message));
@@ -47,7 +76,8 @@ export const updateUserProfile = createAsyncThunk(
     try {
       dispatch(updateProfileStart());
       const response = await UsersAPI.updateProfile(payload);
-      dispatch(updateProfileSuccess(response.data));
+      const normalizedUser = normalizeUser(response.data);
+      dispatch(updateProfileSuccess(normalizedUser));
       
       dispatch(addToast({
         title: 'Profile Updated',
@@ -56,7 +86,7 @@ export const updateUserProfile = createAsyncThunk(
         duration: 3000,
       }));
       
-      return response.data;
+      return normalizedUser;
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to update profile';
       dispatch(updateProfileFailure(message));
@@ -80,7 +110,8 @@ export const uploadUserProfilePicture = createAsyncThunk(
     try {
       dispatch(uploadPictureStart());
       const response = await UsersAPI.uploadProfilePicture(file);
-      dispatch(uploadPictureSuccess(response.data));
+      const normalizedUser = normalizeUser(response.data);
+      dispatch(uploadPictureSuccess(normalizedUser));
       
       dispatch(addToast({
         title: 'Picture Updated',
@@ -89,7 +120,7 @@ export const uploadUserProfilePicture = createAsyncThunk(
         duration: 3000,
       }));
       
-      return response.data;
+      return normalizedUser;
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to upload profile picture';
       dispatch(uploadPictureFailure(message));
@@ -113,7 +144,8 @@ export const deleteUserProfilePicture = createAsyncThunk(
     try {
       dispatch(deletePictureStart());
       const response = await UsersAPI.deleteProfilePicture();
-      dispatch(deletePictureSuccess(response.data));
+      const normalizedUser = normalizeUser(response.data);
+      dispatch(deletePictureSuccess(normalizedUser));
       
       dispatch(addToast({
         title: 'Picture Removed',
@@ -122,7 +154,7 @@ export const deleteUserProfilePicture = createAsyncThunk(
         duration: 3000,
       }));
       
-      return response.data;
+      return normalizedUser;
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to delete profile picture';
       dispatch(deletePictureFailure(message));

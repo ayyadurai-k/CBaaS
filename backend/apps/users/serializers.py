@@ -25,10 +25,21 @@ class ProfileSerializer(serializers.ModelSerializer):
         org = getattr(obj, "organization", None)
         if not org:
             return None
+        
+        # Build logo URL if logo exists
+        logo_url = None
+        if org.logo:
+            request = self.context.get('request')
+            if request:
+                logo_url = request.build_absolute_uri(org.logo.url)
+            else:
+                logo_url = org.logo.url
+        
         return {
             "id": str(org.id),
             "name": org.name,
-            "logo_url": org.logo_url,
+            "slug": org.slug,
+            "logo_url": logo_url,
             "created_at": org.created_at,
             "updated_at": org.updated_at,
         }

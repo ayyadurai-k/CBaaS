@@ -81,7 +81,7 @@ def _embed_chunks(chunks: List[str]) -> List[List[float]]:
 
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
-def process_document(self, doc_id: str):
+def process_document(self,doc_id: str):
     """
     Extract → chunk → embed → persist DocumentChunk rows.
     Sets Document.status to READY or FAILED.
