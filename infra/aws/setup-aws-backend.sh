@@ -220,7 +220,7 @@ else
         --db-instance-identifier "$DB_INSTANCE_ID" \
         --db-instance-class db.t4g.micro \
         --engine postgres \
-        --engine-version 15.4 \
+        --engine-version 16.10 \
         --master-username "$DB_USERNAME" \
         --master-user-password "$DB_PASSWORD" \
         --allocated-storage 20 \
@@ -280,7 +280,7 @@ else
         --port 8000 \
         --vpc-id "$VPC_ID" \
         --target-type ip \
-        --health-check-path "/api/healthz" \
+        --health-check-path "//api//healthz" \
         --health-check-interval-seconds 30 \
         --health-check-timeout-seconds 5 \
         --healthy-threshold-count 2 \
