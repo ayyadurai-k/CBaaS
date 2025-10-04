@@ -9,7 +9,7 @@
   "containerDefinitions": [
     {
       "name": "cbaas-backend",
-      "image": "577897067437.dkr.ecr.ap-south-1.amazonaws.com/cbaas-backend:latest",
+      "image": "577897067437.dkr.ecr.ap-south-1.amazonaws.com/cbaas-backend:20241005-211000",
       "portMappings": [
         {
           "containerPort": 8000,
@@ -43,6 +43,14 @@
           "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:CORS_ALLOW_CREDENTIALS::"
         }
       ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/cbaas-backend",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
       "environment": [
         {
           "name": "DJANGO_ENV",

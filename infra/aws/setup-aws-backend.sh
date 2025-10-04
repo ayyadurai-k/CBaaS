@@ -8,8 +8,35 @@
 # 2. VPC, Subnets, Security Groups (if not existing)
 # 3. RDS PostgreSQL instance
 # 4. ECS Cluster (Fargate)
-# 5. Application Load Balancer with HTTPS
-# 6. IAM roles and OIDC provider for GitHub Actions
+# 5. Application Load Balancer with    # Attach AWS managed policy for ECS task execution
+    aws iam attach-role-policy \
+        --role-name "$TASK_EXEC_ROLE_NAME" \
+        --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+    
+    # Custom policy for Secrets Manager and CloudWatch Logs access
+    cat > temp-secrets-policy.json <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:${PROJECT_NAME}/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:CreateLogGroup"
+      ],
+      "Resource": "arn:aws:logs:${AWS_REGION}:${AWS_ACCOUNT_ID}:log-group:/ecs/${PROJECT_NAME}-*"
+    }
+  ]
+}
+EOFes and OIDC provider for GitHub Actions
 # 7. AWS Secrets Manager for environment variables
 #
 # Usage: ./setup-aws-backend.sh <project-name> <aws-account-id> [domain]
@@ -320,6 +347,20 @@ else
     log_info "ECS cluster created: $CLUSTER_NAME"
 fi
 
+# Step 7.1: Create CloudWatch Log Group
+log_step "Creating CloudWatch log group..."
+LOG_GROUP_NAME="/ecs/${PROJECT_NAME}-backend"
+
+if aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP_NAME" --query "logGroups[?logGroupName=='$LOG_GROUP_NAME'].logGroupName" --output text | grep -q "$LOG_GROUP_NAME"; then
+    log_warn "CloudWatch log group already exists: $LOG_GROUP_NAME"
+else
+    aws logs create-log-group \
+        --log-group-name "$LOG_GROUP_NAME" \
+        --retention-in-days 7
+    
+    log_info "CloudWatch log group created: $LOG_GROUP_NAME"
+fi
+
 # Step 8: Create GitHub OIDC provider (if not exists)
 log_step "Setting up GitHub OIDC provider..."
 
@@ -387,7 +428,7 @@ EOF
 
     aws iam put-role-policy \
         --role-name "$TASK_EXEC_ROLE_NAME" \
-        --policy-name SecretsManagerAccess \
+        --policy-name SecretsManagerAndLogsAccess \
         --policy-document file://temp-secrets-policy.json
     
     rm -f temp-task-exec-trust.json temp-secrets-policy.json
@@ -547,6 +588,11 @@ echo "  1. Add the GitHub secrets above to your repository"
 echo "  2. Update backend/Dockerfile.backend if needed"
 echo "  3. Push to 'release' branch to trigger deployment"
 echo "  4. Monitor deployment: aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME}"
+echo ""
+echo "📊 Monitor Logs:"
+echo "  CloudWatch Log Group: /ecs/${PROJECT_NAME}-backend"
+echo "  AWS Console: https://ap-south-1.console.aws.amazon.com/cloudwatch/home?region=ap-south-1#logsV2:log-groups/log-group/%2Fecs%2F${PROJECT_NAME}-backend"
+echo "  CLI Command: aws logs tail /ecs/${PROJECT_NAME}-backend --follow"
 echo ""
 echo "🌐 Your backend will be accessible at: http://${ALB_DNS}"
 echo "======================================================================"
