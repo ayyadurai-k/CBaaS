@@ -15,34 +15,13 @@ from celery import current_app
 class HealthzView(APIView):
     permission_classes = [AllowAny]
 
-    @log_api_call(view_name="health_check")
     def get(self, request):
-        """Health check endpoint - basic service availability."""
-        db_status = "ok"
-        redis_status = "ok"
-
-        # Check DB connection with performance logging
-        try:
-            @log_performance("db_health_check")
-            def check_db():
-                with connections["default"].cursor() as cursor:
-                    cursor.execute("SELECT 1")
-            
-            check_db()
-            logging_service.log_business_event(
-                event_type="health_check",
-                message="Database health check passed",
-                request_id=getattr(request, 'request_id', None),
-                component="db"
-            )
-        except Exception as e:
-            db_status = "failed"
-            logging_service.log_error(
-                error=e,
-                message="Database health check failed",
-                request=request,
-                component="db"
-            )
+        """Simple health check endpoint - no DB dependency for ALB health checks."""
+        return Response({
+            "status": "healthy",
+            "service": "cbaas-backend",
+            "version": "1.0.0"
+        }, status=status.HTTP_200_OK)
 
         # Check Redis connection with performance logging
         try:
