@@ -36,8 +36,19 @@ DATABASES = {
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
+
+# CSRF settings - Set to False for HTTP-only ALB (until SSL is configured)
+CSRF_COOKIE_SECURE = False  # Set to True when using HTTPS
+SESSION_COOKIE_SECURE = False  # Set to True when using HTTPS
+
+# CSRF trusted origins for ALB
+CSRF_TRUSTED_ORIGINS = [
+    'http://cbaas-alb-1444354359.ap-south-1.elb.amazonaws.com',
+]
+
+# Add ALB DNS to ALLOWED_HOSTS if not already present
+if 'cbaas-alb-1444354359.ap-south-1.elb.amazonaws.com' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('cbaas-alb-1444354359.ap-south-1.elb.amazonaws.com')
 
 # Enable static file serving logging for debugging
 LOGGING = {

@@ -1,0 +1,14 @@
+{
+  "containerOverrides": [
+    {
+      "name": "cbaas-backend",
+      "command": [
+        "python",
+        "manage.py",
+        "shell",
+        "-c",
+        "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('admin', 'admin@cbaas.com', 'Admin@CBaaS2025!') if not User.objects.filter(username='admin').exists() else print('Admin user already exists')"
+      ]
+    }
+  ]
+}
