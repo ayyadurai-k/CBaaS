@@ -8,35 +8,8 @@
 # 2. VPC, Subnets, Security Groups (if not existing)
 # 3. RDS PostgreSQL instance
 # 4. ECS Cluster (Fargate)
-# 5. Application Load Balancer with    # Attach AWS managed policy for ECS task execution
-    aws iam attach-role-policy \
-        --role-name "$TASK_EXEC_ROLE_NAME" \
-        --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-    
-    # Custom policy for Secrets Manager and CloudWatch Logs access
-    cat > temp-secrets-policy.json <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "secretsmanager:GetSecretValue"
-      ],
-      "Resource": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:${PROJECT_NAME}/*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "logs:CreateLogStream",
-        "logs:PutLogEvents",
-        "logs:CreateLogGroup"
-      ],
-      "Resource": "arn:aws:logs:${AWS_REGION}:${AWS_ACCOUNT_ID}:log-group:/ecs/${PROJECT_NAME}-*"
-    }
-  ]
-}
-EOFes and OIDC provider for GitHub Actions
+# 5. Application Load Balancer
+# 6. IAM roles and OIDC provider for GitHub Actions
 # 7. AWS Secrets Manager for environment variables
 #
 # Usage: ./setup-aws-backend.sh <project-name> <aws-account-id> [domain]
@@ -349,16 +322,21 @@ fi
 
 # Step 7.1: Create CloudWatch Log Group
 log_step "Creating CloudWatch log group..."
-LOG_GROUP_NAME="/ecs/${PROJECT_NAME}-backend"
+LOG_GROUP_NAME="//ecs//${PROJECT_NAME}-backend"
 
-if aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP_NAME" --query "logGroups[?logGroupName=='$LOG_GROUP_NAME'].logGroupName" --output text | grep -q "$LOG_GROUP_NAME"; then
-    log_warn "CloudWatch log group already exists: $LOG_GROUP_NAME"
+# Use MSYS_NO_PATHCONV to prevent Git Bash path conversion
+if MSYS_NO_PATHCONV=1 aws logs describe-log-groups --log-group-name-prefix "/ecs/${PROJECT_NAME}-backend" --query "logGroups[?logGroupName=='/ecs/${PROJECT_NAME}-backend'].logGroupName" --output text 2>/dev/null | grep -q "/ecs/${PROJECT_NAME}-backend"; then
+    log_warn "CloudWatch log group already exists: /ecs/${PROJECT_NAME}-backend"
 else
-    aws logs create-log-group \
-        --log-group-name "$LOG_GROUP_NAME" \
+    MSYS_NO_PATHCONV=1 aws logs create-log-group \
+        --log-group-name "/ecs/${PROJECT_NAME}-backend" \
+        --tags Key=Project,Value=${PROJECT_NAME}
+    
+    MSYS_NO_PATHCONV=1 aws logs put-retention-policy \
+        --log-group-name "/ecs/${PROJECT_NAME}-backend" \
         --retention-in-days 7
     
-    log_info "CloudWatch log group created: $LOG_GROUP_NAME"
+    log_info "CloudWatch log group created: /ecs/${PROJECT_NAME}-backend"
 fi
 
 # Step 8: Create GitHub OIDC provider (if not exists)

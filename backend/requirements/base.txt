@@ -3,6 +3,7 @@ djangorestframework
 djangorestframework-simplejwt[blacklist]
 psycopg[binary]
 python-dotenv
+dj-database-url
 celery
 redis
 cryptography

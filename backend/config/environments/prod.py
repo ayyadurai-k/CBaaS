@@ -5,9 +5,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Debug and security
-DEBUG = False
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else []
+# Debug and security - TEMPORARILY ENABLED FOR DEBUGGING
+DEBUG = True  # TODO: Set to False after debugging
+
+# ALLOWED_HOSTS configuration for ECS deployment
+# Use wildcard since we're behind ALB (external access controlled by ALB security groups)
+ALLOWED_HOSTS = ['*']  # Allow all hosts - safe behind ALB
 
 # Static files configuration for ECS deployment
 STATIC_URL = '/static/'
@@ -22,17 +25,40 @@ FORCE_SERVE_STATIC = True
 MEDIA_URL = '/media/'
 MEDIA_ROOT = '/app/media'
 
-# Database configuration
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'cbaasdb'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+# Database configuration from DATABASE_URL (Secrets Manager)
+# DATABASE_URL format: postgresql://user:password@host:port/dbname
+# Parse manually without external dependencies
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
+if DATABASE_URL:
+    from urllib.parse import urlparse
+    db_info = urlparse(DATABASE_URL)
+    
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': db_info.path[1:],  # Remove leading slash from /cbaasdb
+            'USER': db_info.username,
+            'PASSWORD': db_info.password,
+            'HOST': db_info.hostname,
+            'PORT': db_info.port or 5432,
+            'CONN_MAX_AGE': 600,
+            'OPTIONS': {
+                'sslmode': 'require',  # RDS requires SSL connection
+            }
+        }
     }
-}
+else:
+    # Fallback for local development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DB_NAME', 'cbaasdb'),
+            'USER': os.environ.get('DB_USER', 'postgres'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
+        }
+    }
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -45,10 +71,6 @@ SESSION_COOKIE_SECURE = False  # Set to True when using HTTPS
 CSRF_TRUSTED_ORIGINS = [
     'http://cbaas-alb-1444354359.ap-south-1.elb.amazonaws.com',
 ]
-
-# Add ALB DNS to ALLOWED_HOSTS if not already present
-if 'cbaas-alb-1444354359.ap-south-1.elb.amazonaws.com' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('cbaas-alb-1444354359.ap-south-1.elb.amazonaws.com')
 
 # Enable static file serving logging for debugging
 LOGGING = {
@@ -72,12 +94,3 @@ LOGGING = {
     },
 }
 FORCE_SERVE_STATIC = True
-
-# Add localhost and internal IPs to ALLOWED_HOSTS
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '172.31.0.0/16',
-    '10.0.0.0/8',
-    'cbaas-alb-1444354359.ap-south-1.elb.amazonaws.com'
-]
