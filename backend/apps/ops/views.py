@@ -15,34 +15,50 @@ from celery import current_app
 class HealthzView(APIView):
     permission_classes = [AllowAny]
 
-    @log_api_call(view_name="health_check")
     def get(self, request):
-        """Health check endpoint - basic service availability."""
-        db_status = "ok"
-        redis_status = "ok"
+        """Simple health check endpoint - no DB dependency for ALB health checks."""
+        return Response({
+            "status": "healthy",
+            "service": "cbaas-backend",
+            "version": "1.0.0"
+        }, status=status.HTTP_200_OK)
 
-        # Check DB connection with performance logging
-        try:
-            @log_performance("db_health_check")
-            def check_db():
-                with connections["default"].cursor() as cursor:
-                    cursor.execute("SELECT 1")
-            
-            check_db()
-            logging_service.log_business_event(
-                event_type="health_check",
-                message="Database health check passed",
-                request_id=getattr(request, 'request_id', None),
-                component="db"
-            )
-        except Exception as e:
-            db_status = "failed"
-            logging_service.log_error(
-                error=e,
-                message="Database health check failed",
-                request=request,
-                component="db"
-            )
+
+class StaticDebugView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """Debug endpoint to check static file configuration"""
+        import os
+        from django.conf import settings
+        
+        static_info = {
+            'STATIC_URL': getattr(settings, 'STATIC_URL', 'Not set'),
+            'STATIC_ROOT': getattr(settings, 'STATIC_ROOT', 'Not set'),
+            'DEBUG': getattr(settings, 'DEBUG', False),
+            'FORCE_SERVE_STATIC': getattr(settings, 'FORCE_SERVE_STATIC', False),
+            'STATICFILES_STORAGE': getattr(settings, 'STATICFILES_STORAGE', 'Not set'),
+        }
+        
+        # Check if static files exist
+        static_root = getattr(settings, 'STATIC_ROOT', '')
+        if static_root and os.path.exists(static_root):
+            try:
+                admin_css = os.path.join(static_root, 'admin', 'css', 'base.css')
+                drf_css = os.path.join(static_root, 'rest_framework', 'css', 'bootstrap.min.css')
+                
+                static_info.update({
+                    'static_root_exists': True,
+                    'admin_css_exists': os.path.exists(admin_css),
+                    'drf_css_exists': os.path.exists(drf_css),
+                    'static_files_count': len([f for f in os.listdir(static_root) if os.path.isdir(os.path.join(static_root, f))]),
+                })
+            except Exception as e:
+                static_info['error'] = str(e)
+        else:
+            static_info['static_root_exists'] = False
+        
+        return Response(static_info, status=status.HTTP_200_OK)
 
         # Check Redis connection with performance logging
         try:

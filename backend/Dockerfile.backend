@@ -1,0 +1,66 @@
+# Multi-stage Dockerfile for Django Backend Production Deployment
+# Optimized for AWS ECS Fargate with minimal attack surface
+FROM python:3.11-slim as base
+
+# Install system dependencies and security updates
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    curl \
+    libmagic1 \
+    libmagic-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd -r django && useradd -r -g django django
+
+# Set work directory
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements/ requirements/
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements/prod.txt
+
+# Copy application code
+COPY . .
+
+# Make entrypoint executable
+RUN chmod +x /app/entrypoint.sh
+
+# Change ownership to django user
+RUN chown -R django:django /app
+
+# Create static and media directories with proper permissions
+RUN mkdir -p /app/staticfiles /app/media && \
+    chown -R django:django /app/staticfiles /app/media && \
+    chmod -R 755 /app/staticfiles /app/media
+
+# Verify files were copied correctly
+RUN ls -la /app && ls -la /app/manage.py
+
+# Switch to non-root user
+USER django
+
+# Collect static files with verbose output to see what's happening
+RUN python manage.py collectstatic --noinput --verbosity=2 --settings=config.environments.prod
+
+# Verify static files were collected and check permissions
+RUN ls -la /app/staticfiles/ && \
+    ls -la /app/staticfiles/admin/ && \
+    ls -la /app/staticfiles/rest_framework/ || echo "REST framework static files not found"
+RUN ls -la /app/staticfiles/ && \
+    find /app/staticfiles -name "*.css" | head -5
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/api/healthz || exit 1
+
+# Expose port
+EXPOSE 8000
+
+# # Set entrypoint to run migrations before starting gunicorn
+# ENTRYPOINT ["/app/entrypoint.sh"]
+
+# Run gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-", "config.wsgi:application"]

@@ -1,0 +1,76 @@
+{
+  "family": "cbaas-backend-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::577897067437:role/cbaas-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::577897067437:role/cbaas-task-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "cbaas-backend",
+      "image": "577897067437.dkr.ecr.ap-south-1.amazonaws.com/cbaas-backend:latest",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "secrets": [
+        {
+          "name": "DJANGO_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:DJANGO_SECRET_KEY::"
+        },
+        {
+          "name": "DEBUG",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:DEBUG::"
+        },
+        {
+          "name": "ALLOWED_HOSTS",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:ALLOWED_HOSTS::"
+        },
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:DATABASE_URL::"
+        },
+        {
+          "name": "CORS_ALLOWED_ORIGINS",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:CORS_ALLOWED_ORIGINS::"
+        },
+        {
+          "name": "CORS_ALLOW_CREDENTIALS",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:CORS_ALLOW_CREDENTIALS::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/cbaas-backend",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "environment": [
+        {
+          "name": "DJANGO_ENV",
+          "value": "prod"
+        },
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "ap-south-1"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8000/api/healthz || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}
