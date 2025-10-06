@@ -148,13 +148,19 @@ jobs:
 
       # Step 8: Wait for deployment
       - name: Wait for stable deployment
+        timeout-minutes: 10
         run: |
-          echo "Waiting for deployment to stabilize..."
+          echo "Waiting for deployment to stabilize (max 10 minutes)..."
           aws ecs wait services-stable \
             --cluster ${{ secrets.ECS_CLUSTER }} \
-            --services ${{ secrets.ECS_SERVICE }}
+            --services ${{ secrets.ECS_SERVICE }} \
+            || {
+              echo "⚠️ Deployment did not stabilize within timeout. Check service events:"
+              aws ecs describe-services --cluster ${{ secrets.ECS_CLUSTER }} --services ${{ secrets.ECS_SERVICE }} --query 'services[0].events[0:5]'
+              exit 1
+            }
           
-          echo "Deployment completed successfully!"
+          echo "✅ Deployment completed successfully!"
 
       # Step 9: Get deployment status
       - name: Get deployment summary
@@ -198,9 +204,11 @@ jobs:
             echo "✅ Backend is healthy and responding!"
           elif [[ "$HTTP_CODE" == "000" ]]; then
             echo "⚠️  Could not connect to backend. It might still be starting up."
-            echo "Check the ECS service logs if the issue persists."
+            echo "Checking CloudWatch logs for errors..."
+            aws logs tail /ecs/${{ env.PROJECT_NAME }}-backend --since 5m --format short || echo "Could not fetch logs"
           else
-            echo "⚠️  Backend returned HTTP $HTTP_CODE. Check the application logs."
+            echo "⚠️  Backend returned HTTP $HTTP_CODE. Checking logs..."
+            aws logs tail /ecs/${{ env.PROJECT_NAME }}-backend --since 5m --format short || echo "Could not fetch logs"
           fi
 
       # Step 11: Output deployment summary
@@ -222,6 +230,11 @@ jobs:
           echo "# Check service status" >> $GITHUB_STEP_SUMMARY
           echo "aws ecs describe-services --cluster ${{ secrets.ECS_CLUSTER }} --services ${{ secrets.ECS_SERVICE }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# View CloudWatch logs" >> $GITHUB_STEP_SUMMARY
+          echo "aws logs tail /ecs/${{ env.PROJECT_NAME }}-backend --follow --region ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "# Access container for debugging" >> $GITHUB_STEP_SUMMARY
           echo "aws ecs execute-command --cluster ${{ secrets.ECS_CLUSTER }} --task <task-arn> --container ${{ env.PROJECT_NAME }}-backend --interactive --command '/bin/bash'" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [View CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#logsV2:log-groups/log-group//ecs/${{ env.PROJECT_NAME }}-backend)" >> $GITHUB_STEP_SUMMARY
