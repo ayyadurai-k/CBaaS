@@ -31,10 +31,10 @@ RUN chmod +x /app/entrypoint.sh
 # Change ownership to django user
 RUN chown -R django:django /app
 
-# Create static and media directories with proper permissions
-RUN mkdir -p /app/staticfiles /app/media && \
-    chown -R django:django /app/staticfiles /app/media && \
-    chmod -R 755 /app/staticfiles /app/media
+# Create static, media, and logs directories with proper permissions
+RUN mkdir -p /app/staticfiles /app/media /app/logs && \
+    chown -R django:django /app/staticfiles /app/media /app/logs && \
+    chmod -R 755 /app/staticfiles /app/media /app/logs
 
 # Verify files were copied correctly
 RUN ls -la /app && ls -la /app/manage.py
