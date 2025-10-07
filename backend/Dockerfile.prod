@@ -14,8 +14,14 @@ RUN pip install --no-cache-dir -r /app/requirements/prod.txt
 
 COPY . .
 
+# Create necessary directories for logs, static, and media
+RUN mkdir -p /app/logs /app/staticfiles /app/media
+
 RUN useradd -m appuser && chown -R appuser /app
 USER appuser
+
+# Collect static files
+RUN python manage.py collectstatic --noinput --settings=config.environments.prod
 
 EXPOSE 8000
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "config.wsgi:application"]
