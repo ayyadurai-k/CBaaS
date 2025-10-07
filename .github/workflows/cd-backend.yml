@@ -83,16 +83,30 @@ jobs:
             --query 'taskDefinition' \
             --output json)
           
-          if [ "$CURRENT_TASK_DEF" = "null" ]; then
+          if [ "$CURRENT_TASK_DEF" = "null" ] || [ -z "$CURRENT_TASK_DEF" ]; then
             echo "ERROR: Task definition not found. Run setup-aws-backend.sh first."
             exit 1
           fi
           
-          # Update image in task definition
+          # Update image in task definition and remove all read-only/AWS-managed fields
           NEW_TASK_DEF=$(echo "$CURRENT_TASK_DEF" | jq --arg IMAGE "${{ steps.image-tag.outputs.FULL_IMAGE_URI }}" '
             .containerDefinitions[0].image = $IMAGE |
-            del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)
+            del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .placementConstraints,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy,
+              .deregisteredAt
+            )
           ')
+          
+          # Debug: Show the task definition we're about to register
+          echo "Task definition to register:"
+          echo "$NEW_TASK_DEF" | jq -C '.'
           
           # Register new task definition
           NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition \
@@ -100,8 +114,13 @@ jobs:
             --query 'taskDefinition.revision' \
             --output text)
           
+          if [ -z "$NEW_REVISION" ]; then
+            echo "ERROR: Failed to register task definition"
+            exit 1
+          fi
+          
           echo "NEW_REVISION=${NEW_REVISION}" >> $GITHUB_OUTPUT
-          echo "New task definition registered: ${{ env.PROJECT_NAME }}-backend-task:${NEW_REVISION}"
+          echo "✅ New task definition registered: ${{ env.PROJECT_NAME }}-backend-task:${NEW_REVISION}"
 
       # Step 7: Deploy to ECS
       - name: Deploy to ECS
