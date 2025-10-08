@@ -28,6 +28,12 @@ const requiresAuth = (url: string): boolean => {
   return !PUBLIC_ENDPOINTS.some(endpoint => path.startsWith(endpoint));
 };
 
+// Debug: Log environment configuration
+console.log('🔧 [API Config] Initializing axios with:');
+console.log('  - VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+console.log('  - Final baseURL:', import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api");
+console.log('  - Environment mode:', import.meta.env.MODE);
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api",
   withCredentials: true,
@@ -41,34 +47,73 @@ export const api = axios.create({
 // Request interceptor - only add auth token for protected endpoints
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    const fullURL = `${config.baseURL}${config.url}`;
+    const needsAuth = requiresAuth(config.url || '');
+    
+    console.log('📤 [API Request]', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      fullURL,
+      baseURL: config.baseURL,
+      requiresAuth: needsAuth,
+      hasToken: !!TokenStorage.getAccessToken()
+    });
+    
     // Only add auth header for protected endpoints
-    if (requiresAuth(config.url || '')) {
+    if (needsAuth) {
       const token = TokenStorage.getAccessToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('🔐 [Auth] Token added to request');
+      } else {
+        console.warn('⚠️ [Auth] Protected endpoint but no token available');
       }
+    } else {
+      console.log('🌐 [Public] Public endpoint, no auth required');
     }
     
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('❌ [Request Error]', error);
+    return Promise.reject(error);
+  }
 );
 
 api.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {
+    console.log('📥 [API Response]', {
+      status: response.status,
+      url: response.config.url,
+      method: response.config.method?.toUpperCase()
+    });
+    return response;
+  },
   async (error: AxiosError) => {
     const status = error.response?.status;
     const config = error.config as InternalAxiosRequestConfig;
     
+    console.error('❌ [API Error]', {
+      status,
+      url: config?.url,
+      method: config?.method?.toUpperCase(),
+      message: error.message,
+      isNetworkError: !error.response
+    });
+    
     // Only handle 401 for protected endpoints
     if (status === 401 && requiresAuth(config?.url || '')) {
+      console.log('🔄 [Auth] 401 detected on protected endpoint, attempting token refresh');
       const refreshToken = TokenStorage.getRefreshToken();
       
       if (refreshToken && !config._retry) {
         config._retry = true; // Prevent infinite retry loop
+        console.log('🔄 [Token Refresh] Starting token refresh...');
         
         try {
           const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+          console.log('🔄 [Token Refresh] Using API_BASE_URL:', API_BASE_URL);
+          
           const refreshResponse = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
             refresh: refreshToken,
           }, {
@@ -81,20 +126,24 @@ api.interceptors.response.use(
           
           const newToken = refreshResponse.data.access;
           TokenStorage.setTokens(newToken, refreshToken);
+          console.log('✅ [Token Refresh] Success! Retrying original request');
           
           // Retry original request with new token
           config.headers.Authorization = `Bearer ${newToken}`;
           return api.request(config);
           
         } catch (refreshError) {
+          console.error('❌ [Token Refresh] Failed:', refreshError);
           // Refresh failed, clear tokens and redirect to login
           TokenStorage.clearTokens();
+          console.log('🚪 [Auth] Redirecting to login...');
           // Only redirect if we're not already on login page
           if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
             window.location.href = "/login";
           }
         }
       } else {
+        console.log('🚪 [Auth] No refresh token or retry exhausted, redirecting to login');
         // No refresh token or already retried, clear tokens
         TokenStorage.clearTokens();
         // Only redirect if we're not already on login page
@@ -102,11 +151,6 @@ api.interceptors.response.use(
           window.location.href = "/login";
         }
       }
-    }
-    
-    // Log other errors (but not 401s to avoid spam during token refresh)
-    if (status && status !== 401) {
-      console.error("API Error:", error);
     }
     
     return Promise.reject(error);
