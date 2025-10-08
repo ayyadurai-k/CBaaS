@@ -49,19 +49,27 @@ LLM providers are abstracted in `common/llm/`:
 - Migrations include pgvector extension setup and IVFFlat index creation
 - Search via cosine similarity in `apps/search/`
 
-**4. Async Task Processing**
+**4. Static & Media File Storage**
+Environment-specific file serving:
+- **Development**: Local filesystem (`STATIC_ROOT = BASE_DIR / "staticfiles"`, `MEDIA_ROOT = BASE_DIR / "media"`)
+- **Production**: AWS S3 via `django-storages` with custom backends in `common/storage_backends.py`
+  - `StaticStorage`: Static files at `s3://{bucket}/static/` (public-read, overwrite enabled)
+  - `MediaStorage`: User uploads at `s3://{bucket}/media/` (private, no overwrite)
+- URLs served via `DEBUG` check in `config/urls.py` (dev only) or S3 direct URLs (prod)
+
+**5. Async Task Processing**
 - Celery configured in `config/celery.py` with namespace "CELERY"
 - Document processing tasks in `apps/documents/tasks.py` (extract text, generate embeddings, chunk)
 - Worker uses same `Dockerfile.prod` as web service, different CMD
 
-**5. Request Logging Middleware**
+**6. Request Logging Middleware**
 Custom middleware in `common/middleware/logging_middleware.py`:
 - Generates unique `request_id` for tracing
 - Logs request/response with sanitized headers/body
 - Configurable exclusions for static files, health checks
 - Structured logging to `logs/requests.log`
 
-**6. JWT Authentication**
+**7. JWT Authentication**
 - Uses `djangorestframework-simplejwt` with blacklist support
 - Login view in `apps/auth/login/views.py` returns `access` + `refresh` tokens
 - Custom throttling via `ScopedThrottle` class per endpoint

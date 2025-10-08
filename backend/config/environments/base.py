@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "pgvector",
     "corsheaders",  # Added for CORS
+    "storages",  # AWS S3 storage backend
     # Domain apps
     "apps.users",
     "apps.ops",  # Added for health/readiness endpoints
@@ -93,14 +94,12 @@ DATABASES = {
     }
 }
 
-# Static/Media
+# Static/Media (Development defaults)
 STATIC_URL = "/static/"
-DEFAULT_FILE_STORAGE = os.environ.get(
-    "DEFAULT_FILE_STORAGE",
-    "django.core.files.storage.FileSystemStorage",
-)
-MEDIA_ROOT = BASE_DIR / "media"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
 MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # DRF
 REST_FRAMEWORK = {

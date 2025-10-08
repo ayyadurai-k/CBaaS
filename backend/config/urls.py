@@ -1,8 +1,7 @@
 from django.contrib import admin
-from django.urls import include, path, re_path
+from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
@@ -35,23 +34,8 @@ urlpatterns = [
     path("api/", include("apps.chat.urls")),
 ]
 
-# CUSTOM STATIC FILE SERVING - Bypass Django's DEBUG check
-# Django's static() function returns empty list when DEBUG=False
-# We need to manually create the URL pattern for production static serving
-if hasattr(settings, 'STATIC_URL') and hasattr(settings, 'STATIC_ROOT'):
-    urlpatterns += [
-        re_path(
-            r'^static/(?P<path>.*)$', 
-            serve, 
-            {'document_root': settings.STATIC_ROOT}
-        ),
-    ]
-
-if hasattr(settings, 'MEDIA_URL') and hasattr(settings, 'MEDIA_ROOT'):
-    urlpatterns += [
-        re_path(
-            r'^media/(?P<path>.*)$', 
-            serve, 
-            {'document_root': settings.MEDIA_ROOT}
-        ),
-    ]
+# Serve static/media files in development only
+# Production uses AWS S3 (configured in prod.py)
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
