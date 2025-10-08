@@ -78,6 +78,7 @@ SECURE_REFERRER_POLICY = "strict-origin"
 # ---------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = [
     "https://chatweave.space",  # frontend
+    "https://cbaas.chatweave.space",  # frontend
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
@@ -94,6 +95,7 @@ CORS_EXPOSE_HEADERS = ["Content-Type", "Authorization"]
 # CSRF trusted origins
 CSRF_TRUSTED_ORIGINS = [
     "https://chatweave.space",
+    "https://cbaas.chatweave.space",
     "https://api.chatweave.space",
 ]
 
