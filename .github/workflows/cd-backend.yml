@@ -16,6 +16,7 @@ on:
 env:
   AWS_REGION: ap-south-1
   PROJECT_NAME: cbaas
+  AWS_ACCOUNT_ID: 577897067437
 
 jobs:
   deploy:
@@ -51,96 +52,160 @@ jobs:
         run: |
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
           IMAGE_TAG="release-${SHORT_SHA}"
+          ECR_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.PROJECT_NAME }}-backend"
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
-          echo "FULL_IMAGE_URI=${{ secrets.ECR_REPOSITORY }}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "ECR_URI=${ECR_URI}" >> $GITHUB_OUTPUT
+          echo "FULL_IMAGE_URI=${ECR_URI}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
       # Step 5: Build and push Docker image to ECR
       - name: Build and push Docker image
         working-directory: ./backend
         run: |
           echo "Building Django backend image..."
-          docker build -f Dockerfile.backend -t ${{ steps.image-tag.outputs.FULL_IMAGE_URI }} -t ${{ secrets.ECR_REPOSITORY }}:latest .
+          docker build -f Dockerfile.backend \
+            -t ${{ steps.image-tag.outputs.FULL_IMAGE_URI }} \
+            -t ${{ steps.image-tag.outputs.ECR_URI }}:latest .
           
           echo "Pushing versioned image to ECR..."
           docker push ${{ steps.image-tag.outputs.FULL_IMAGE_URI }}
           
           echo "Pushing latest tag to ECR..."
-          docker push ${{ secrets.ECR_REPOSITORY }}:latest
+          docker push ${{ steps.image-tag.outputs.ECR_URI }}:latest
           
-          echo "Images pushed:"
+          echo "✅ Images pushed:"
           echo "  Versioned: ${{ steps.image-tag.outputs.FULL_IMAGE_URI }}"
-          echo "  Latest: ${{ secrets.ECR_REPOSITORY }}:latest"
+          echo "  Latest: ${{ steps.image-tag.outputs.ECR_URI }}:latest"
 
-      # Step 6: Update ECS task definition
-      - name: Update ECS task definition
-        id: update-task-def
+      # Step 6: Register new ECS task definition
+      - name: Register new ECS task definition
+        id: register-task-def
         run: |
-          echo "Retrieving current task definition..."
+          echo "Creating new task definition..."
           
-          # Get current task definition
-          CURRENT_TASK_DEF=$(aws ecs describe-task-definition \
-            --task-definition ${{ env.PROJECT_NAME }}-backend-task \
-            --query 'taskDefinition' \
-            --output json)
+          # Get the secret ARN with the AWS-generated suffix
+          SECRET_ARN=$(aws secretsmanager describe-secret \
+            --secret-id ${{ env.PROJECT_NAME }}/backend/env \
+            --query 'ARN' \
+            --output text)
           
-          if [ "$CURRENT_TASK_DEF" = "null" ] || [ -z "$CURRENT_TASK_DEF" ]; then
-            echo "ERROR: Task definition not found. Run setup-aws-backend.sh first."
-            exit 1
-          fi
+          echo "Using Secrets Manager ARN: $SECRET_ARN"
           
-          # Update image in task definition and remove all read-only/AWS-managed fields
-          NEW_TASK_DEF=$(echo "$CURRENT_TASK_DEF" | jq --arg IMAGE "${{ steps.image-tag.outputs.FULL_IMAGE_URI }}" '
-            .containerDefinitions[0].image = $IMAGE |
-            del(
-              .taskDefinitionArn,
-              .revision,
-              .status,
-              .requiresAttributes,
-              .placementConstraints,
-              .compatibilities,
-              .registeredAt,
-              .registeredBy,
-              .deregisteredAt
-            )
-          ')
+          # Create task definition JSON
+          cat > task-definition.json <<EOF
+          {
+            "family": "${{ env.PROJECT_NAME }}-backend-task",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "512",
+            "memory": "1024",
+            "executionRoleArn": "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT_NAME }}-task-execution-role",
+            "taskRoleArn": "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT_NAME }}-task-execution-role",
+            "containerDefinitions": [
+              {
+                "name": "${{ env.PROJECT_NAME }}-backend",
+                "image": "${{ steps.image-tag.outputs.FULL_IMAGE_URI }}",
+                "portMappings": [
+                  {
+                    "containerPort": 8000,
+                    "protocol": "tcp"
+                  }
+                ],
+                "essential": true,
+                "secrets": [
+                  {
+                    "name": "DJANGO_SECRET_KEY",
+                    "valueFrom": "${SECRET_ARN}:DJANGO_SECRET_KEY::"
+                  },
+                  {
+                    "name": "DEBUG",
+                    "valueFrom": "${SECRET_ARN}:DEBUG::"
+                  },
+                  {
+                    "name": "ALLOWED_HOSTS",
+                    "valueFrom": "${SECRET_ARN}:ALLOWED_HOSTS::"
+                  },
+                  {
+                    "name": "DATABASE_URL",
+                    "valueFrom": "${SECRET_ARN}:DATABASE_URL::"
+                  },
+                  {
+                    "name": "CORS_ALLOWED_ORIGINS",
+                    "valueFrom": "${SECRET_ARN}:CORS_ALLOWED_ORIGINS::"
+                  },
+                  {
+                    "name": "CORS_ALLOW_CREDENTIALS",
+                    "valueFrom": "${SECRET_ARN}:CORS_ALLOW_CREDENTIALS::"
+                  }
+                ],
+                "environment": [
+                  {
+                    "name": "DJANGO_ENV",
+                    "value": "prod"
+                  },
+                  {
+                    "name": "AWS_DEFAULT_REGION",
+                    "value": "${{ env.AWS_REGION }}"
+                  }
+                ],
+                "healthCheck": {
+                  "command": [
+                    "CMD-SHELL",
+                    "curl -f http://localhost:8000/api/healthz || exit 1"
+                  ],
+                  "interval": 30,
+                  "timeout": 5,
+                  "retries": 3,
+                  "startPeriod": 60
+                },
+                "logConfiguration": {
+                  "logDriver": "awslogs",
+                  "options": {
+                    "awslogs-group": "/ecs/${{ env.PROJECT_NAME }}-backend",
+                    "awslogs-region": "${{ env.AWS_REGION }}",
+                    "awslogs-stream-prefix": "ecs"
+                  }
+                }
+              }
+            ]
+          }
+          EOF
           
-          # Debug: Show the task definition we're about to register
-          echo "Task definition to register:"
-          echo "$NEW_TASK_DEF" | jq -C '.'
-          
-          # Register new task definition
-          NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition \
-            --cli-input-json file:///dev/stdin \
+          # Register the task definition
+          NEW_REVISION=$(aws ecs register-task-definition \
+            --cli-input-json file://task-definition.json \
             --query 'taskDefinition.revision' \
             --output text)
           
-          if [ -z "$NEW_REVISION" ]; then
-            echo "ERROR: Failed to register task definition"
-            exit 1
-          fi
-          
           echo "NEW_REVISION=${NEW_REVISION}" >> $GITHUB_OUTPUT
           echo "✅ New task definition registered: ${{ env.PROJECT_NAME }}-backend-task:${NEW_REVISION}"
+          
+          # Clean up
+          rm -f task-definition.json
 
-      # Step 7: Deploy to ECS
-      - name: Deploy to ECS
+      # Step 7: Update ECS service
+      - name: Update ECS service
         run: |
           echo "Updating ECS service..."
           
+          CLUSTER_NAME="${{ env.PROJECT_NAME }}-cluster"
+          SERVICE_NAME="${{ env.PROJECT_NAME }}-backend-service"
+          TASK_DEFINITION="${{ env.PROJECT_NAME }}-backend-task:${{ steps.register-task-def.outputs.NEW_REVISION }}"
+          
           # Check if service exists
           if aws ecs describe-services \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --services ${{ secrets.ECS_SERVICE }} \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
             --query 'services[0].serviceName' \
-            --output text 2>/dev/null | grep -q "${{ secrets.ECS_SERVICE }}"; then
+            --output text 2>/dev/null | grep -q "$SERVICE_NAME"; then
             
             echo "Service exists, updating..."
             aws ecs update-service \
-              --cluster ${{ secrets.ECS_CLUSTER }} \
-              --service ${{ secrets.ECS_SERVICE }} \
-              --task-definition ${{ env.PROJECT_NAME }}-backend-task:${{ steps.update-task-def.outputs.NEW_REVISION }} \
+              --cluster "$CLUSTER_NAME" \
+              --service "$SERVICE_NAME" \
+              --task-definition "$TASK_DEFINITION" \
               --force-new-deployment > /dev/null
             
+            echo "✅ Service update initiated"
           else
             echo "Service doesn't exist, creating..."
             
@@ -152,43 +217,53 @@ jobs:
             if [ -z "$SUBNET_ID_2" ]; then SUBNET_ID_2="$SUBNET_ID_1"; fi
             
             ECS_SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=${{ env.PROJECT_NAME }}-ecs-sg" --query 'SecurityGroups[0].GroupId' --output text)
+            TARGET_GROUP_ARN=$(aws elbv2 describe-target-groups --names "${{ env.PROJECT_NAME }}-tg" --query 'TargetGroups[0].TargetGroupArn' --output text)
             
             # Create service
             aws ecs create-service \
-              --cluster ${{ secrets.ECS_CLUSTER }} \
-              --service-name ${{ secrets.ECS_SERVICE }} \
-              --task-definition ${{ env.PROJECT_NAME }}-backend-task:${{ steps.update-task-def.outputs.NEW_REVISION }} \
+              --cluster "$CLUSTER_NAME" \
+              --service-name "$SERVICE_NAME" \
+              --task-definition "$TASK_DEFINITION" \
               --desired-count 1 \
               --launch-type FARGATE \
               --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID_1,$SUBNET_ID_2],securityGroups=[$ECS_SG_ID],assignPublicIp=ENABLED}" \
-              --load-balancers "targetGroupArn=${{ secrets.TARGET_GROUP_ARN }},containerName=${{ env.PROJECT_NAME }}-backend,containerPort=8000" \
+              --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=${{ env.PROJECT_NAME }}-backend,containerPort=8000" \
               --enable-execute-command > /dev/null
+            
+            echo "✅ Service created"
           fi
 
-      # Step 8: Wait for deployment
+      # Step 8: Wait for deployment to stabilize
       - name: Wait for stable deployment
         timeout-minutes: 10
         run: |
           echo "Waiting for deployment to stabilize (max 10 minutes)..."
+          
+          CLUSTER_NAME="${{ env.PROJECT_NAME }}-cluster"
+          SERVICE_NAME="${{ env.PROJECT_NAME }}-backend-service"
+          
           aws ecs wait services-stable \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --services ${{ secrets.ECS_SERVICE }} \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
             || {
               echo "⚠️ Deployment did not stabilize within timeout. Check service events:"
-              aws ecs describe-services --cluster ${{ secrets.ECS_CLUSTER }} --services ${{ secrets.ECS_SERVICE }} --query 'services[0].events[0:5]'
+              aws ecs describe-services --cluster "$CLUSTER_NAME" --services "$SERVICE_NAME" --query 'services[0].events[0:5]'
               exit 1
             }
           
           echo "✅ Deployment completed successfully!"
 
-      # Step 9: Get deployment status
+      # Step 9: Get deployment summary
       - name: Get deployment summary
         id: deployment-summary
         run: |
+          CLUSTER_NAME="${{ env.PROJECT_NAME }}-cluster"
+          SERVICE_NAME="${{ env.PROJECT_NAME }}-backend-service"
+          
           # Get service status
           SERVICE_STATUS=$(aws ecs describe-services \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --services ${{ secrets.ECS_SERVICE }} \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME" \
             --query 'services[0].{running:runningCount,desired:desiredCount,pending:pendingCount}' \
             --output json)
           
@@ -209,7 +284,7 @@ jobs:
       - name: Verify deployment health
         run: |
           echo "Waiting for targets to be healthy..."
-          sleep 60
+          sleep 30
           
           # Check if the service is responding
           BACKEND_URL="http://${{ steps.deployment-summary.outputs.ALB_DNS }}"
@@ -223,11 +298,8 @@ jobs:
             echo "✅ Backend is healthy and responding!"
           elif [[ "$HTTP_CODE" == "000" ]]; then
             echo "⚠️  Could not connect to backend. It might still be starting up."
-            echo "Checking CloudWatch logs for errors..."
-            aws logs tail /ecs/${{ env.PROJECT_NAME }}-backend --since 5m --format short || echo "Could not fetch logs"
           else
-            echo "⚠️  Backend returned HTTP $HTTP_CODE. Checking logs..."
-            aws logs tail /ecs/${{ env.PROJECT_NAME }}-backend --since 5m --format short || echo "Could not fetch logs"
+            echo "⚠️  Backend returned HTTP $HTTP_CODE."
           fi
 
       # Step 11: Output deployment summary
@@ -238,8 +310,9 @@ jobs:
           echo "| Component | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Image** | \`${{ steps.image-tag.outputs.FULL_IMAGE_URI }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Task Definition** | \`${{ env.PROJECT_NAME }}-backend-task:${{ steps.update-task-def.outputs.NEW_REVISION }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **ECS Service** | \`${{ secrets.ECS_SERVICE }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Task Definition** | \`${{ env.PROJECT_NAME }}-backend-task:${{ steps.register-task-def.outputs.NEW_REVISION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **ECS Cluster** | \`${{ env.PROJECT_NAME }}-cluster\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **ECS Service** | \`${{ env.PROJECT_NAME }}-backend-service\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Running Tasks** | ${{ steps.deployment-summary.outputs.RUNNING_COUNT }}/${{ steps.deployment-summary.outputs.DESIRED_COUNT }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Backend URL** | http://${{ steps.deployment-summary.outputs.ALB_DNS }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Health Check** | http://${{ steps.deployment-summary.outputs.ALB_DNS }}/api/healthz |" >> $GITHUB_STEP_SUMMARY
@@ -247,13 +320,8 @@ jobs:
           echo "### 🔍 Monitoring Commands" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "# Check service status" >> $GITHUB_STEP_SUMMARY
-          echo "aws ecs describe-services --cluster ${{ secrets.ECS_CLUSTER }} --services ${{ secrets.ECS_SERVICE }}" >> $GITHUB_STEP_SUMMARY
+          echo "aws ecs describe-services --cluster ${{ env.PROJECT_NAME }}-cluster --services ${{ env.PROJECT_NAME }}-backend-service" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# View CloudWatch logs" >> $GITHUB_STEP_SUMMARY
           echo "aws logs tail /ecs/${{ env.PROJECT_NAME }}-backend --follow --region ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Access container for debugging" >> $GITHUB_STEP_SUMMARY
-          echo "aws ecs execute-command --cluster ${{ secrets.ECS_CLUSTER }} --task <task-arn> --container ${{ env.PROJECT_NAME }}-backend --interactive --command '/bin/bash'" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 [View CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=${{ env.AWS_REGION }}#logsV2:log-groups/log-group//ecs/${{ env.PROJECT_NAME }}-backend)" >> $GITHUB_STEP_SUMMARY
