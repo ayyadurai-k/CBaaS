@@ -34,8 +34,9 @@ urlpatterns = [
     path("api/", include("apps.chat.urls")),
 ]
 
-# Serve static/media files in development only
-# Production uses AWS S3 (configured in prod.py)
-if settings.DEBUG:
+# Serve static/media files based on SERVE_STATIC_FILES setting
+# Development: Django serves files locally
+# Production: S3 serves files (SERVE_STATIC_FILES=False)
+if getattr(settings, 'SERVE_STATIC_FILES', False):
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -9,10 +9,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # ---------------------------------------------------------------------
 # 🔧 Debug and Security
 # ---------------------------------------------------------------------
-DEBUG = False  # Disable in production
+DEBUG = True  # Keep True for error tracking, but use SERVE_STATIC_FILES for file serving
 
 # Use wildcard since ALB restricts access anyway
 ALLOWED_HOSTS = ["*"]
+
+# Production: S3 serves static files, not Django
+SERVE_STATIC_FILES = False
 
 # ---------------------------------------------------------------------
 # ⚙️ AWS S3 Configuration for Static & Media Files

@@ -36,8 +36,9 @@ class StaticDebugView(APIView):
             'STATIC_URL': getattr(settings, 'STATIC_URL', 'Not set'),
             'STATIC_ROOT': getattr(settings, 'STATIC_ROOT', 'Not set'),
             'DEBUG': getattr(settings, 'DEBUG', False),
-            'FORCE_SERVE_STATIC': getattr(settings, 'FORCE_SERVE_STATIC', False),
+            'SERVE_STATIC_FILES': getattr(settings, 'SERVE_STATIC_FILES', False),
             'STATICFILES_STORAGE': getattr(settings, 'STATICFILES_STORAGE', 'Not set'),
+            'DEFAULT_FILE_STORAGE': getattr(settings, 'DEFAULT_FILE_STORAGE', 'Not set'),
         }
         
         # Check if static files exist

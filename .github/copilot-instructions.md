@@ -35,8 +35,9 @@ Settings are loaded via `DJANGO_ENV` variable in `config/settings.py`:
 # Loads from config/environments/{dev,staging,prod}.py
 DJANGO_ENV = os.environ.get("DJANGO_ENV", "dev")
 ```
-- Dev: DEBUG=True, local DB
-- Prod: Gunicorn, S3 storage, production credentials
+- Dev: `DEBUG=True`, `SERVE_STATIC_FILES=True`, local DB
+- Prod: `DEBUG=True` (error tracking), `SERVE_STATIC_FILES=False`, S3 storage, Gunicorn
+- **Key**: `SERVE_STATIC_FILES` controls file serving, decoupled from `DEBUG`
 
 **2. Multi-Provider LLM Architecture**
 LLM providers are abstracted in `common/llm/`:
@@ -50,12 +51,13 @@ LLM providers are abstracted in `common/llm/`:
 - Search via cosine similarity in `apps/search/`
 
 **4. Static & Media File Storage**
-Environment-specific file serving:
-- **Development**: Local filesystem (`STATIC_ROOT = BASE_DIR / "staticfiles"`, `MEDIA_ROOT = BASE_DIR / "media"`)
-- **Production**: AWS S3 via `django-storages` with custom backends in `common/storage_backends.py`
+Environment-specific file serving decoupled from DEBUG:
+- **Development**: Local filesystem (`SERVE_STATIC_FILES=True`, files at `staticfiles/` and `media/`)
+- **Production**: AWS S3 (`SERVE_STATIC_FILES=False`) via custom backends in `common/storage_backends.py`
   - `StaticStorage`: Static files at `s3://{bucket}/static/` (public-read, overwrite enabled)
   - `MediaStorage`: User uploads at `s3://{bucket}/media/` (private, no overwrite)
-- URLs served via `DEBUG` check in `config/urls.py` (dev only) or S3 direct URLs (prod)
+- URLs served via `SERVE_STATIC_FILES` check in `config/urls.py` (dev only) or S3 direct URLs (prod)
+- **Critical**: `DEBUG=True` in all environments for error tracking, but `SERVE_STATIC_FILES` controls file serving
 
 **5. Async Task Processing**
 - Celery configured in `config/celery.py` with namespace "CELERY"

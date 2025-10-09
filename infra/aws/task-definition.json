@@ -41,6 +41,18 @@
         {
           "name": "CORS_ALLOW_CREDENTIALS",
           "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:CORS_ALLOW_CREDENTIALS::"
+        },
+        {
+          "name": "AWS_ACCESS_KEY_ID",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:AWS_ACCESS_KEY_ID::"
+        },
+        {
+          "name": "AWS_SECRET_ACCESS_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:AWS_SECRET_ACCESS_KEY::"
+        },
+        {
+          "name": "AWS_STORAGE_BUCKET_NAME",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:577897067437:secret:cbaas/backend/env:AWS_STORAGE_BUCKET_NAME::"
         }
       ],
       "logConfiguration": {
@@ -59,6 +71,14 @@
         {
           "name": "AWS_DEFAULT_REGION",
           "value": "ap-south-1"
+        },
+        {
+          "name": "AWS_S3_REGION_NAME",
+          "value": "ap-south-1"
+        },
+        {
+          "name": "SERVE_STATIC_FILES",
+          "value": "false"
         }
       ],
       "healthCheck": {

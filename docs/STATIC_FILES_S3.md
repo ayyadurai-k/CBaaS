@@ -21,7 +21,8 @@ Simple, environment-based static file serving:
 
 #### `backend/config/urls.py`
 - Removed custom static file serving logic
-- Uses standard Django `static()` helper (only in DEBUG mode)
+- Uses standard Django `static()` helper controlled by `SERVE_STATIC_FILES` setting
+- Decoupled from `DEBUG` - allows error tracking in production without serving files via Django
 - Clean, no monkey patching
 
 #### `backend/common/storage_backends.py` (NEW)
@@ -30,9 +31,11 @@ Simple, environment-based static file serving:
 
 ### 2. How It Works
 
-#### Development (DEBUG=True)
+#### Development (SERVE_STATIC_FILES=True)
 ```python
 # base.py / dev.py
+DEBUG = True  # For error tracking
+SERVE_STATIC_FILES = True  # Django serves files
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
@@ -41,27 +44,40 @@ MEDIA_ROOT = BASE_DIR / "media"
 # urls.py serves these via Django's development server
 ```
 
-#### Production (DEBUG=False)
+#### Production (SERVE_STATIC_FILES=False)
 ```python
 # prod.py
+DEBUG = True  # Keep error tracking enabled
+SERVE_STATIC_FILES = False  # S3 serves files, not Django
 AWS_STORAGE_BUCKET_NAME = "your-bucket-name"
 STATICFILES_STORAGE = "common.storage_backends.StaticStorage"
 DEFAULT_FILE_STORAGE = "common.storage_backends.MediaStorage"
 STATIC_URL = "https://your-bucket.s3.amazonaws.com/static/"
 MEDIA_URL = "https://your-bucket.s3.amazonaws.com/media/"
 
-# No URL patterns needed - S3 serves directly
+# No URL patterns added - S3 serves directly
 ```
+
+**Key Design**: We decouple Django's `DEBUG` setting from static file serving by using `SERVE_STATIC_FILES`.
 
 ### 3. Required Environment Variables (Production)
 
 Add to your ECS task definition or `.env.prod`:
 ```bash
+# Django Environment
+DJANGO_ENV=prod
+
+# Static File Serving (critical!)
+SERVE_STATIC_FILES=false
+
+# AWS S3 Credentials
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_STORAGE_BUCKET_NAME=your-bucket-name
 AWS_S3_REGION_NAME=ap-south-1
 ```
+
+**Note**: `SERVE_STATIC_FILES=false` prevents Django from serving files, regardless of `DEBUG` setting.
 
 ### 4. Deployment Steps
 
@@ -125,9 +141,11 @@ docker compose -f docker-compose.dev.yml exec web python manage.py collectstatic
 
 ✅ **Clean separation**: Dev uses local files, prod uses S3  
 ✅ **No hacks**: Standard Django patterns, no custom URL serving  
+✅ **Decoupled from DEBUG**: Can enable error tracking in production without serving files via Django  
 ✅ **Secure**: Media files can be private, static files cached  
 ✅ **Scalable**: S3 handles all file serving, no Django overhead  
 ✅ **Simple**: Environment variables control everything  
+✅ **Error tracking**: `DEBUG=True` in production for detailed logs, but `SERVE_STATIC_FILES=False` for security  
 
 ## Testing
 

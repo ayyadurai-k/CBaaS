@@ -101,6 +101,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Custom environment variable to control static file serving
+# Use this instead of DEBUG to avoid coupling with Django's debug mode
+SERVE_STATIC_FILES = os.environ.get("SERVE_STATIC_FILES", "true").lower() == "true"
+
 # DRF
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
