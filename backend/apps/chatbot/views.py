@@ -2,14 +2,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from common.security.permissions import IsOwnerOrAdmin
-from .models import Chatbot
-from .serializers import (
+from apps.chatbot.models import Chatbot
+from apps.chatbot.serializers import (
     ChatbotSerializer, 
     ChatbotUpdateSerializer, 
     ChatbotConfigSerializer,
     TestKeySerializer
 )
-from .services import ProviderTestService
+from apps.chatbot.services import ProviderTestService
 from drf_spectacular.utils import extend_schema
 
 
