@@ -20,18 +20,26 @@ def _read_bytes(document: Document) -> bytes:
     Try to load from storage path inferred from URL (if local),
     else fallback to HTTP GET on the URL.
     """
+    from urllib.parse import unquote
+    
     url = document.url
     # Try to derive relative path for default_storage
     media_url = getattr(settings, "MEDIA_URL", "")
     rel = None
     if media_url and url.startswith(media_url):
         rel = url[len(media_url) :].lstrip("/")
+        # URL decode the path to handle special characters like %20 (spaces)
+        rel = unquote(rel)
     try:
         if rel and default_storage.exists(rel):
             with default_storage.open(rel, "rb") as f:
                 return f.read()
     except Exception:
         pass
+
+    # Don't try HTTP for URLs that start with / - these are local file paths
+    if url.startswith('/'):
+        raise FileNotFoundError(f"File not found in storage: {url}")
 
     # Fallback: HTTP GET
     with httpx.Client(timeout=60.0) as client:
