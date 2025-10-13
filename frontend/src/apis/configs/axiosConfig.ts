@@ -12,6 +12,7 @@ const PUBLIC_ENDPOINTS = [
   "/auth/check-email/",
   "/health/",
   "/docs/",
+  "/providers/",  // LLM providers endpoints - can be public for configuration
 ];
 
 /**

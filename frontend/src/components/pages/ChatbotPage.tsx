@@ -68,39 +68,89 @@ export const ChatbotPage: React.FC = () => {
       setProvidersLoading(true);
       setProvidersError(null);
       
-      const result = await llmProvidersService.getProviderConfig();
-      
-      if (result.success && result.data) {
-        setLlmProviders(result.data);
+      try {
+        const result = await llmProvidersService.getProviderConfig();
         
-        // Set default provider and model if not already set
-        const providerNames = Object.keys(result.data);
-        if (providerNames.length > 0) {
-          const firstProvider = providerNames[0];
-          const firstProviderModels = result.data[firstProvider].models;
+        if (result.success && result.data) {
+          setLlmProviders(result.data);
           
-          if (!selectedProvider || !providerNames.includes(selectedProvider)) {
-            setSelectedProvider(firstProvider);
+          // Set default provider and model if not already set
+          const providerNames = Object.keys(result.data);
+          if (providerNames.length > 0) {
+            const firstProvider = providerNames[0];
+            const firstProviderModels = result.data[firstProvider].models;
+            
+            if (!selectedProvider || !providerNames.includes(selectedProvider)) {
+              setSelectedProvider(firstProvider);
+            }
+            
+            if (!selectedModel || !firstProviderModels.includes(selectedModel)) {
+              setSelectedModel(firstProviderModels[0] || '');
+            }
           }
+        } else {
+          // If API fails, fall back to hardcoded providers to prevent cascade failures
+          console.warn('LLM providers API failed, using fallback configuration');
+          const fallbackProviders = {
+            openai: {
+              name: 'OpenAI',
+              models: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4o']
+            },
+            gemini: {
+              name: 'Google Gemini',
+              models: ['gemini-pro']
+            },
+            deepseek: {
+              name: 'DeepSeek',
+              models: ['deepseek-chat', 'deepseek-coder']
+            }
+          };
+          setLlmProviders(fallbackProviders);
+          setProvidersError(null); // Don't show error if we have fallback
           
-          if (!selectedModel || !firstProviderModels.includes(selectedModel)) {
-            setSelectedModel(firstProviderModels[0] || '');
+          // Set defaults with fallback data
+          if (!selectedProvider) {
+            setSelectedProvider('openai');
+          }
+          if (!selectedModel) {
+            setSelectedModel('gpt-3.5-turbo');
           }
         }
-      } else {
-        setProvidersError(result.error || 'Failed to load LLM providers');
-        toast({
-          title: "Error",
-          description: result.error || 'Failed to load LLM providers',
-          variant: "destructive",
-        });
+      } catch (error) {
+        console.error('Critical error loading LLM providers:', error);
+        // Use fallback on any error to prevent UI breaking
+        const fallbackProviders = {
+          openai: {
+            name: 'OpenAI',
+            models: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4o']
+          },
+          gemini: {
+            name: 'Google Gemini',
+            models: ['gemini-pro']
+          },
+          deepseek: {
+            name: 'DeepSeek',
+            models: ['deepseek-chat', 'deepseek-coder']
+          }
+        };
+        setLlmProviders(fallbackProviders);
+        setProvidersError(null); // Don't show error if we have fallback
+        
+        // Set defaults
+        if (!selectedProvider) {
+          setSelectedProvider('openai');
+        }
+        if (!selectedModel) {
+          setSelectedModel('gpt-3.5-turbo');
+        }
+      } finally {
+        setProvidersLoading(false);
       }
-      
-      setProvidersLoading(false);
     };
 
+    // Only load once on mount
     loadProviders();
-  }, []);
+  }, []); // Empty dependency array - only run once on mount
 
   const handleDocumentToggle = (documentId: string) => {
     setDocuments(documents.map(doc => 
