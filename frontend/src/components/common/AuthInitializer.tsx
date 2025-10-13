@@ -8,14 +8,13 @@ interface AuthInitializerProps {
 
 export const AuthInitializer: React.FC<AuthInitializerProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
-  const { isLoading } = useAuth();
 
   useEffect(() => {
     // Simple initialization without auth check
     setIsInitialized(true);
   }, []);
 
-  if (!isInitialized || isLoading) {
+  if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
