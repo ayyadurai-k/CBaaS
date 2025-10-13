@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from apps.users.models import User
 from apps.auth.reset.serializers import ForgotSerializer, ResetSerializer, VerifySerializer
 from apps.auth.reset.models import PasswordResetToken
-from common.services.email import smtp_service
+from apps.auth.reset.tasks import send_password_reset_email_task
 
 logger = logging.getLogger(__name__)
 
@@ -43,16 +43,13 @@ class ForgotView(APIView):
             query = urlencode({"token": raw, "email": user.email})
             reset_url = f"{frontend_url.rstrip('/')}/reset-password?{query}"
 
-            # Send email via SMTP with professional template
-            result = smtp_service.send_password_reset_email(
+            # Send email asynchronously via Celery task
+            send_password_reset_email_task.delay(
                 to_email=user.email,
                 reset_url=reset_url,
                 user_name=f"{user.name}".strip() or None,
             )
-            
-            if not result.get("success"):
-                # Log the error but don't expose it to the client
-                logger.error(f"Failed to send password reset email to {user.email}: {result.get('error')}")
+            logger.info(f"Password reset email task queued for {user.email}")
         else:
             # Fallback: log warning if FRONTEND_URL is not configured
             logger.warning("FRONTEND_URL not set; cannot send password reset email")
