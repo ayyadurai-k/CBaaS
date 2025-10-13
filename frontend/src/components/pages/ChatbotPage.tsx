@@ -62,7 +62,7 @@ export const ChatbotPage: React.FC = () => {
   const [providersLoading, setProvidersLoading] = useState(true);
   const [providersError, setProvidersError] = useState<string | null>(null);
 
-  // Load LLM providers on component mount
+  // Load LLM providers on component mount (ONLY)
   useEffect(() => {
     const loadProviders = async () => {
       setProvidersLoading(true);
@@ -73,21 +73,6 @@ export const ChatbotPage: React.FC = () => {
         
         if (result.success && result.data) {
           setLlmProviders(result.data);
-          
-          // Set default provider and model if not already set
-          const providerNames = Object.keys(result.data);
-          if (providerNames.length > 0) {
-            const firstProvider = providerNames[0];
-            const firstProviderModels = result.data[firstProvider].models;
-            
-            if (!selectedProvider || !providerNames.includes(selectedProvider)) {
-              setSelectedProvider(firstProvider);
-            }
-            
-            if (!selectedModel || !firstProviderModels.includes(selectedModel)) {
-              setSelectedModel(firstProviderModels[0] || '');
-            }
-          }
         } else {
           // If API fails, fall back to hardcoded providers to prevent cascade failures
           console.warn('LLM providers API failed, using fallback configuration');
@@ -107,14 +92,6 @@ export const ChatbotPage: React.FC = () => {
           };
           setLlmProviders(fallbackProviders);
           setProvidersError(null); // Don't show error if we have fallback
-          
-          // Set defaults with fallback data
-          if (!selectedProvider) {
-            setSelectedProvider('openai');
-          }
-          if (!selectedModel) {
-            setSelectedModel('gpt-3.5-turbo');
-          }
         }
       } catch (error) {
         console.error('Critical error loading LLM providers:', error);
@@ -135,14 +112,6 @@ export const ChatbotPage: React.FC = () => {
         };
         setLlmProviders(fallbackProviders);
         setProvidersError(null); // Don't show error if we have fallback
-        
-        // Set defaults
-        if (!selectedProvider) {
-          setSelectedProvider('openai');
-        }
-        if (!selectedModel) {
-          setSelectedModel('gpt-3.5-turbo');
-        }
       } finally {
         setProvidersLoading(false);
       }
@@ -151,6 +120,20 @@ export const ChatbotPage: React.FC = () => {
     // Only load once on mount
     loadProviders();
   }, []); // Empty dependency array - only run once on mount
+
+  // Separate effect to set default provider/model when providers are loaded
+  useEffect(() => {
+    const providerNames = Object.keys(llmProviders);
+    if (providerNames.length > 0 && !selectedProvider) {
+      const firstProvider = providerNames[0];
+      const firstProviderModels = llmProviders[firstProvider].models;
+      
+      setSelectedProvider(firstProvider);
+      if (firstProviderModels.length > 0) {
+        setSelectedModel(firstProviderModels[0]);
+      }
+    }
+  }, [llmProviders]); // Only depend on llmProviders, not selectedProvider
 
   const handleDocumentToggle = (documentId: string) => {
     setDocuments(documents.map(doc => 

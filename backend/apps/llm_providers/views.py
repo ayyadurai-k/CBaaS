@@ -1,6 +1,7 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -17,6 +18,7 @@ class LLMProviderListView(generics.ListAPIView):
     List all active LLM providers with their models
     """
     serializer_class = LLMProviderSerializer
+    permission_classes = [AllowAny]  # Public endpoint
     
     def get_queryset(self):
         return LLMProvider.objects.filter(is_active=True).prefetch_related('models')
@@ -31,6 +33,7 @@ class LLMProviderSimpleListView(generics.ListAPIView):
     List all active LLM providers without nested models (for dropdowns)
     """
     serializer_class = LLMProviderSimpleSerializer
+    permission_classes = [AllowAny]  # Public endpoint
     
     def get_queryset(self):
         return LLMProvider.objects.filter(is_active=True)
@@ -45,6 +48,7 @@ class LLMModelsByProviderView(generics.ListAPIView):
     List all active models for a specific provider
     """
     serializer_class = LLMModelSerializer
+    permission_classes = [AllowAny]  # Public endpoint
     
     def get_queryset(self):
         provider_name = self.kwargs.get('provider_name')
@@ -60,6 +64,7 @@ class LLMModelsByProviderView(generics.ListAPIView):
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])  # Public endpoint
 def provider_models_config(request):
     """
     Return provider and model configuration in the format expected by frontend
@@ -90,6 +95,7 @@ def provider_models_config(request):
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])  # Public endpoint
 def provider_model_details(request, provider_name, model_name):
     """
     Get detailed information about a specific model
