@@ -4,7 +4,6 @@ from rest_framework import status
 from common.security.permissions import IsOwnerOrAdmin
 from apps.chatbot.models import Chatbot
 from apps.chatbot.serializers import (
-    ChatbotSerializer, 
     ChatbotUpdateSerializer, 
     ChatbotConfigSerializer,
     TestKeySerializer
