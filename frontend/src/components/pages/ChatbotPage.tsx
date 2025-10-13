@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Send, MessageSquare, FileText, Clock, Settings, Check, Key, TestTube } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Send, MessageSquare, FileText, Clock, Settings, Check, Key, TestTube, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
+import { llmProvidersService } from '@/services/llm/llmProvidersService';
+import { LLMProviderConfig } from '@/apis/llm/LLMProvidersAPI';
 
 interface Message {
   id: string;
@@ -40,21 +42,6 @@ const mockDocuments: Document[] = [
   { id: '5', name: 'FAQ Document.pdf', connected: false },
 ];
 
-const llmProviders = {
-  openai: {
-    name: 'OpenAI',
-    models: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4o']
-  },
-  gemini: {
-    name: 'Google Gemini',
-    models: ['gemini-pro']
-  },
-  deepseek: {
-    name: 'DeepSeek',
-    models: ['deepseek-chat', 'deepseek-coder']
-  }
-};
-
 export const ChatbotPage: React.FC = () => {
   const [chatbotName, setChatbotName] = useState('Customer Support Bot');
   const [tone, setTone] = useState('professional');
@@ -69,6 +56,51 @@ export const ChatbotPage: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [llmSystemPrompt, setLlmSystemPrompt] = useState('');
+
+  // Dynamic provider data
+  const [llmProviders, setLlmProviders] = useState<LLMProviderConfig>({});
+  const [providersLoading, setProvidersLoading] = useState(true);
+  const [providersError, setProvidersError] = useState<string | null>(null);
+
+  // Load LLM providers on component mount
+  useEffect(() => {
+    const loadProviders = async () => {
+      setProvidersLoading(true);
+      setProvidersError(null);
+      
+      const result = await llmProvidersService.getProviderConfig();
+      
+      if (result.success && result.data) {
+        setLlmProviders(result.data);
+        
+        // Set default provider and model if not already set
+        const providerNames = Object.keys(result.data);
+        if (providerNames.length > 0) {
+          const firstProvider = providerNames[0];
+          const firstProviderModels = result.data[firstProvider].models;
+          
+          if (!selectedProvider || !providerNames.includes(selectedProvider)) {
+            setSelectedProvider(firstProvider);
+          }
+          
+          if (!selectedModel || !firstProviderModels.includes(selectedModel)) {
+            setSelectedModel(firstProviderModels[0] || '');
+          }
+        }
+      } else {
+        setProvidersError(result.error || 'Failed to load LLM providers');
+        toast({
+          title: "Error",
+          description: result.error || 'Failed to load LLM providers',
+          variant: "destructive",
+        });
+      }
+      
+      setProvidersLoading(false);
+    };
+
+    loadProviders();
+  }, []);
 
   const handleDocumentToggle = (documentId: string) => {
     setDocuments(documents.map(doc => 
@@ -108,7 +140,9 @@ export const ChatbotPage: React.FC = () => {
 
   const handleProviderChange = (provider: string) => {
     setSelectedProvider(provider);
-    setSelectedModel(llmProviders[provider as keyof typeof llmProviders].models[0]);
+    if (llmProviders[provider]?.models?.length > 0) {
+      setSelectedModel(llmProviders[provider].models[0]);
+    }
   };
 
   const handleTestApiKey = async () => {
@@ -224,30 +258,54 @@ export const ChatbotPage: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Choose your model provider
                   </label>
-                  <select 
-                    value={selectedProvider}
-                    onChange={(e) => handleProviderChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {Object.entries(llmProviders).map(([key, provider]) => (
-                      <option key={key} value={key}>{provider.name}</option>
-                    ))}
-                  </select>
+                  {providersLoading ? (
+                    <div className="flex items-center space-x-2 px-3 py-2 border border-slate-300 rounded-xl bg-slate-50">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm text-slate-500">Loading providers...</span>
+                    </div>
+                  ) : providersError ? (
+                    <div className="px-3 py-2 border border-red-300 rounded-xl bg-red-50 text-red-700 text-sm">
+                      Error: {providersError}
+                    </div>
+                  ) : (
+                    <select 
+                      value={selectedProvider}
+                      onChange={(e) => handleProviderChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={Object.keys(llmProviders).length === 0}
+                    >
+                      {Object.entries(llmProviders).map(([key, provider]) => (
+                        <option key={key} value={key}>{provider.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Model
                   </label>
-                  <select 
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {llmProviders[selectedProvider as keyof typeof llmProviders].models.map((model) => (
-                      <option key={model} value={model}>{model}</option>
-                    ))}
-                  </select>
+                  {providersLoading ? (
+                    <div className="flex items-center space-x-2 px-3 py-2 border border-slate-300 rounded-xl bg-slate-50">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm text-slate-500">Loading models...</span>
+                    </div>
+                  ) : providersError ? (
+                    <div className="px-3 py-2 border border-red-300 rounded-xl bg-red-50 text-red-700 text-sm">
+                      No models available
+                    </div>
+                  ) : (
+                    <select 
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!llmProviders[selectedProvider]?.models?.length}
+                    >
+                      {(llmProviders[selectedProvider]?.models || []).map((model) => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div>

@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.organizations",
     "apps.documents",
     "apps.chatbot",
+    "apps.llm_providers",  # LLM provider management
     "apps.api_keys",
     "apps.chat",
     "apps.search",
