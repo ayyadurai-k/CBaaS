@@ -81,15 +81,15 @@ class LLMModel(models.Model):
     supports_streaming = models.BooleanField(default=True)
     supports_function_calling = models.BooleanField(default=False)
     cost_per_1k_input_tokens = models.DecimalField(
-        max_digits=10, 
-        decimal_places=6, 
+        max_digits=12, 
+        decimal_places=8, 
         blank=True, 
         null=True,
         help_text="Cost per 1000 input tokens in USD"
     )
     cost_per_1k_output_tokens = models.DecimalField(
-        max_digits=10, 
-        decimal_places=6, 
+        max_digits=12, 
+        decimal_places=8, 
         blank=True, 
         null=True,
         help_text="Cost per 1000 output tokens in USD"

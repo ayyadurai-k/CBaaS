@@ -46,8 +46,8 @@ class Command(BaseCommand):
                         'max_tokens': 4096,
                         'supports_streaming': True,
                         'supports_function_calling': True,
-                        'cost_per_1k_input_tokens': 0.0005,
-                        'cost_per_1k_output_tokens': 0.0015,
+                        'cost_per_1k_input_tokens': '0.0005',
+                        'cost_per_1k_output_tokens': '0.0015',
                         'is_default': True
                     },
                     {
@@ -58,8 +58,8 @@ class Command(BaseCommand):
                         'max_tokens': 8192,
                         'supports_streaming': True,
                         'supports_function_calling': True,
-                        'cost_per_1k_input_tokens': 0.03,
-                        'cost_per_1k_output_tokens': 0.06,
+                        'cost_per_1k_input_tokens': '0.03',
+                        'cost_per_1k_output_tokens': '0.06',
                         'is_default': False
                     },
                     {
@@ -70,8 +70,8 @@ class Command(BaseCommand):
                         'max_tokens': 4096,
                         'supports_streaming': True,
                         'supports_function_calling': True,
-                        'cost_per_1k_input_tokens': 0.005,
-                        'cost_per_1k_output_tokens': 0.015,
+                        'cost_per_1k_input_tokens': '0.005',
+                        'cost_per_1k_output_tokens': '0.015',
                         'is_default': False
                     }
                 ]
@@ -89,8 +89,8 @@ class Command(BaseCommand):
                         'max_tokens': 8192,
                         'supports_streaming': True,
                         'supports_function_calling': True,
-                        'cost_per_1k_input_tokens': 0.000125,
-                        'cost_per_1k_output_tokens': 0.000375,
+                        'cost_per_1k_input_tokens': '0.00013',
+                        'cost_per_1k_output_tokens': '0.00038',
                         'is_default': True
                     },
                     {
@@ -101,8 +101,8 @@ class Command(BaseCommand):
                         'max_tokens': 8192,
                         'supports_streaming': True,
                         'supports_function_calling': True,
-                        'cost_per_1k_input_tokens': 0.00125,
-                        'cost_per_1k_output_tokens': 0.00375,
+                        'cost_per_1k_input_tokens': '0.00125',
+                        'cost_per_1k_output_tokens': '0.00375',
                         'is_default': False
                     }
                 ]
@@ -120,8 +120,8 @@ class Command(BaseCommand):
                         'max_tokens': 4096,
                         'supports_streaming': True,
                         'supports_function_calling': False,
-                        'cost_per_1k_input_tokens': 0.00014,
-                        'cost_per_1k_output_tokens': 0.00028,
+                        'cost_per_1k_input_tokens': '0.00014',
+                        'cost_per_1k_output_tokens': '0.00028',
                         'is_default': True
                     },
                     {
@@ -132,8 +132,8 @@ class Command(BaseCommand):
                         'max_tokens': 4096,
                         'supports_streaming': True,
                         'supports_function_calling': False,
-                        'cost_per_1k_input_tokens': 0.00014,
-                        'cost_per_1k_output_tokens': 0.00028,
+                        'cost_per_1k_input_tokens': '0.00014',
+                        'cost_per_1k_output_tokens': '0.00028',
                         'is_default': False
                     }
                 ]
