@@ -134,16 +134,11 @@ LOGGING = {
     },
     "handlers": {
         "console": {"class": "logging.StreamHandler", "formatter": "standard"},
-        "file": {
-            "class": "logging.FileHandler",
-            "filename": os.path.join(BASE_DIR, "logs", "django.log"),
-            "formatter": "standard",
-        },
     },
     "loggers": {
-        "django": {"handlers": ["console", "file"], "level": "INFO"},
-        "django.request": {"handlers": ["file"], "level": "ERROR", "propagate": False},
-        "apps": {"handlers": ["console", "file"], "level": "DEBUG", "propagate": False},
+        "django": {"handlers": ["console"], "level": "INFO"},
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        "apps": {"handlers": ["console"], "level": "DEBUG", "propagate": False},
     },
 }
 
