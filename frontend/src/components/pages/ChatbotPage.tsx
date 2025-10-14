@@ -61,6 +61,14 @@ export const ChatbotPage: React.FC = () => {
   const [providersLoading, setProvidersLoading] = useState(true);
   const [providersError, setProvidersError] = useState<string | null>(null);
 
+  // Ref for auto-scrolling messages
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   // Load chatbot configuration on mount
   useEffect(() => {
     loadChatbotConfig();
@@ -673,6 +681,8 @@ export const ChatbotPage: React.FC = () => {
                   </div>
                 </div>
               ))}
+              {/* Auto-scroll anchor */}
+              <div ref={messagesEndRef} />
             </CardContent>
 
             {/* Input */}
