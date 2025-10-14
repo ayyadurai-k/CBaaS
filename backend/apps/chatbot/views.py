@@ -213,7 +213,14 @@ class ChatbotMessageView(APIView):
             # Get connected document IDs for filtering
             document_ids = list(chatbot.documents_connected.values_list('id', flat=True))
             
-            # Build payload for RAG
+            # If no documents connected, don't allow RAG (require at least one document)
+            if not document_ids:
+                return Response(
+                    {"error": "No documents connected. Please connect at least one document to use the chatbot."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Build payload for RAG (always with document filter)
             payload = {
                 "messages": messages,
                 "max_tokens": 512,
@@ -221,7 +228,7 @@ class ChatbotMessageView(APIView):
                 "top_k": 6,
                 "filters": {
                     "document_ids": document_ids
-                } if document_ids else None
+                }
             }
             
             # Call RAG completion

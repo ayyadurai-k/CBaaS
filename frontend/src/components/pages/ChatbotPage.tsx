@@ -232,6 +232,16 @@ export const ChatbotPage: React.FC = () => {
       return;
     }
 
+    // Check if documents are connected
+    if (connectedDocuments.length === 0) {
+      toast({
+        title: "No Documents Connected",
+        description: "Please connect at least one document for the chatbot to reference",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
@@ -694,19 +704,32 @@ export const ChatbotPage: React.FC = () => {
                   </p>
                 </div>
               )}
+              {chatbotConfig?.is_fully_configured && connectedDocuments.length === 0 && (
+                <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs text-amber-700 text-center">
+                    Connect at least one document for the chatbot to reference
+                  </p>
+                </div>
+              )}
               <div className="flex space-x-3">
                 <Input
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder={chatbotConfig?.is_fully_configured ? "Test your chatbot..." : "Configure chatbot first..."}
+                  placeholder={
+                    !chatbotConfig?.is_fully_configured 
+                      ? "Configure chatbot first..." 
+                      : connectedDocuments.length === 0
+                      ? "Connect documents first..."
+                      : "Test your chatbot..."
+                  }
                   className="flex-1 h-10 rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500"
-                  disabled={isSending || !chatbotConfig?.is_fully_configured}
+                  disabled={isSending || !chatbotConfig?.is_fully_configured || connectedDocuments.length === 0}
                 />
                 <Button
                   onClick={handleSendMessage}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl"
-                  disabled={isSending || !inputValue.trim() || !chatbotConfig?.is_fully_configured}
+                  disabled={isSending || !inputValue.trim() || !chatbotConfig?.is_fully_configured || connectedDocuments.length === 0}
                 >
                   {isSending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
