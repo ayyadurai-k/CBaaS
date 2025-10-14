@@ -15,6 +15,9 @@ class ProviderTestService:
         {"role": "user", "content": "Say 'Hello' in one word only."}
     ]
     
+    # Token limits for testing (Gemini 2.5 uses internal "thoughts" tokens)
+    MAX_TOKENS_TEST = 50
+    
     @classmethod
     def test_provider(cls, provider: str, model_name: str, api_key: str) -> Tuple[bool, str, Dict]:
         """
@@ -55,7 +58,7 @@ class ProviderTestService:
             client = OpenAIChat(model=model_name, api_key=api_key)
             response, usage, actual_model = client.chat(
                 messages=cls.TEST_MESSAGES,
-                max_tokens=10,
+                max_tokens=cls.MAX_TOKENS_TEST,
                 temperature=0.1,
                 timeout_s=30
             )
@@ -87,10 +90,9 @@ class ProviderTestService:
             from common.llm.gemini_client import GeminiChat
             
             client = GeminiChat(model=model_name, api_key=api_key)
-            
             response, usage, actual_model = client.chat(
                 messages=cls.TEST_MESSAGES,
-                max_tokens=10,
+                max_tokens=cls.MAX_TOKENS_TEST,
                 temperature=0.1,
                 timeout_s=30
             )
@@ -105,6 +107,7 @@ class ProviderTestService:
                 return False, "Gemini API returned empty response", {"usage": usage}
                 
         except Exception as e:
+            logger.error(f"Gemini test error: {str(e)}")
             error_msg = str(e).lower()
             if "unauthorized" in error_msg or "forbidden" in error_msg or "401" in error_msg or "403" in error_msg:
                 return False, "Invalid Gemini API key", {"error": str(e)}
@@ -124,7 +127,7 @@ class ProviderTestService:
             client = DeepSeekChat(model=model_name, api_key=api_key)
             response, usage, actual_model = client.chat(
                 messages=cls.TEST_MESSAGES,
-                max_tokens=10,
+                max_tokens=cls.MAX_TOKENS_TEST,
                 temperature=0.1,
                 timeout_s=30
             )
