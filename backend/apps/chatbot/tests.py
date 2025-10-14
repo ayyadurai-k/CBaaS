@@ -37,12 +37,15 @@ class ChatbotModelTests(TestCase):
 
     def test_chatbot_str_representation(self):
         """Test string representation of chatbot"""
-        self.assertEqual(str(self.chatbot), self.chatbot.name)
+        expected = f"{self.chatbot.name} ({self.chatbot.organization.name})"
+        self.assertEqual(str(self.chatbot), expected)
 
     def test_chatbot_auto_fields(self):
         """Test auto-populated fields"""
         self.assertIsInstance(self.chatbot.id, uuid.UUID)
-        self.assertEqual(self.chatbot.created_at, self.chatbot.updated_at)
+        # Check times are close (within 1 second) due to auto_now_add
+        time_diff = abs((self.chatbot.created_at - self.chatbot.updated_at).total_seconds())
+        self.assertLess(time_diff, 1)
 
     def test_chatbot_updated_at(self):
         """Test updated_at field is auto-updated"""
@@ -53,17 +56,21 @@ class ChatbotModelTests(TestCase):
 
     def test_chatbot_tone_choices(self):
         """Test chatbot tone choices"""
-        valid_tones = ["Friendly", "Technical", "Formal"]
-        for tone in valid_tones:
+        valid_tones = ["friendly", "technical", "formal", "professional"]
+        for i, tone in enumerate(valid_tones):
+            # Create separate org for each chatbot (unique constraint)
+            org = Organization.objects.create(name=f"Test Org {i}")
             chatbot = Chatbot.objects.create(
-                organization=self.org, name=f"{tone} Bot", tone=tone
+                organization=org, name=f"{tone} Bot", tone=tone
             )
             self.assertEqual(chatbot.tone, tone)
 
     def test_chatbot_defaults(self):
         """Test chatbot default values"""
-        minimal_bot = Chatbot.objects.create(organization=self.org, name="Minimal Bot")
-        self.assertEqual(minimal_bot.tone, "Technical")  # Default tone
+        # Create new org for second chatbot (unique constraint)
+        new_org = Organization.objects.create(name="Test Organization 2")
+        minimal_bot = Chatbot.objects.create(organization=new_org, name="Minimal Bot")
+        self.assertEqual(minimal_bot.tone, "technical")  # Default tone
         self.assertEqual(minimal_bot.system_instructions, "")  # Empty string default
 
 
@@ -78,12 +85,12 @@ class ChatbotViewTests(APITestCase):
         # Create another organization
         self.other_org = Organization.objects.create(name="Other Organization")
 
-        # Create users
+        # Create users (use ADMIN role for permissions)
         self.user = User.objects.create_user(
             email="test@example.com",
             password="testpass123",
             organization=self.org,
-            role=User.Role.MEMBER,
+            role=User.Role.ADMIN,
         )
 
         self.admin_user = User.objects.create_user(
@@ -109,13 +116,13 @@ class ChatbotViewTests(APITestCase):
         )
 
         # Set up URL and authenticate
-        self.url = reverse("chatbot")
+        self.url = reverse("chatbot-config")
         self.client.force_authenticate(user=self.user)
 
-        # Test data for updates
+        # Test data for updates (tone must be lowercase)
         self.update_data = {
             "name": "Updated Chatbot",
-            "tone": "Friendly",
+            "tone": "friendly",
             "system_instructions": "Updated instructions",
         }
 
@@ -139,12 +146,12 @@ class ChatbotViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], f"{self.org.name} Chatbot")
-        self.assertEqual(response.data["tone"], "Technical")
+        self.assertEqual(response.data["tone"], "technical")
         self.assertEqual(response.data["system_instructions"], "")
 
     def test_update_chatbot_success(self):
         """Test successful update of chatbot"""
-        response = self.client.put(self.url, self.update_data)
+        response = self.client.put(self.url, self.update_data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], self.update_data["name"])
@@ -161,7 +168,7 @@ class ChatbotViewTests(APITestCase):
     def test_update_chatbot_partial(self):
         """Test partial update of chatbot"""
         partial_data = {"name": "New Name Only"}
-        response = self.client.put(self.url, partial_data)
+        response = self.client.put(self.url, partial_data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], partial_data["name"])
@@ -175,12 +182,12 @@ class ChatbotViewTests(APITestCase):
         """Test chatbot update validation"""
         # Test with invalid tone
         invalid_data = {"name": "Test Bot", "tone": "Invalid"}
-        response = self.client.put(self.url, invalid_data)
+        response = self.client.put(self.url, invalid_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # Test with empty name
         invalid_data = {"name": ""}
-        response = self.client.put(self.url, invalid_data)
+        response = self.client.put(self.url, invalid_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_chatbot_authentication(self):
@@ -190,12 +197,16 @@ class ChatbotViewTests(APITestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Test with wrong organization's user
-        self.client.force_authenticate(user=self.other_user)
+        # Test with non-admin user (MEMBER role) - should be forbidden
+        member_user = User.objects.create_user(
+            email="member@example.com",
+            password="testpass123",
+            organization=self.org,
+            role=User.Role.MEMBER,
+        )
+        self.client.force_authenticate(user=member_user)
         response = self.client.get(self.url)
-        # Should create a new chatbot for other_user's organization
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertNotEqual(response.data["id"], str(self.chatbot.id))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_chatbot_admin_access(self):
         """Test admin user access"""
@@ -208,44 +219,228 @@ class ChatbotViewTests(APITestCase):
         response = self.client.put(self.url, self.update_data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_get_chatbot(self):
-        """Test retrieving chatbot details"""
-        url = reverse("chatbot-detail")
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["name"], "Test Bot")
-        self.assertEqual(response.data["description"], "A test chatbot")
 
-    def test_update_chatbot(self):
-        """Test updating chatbot settings"""
-        url = reverse("chatbot-detail")
-        data = {
-            "name": "Updated Bot",
-            "description": "Updated description",
-        }
-        response = self.client.put(url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.chatbot.refresh_from_db()
-        self.assertEqual(self.chatbot.name, "Updated Bot")
+class ChatbotMessageViewTests(APITestCase):
+    """Test cases for ChatbotMessageView (RAG endpoint)"""
 
-    def test_unauthorized_access(self):
-        """Test unauthorized access to chatbot"""
-        self.client.credentials()  # Remove authentication
-        url = reverse("chatbot-detail")
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    def setUp(self):
+        """Set up test data"""
+        from unittest.mock import patch
+        
+        # Create organization
+        self.org = Organization.objects.create(name="Test Organization", slug="test-org")
 
-    def test_wrong_organization_access(self):
-        """Test accessing chatbot from wrong organization"""
-        other_org = Organization.objects.create(name="Other Org")
-        other_user = User.objects.create_user(
-            email="other@example.com", password="testpass123", organization=other_org
+        # Create user with ADMIN role for permissions
+        self.user = User.objects.create_user(
+            email="test@example.com",
+            password="testpass123",
+            organization=self.org,
+            is_active=True,
+            role=User.Role.ADMIN,
         )
 
-        # Login as other user
-        refresh = RefreshToken.for_user(other_user)
+        # Create chatbot with LLM configured
+        self.chatbot = Chatbot.objects.create(
+            organization=self.org,
+            name="Test Chatbot",
+            tone="technical",
+            system_instructions="You are a helpful assistant.",
+            llm_provider="openai",
+            llm_model="gpt-4",
+            llm_is_active=True,
+        )
+        # Set encrypted API key
+        self.chatbot.llm_api_key = "test-api-key"
+        self.chatbot.save()
+
+        # Authenticate
+        refresh = RefreshToken.for_user(self.user)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
 
-        url = reverse("chatbot-detail")
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        # URL and test data
+        self.url = reverse("chatbot-message")
+        self.message_data = {
+            "message": "What is the meaning of life?",
+            "history": []
+        }
+
+        # Mock RAG response (use real UUID format for document_id)
+        import uuid as uuid_lib
+        self.mock_doc_uuid = uuid_lib.uuid4()
+        
+        self.mock_rag_response = {
+            "id": "resp_123",
+            "session_id": None,
+            "model": "gpt-4",
+            "answer": "According to the documents, the meaning of life is 42.",
+            "citations": [
+                {
+                    "document_id": str(self.mock_doc_uuid),
+                    "chunk_index": 0,
+                    "content": "The answer is 42",
+                    "score": 0.95
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 20,
+                "completion_tokens": 15,
+                "total_tokens": 35,
+            },
+            "latency_ms": 200,
+        }
+
+    def test_successful_message(self):
+        """Test successful message with RAG"""
+        from unittest.mock import patch
+        
+        with patch("apps.chatbot.views.chat_completion") as mock_chat:
+            mock_chat.return_value = self.mock_rag_response
+            
+            response = self.client.post(
+                self.url,
+                data=self.message_data,
+                format="json"
+            )
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertIn("reply", response.data)
+            self.assertIn("sources", response.data)
+            self.assertIn("usage", response.data)
+            self.assertEqual(response.data["reply"], self.mock_rag_response["answer"])
+
+    def test_message_with_history(self):
+        """Test message with conversation history"""
+        from unittest.mock import patch
+        
+        message_with_history = {
+            "message": "Tell me more",
+            "history": [
+                {"type": "user", "content": "What is AI?"},
+                {"type": "bot", "content": "AI is artificial intelligence."}
+            ]
+        }
+        
+        with patch("apps.chatbot.views.chat_completion") as mock_chat:
+            mock_chat.return_value = self.mock_rag_response
+            
+            response = self.client.post(
+                self.url,
+                data=message_with_history,
+                format="json"
+            )
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            # Verify history was passed correctly
+            call_args = mock_chat.call_args
+            messages = call_args[1]["payload"]["messages"]
+            self.assertEqual(len(messages), 3)  # 2 history + 1 current
+
+    def test_empty_message(self):
+        """Test with empty message"""
+        response = self.client.post(
+            self.url,
+            data={"message": ""},
+            format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+
+    def test_no_chatbot_configured(self):
+        """Test when chatbot doesn't exist"""
+        # Delete chatbot
+        self.chatbot.delete()
+        
+        response = self.client.post(
+            self.url,
+            data=self.message_data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+
+    def test_llm_not_configured(self):
+        """Test when LLM provider is not configured"""
+        # Remove LLM configuration
+        self.chatbot.llm_provider = None
+        self.chatbot.save()
+        
+        response = self.client.post(
+            self.url,
+            data=self.message_data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("LLM provider not configured", response.data["error"])
+
+    def test_rag_error_handling(self):
+        """Test error handling when RAG fails"""
+        from unittest.mock import patch
+        
+        with patch("apps.chatbot.views.chat_completion") as mock_chat:
+            mock_chat.side_effect = RuntimeError("LLM API error")
+            
+            response = self.client.post(
+                self.url,
+                data=self.message_data,
+                format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("error", response.data)
+
+    def test_unauthorized_access(self):
+        """Test unauthorized access"""
+        self.client.credentials()  # Remove authentication
+        
+        response = self.client.post(
+            self.url,
+            data=self.message_data,
+            format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_with_document_filters(self):
+        """Test message with connected documents"""
+        from unittest.mock import patch
+        from apps.documents.models import Document
+        
+        # Create test documents
+        doc1 = Document.objects.create(
+            organization=self.org,
+            name="Test Doc 1",
+            file_type="pdf",
+            size_bytes=1000,
+            status="ready",
+            url="http://example.com/doc1.pdf"
+        )
+        
+        # Connect document to chatbot
+        self.chatbot.documents_connected.add(doc1)
+        
+        with patch("apps.chatbot.views.chat_completion") as mock_chat:
+            # Modify mock to include document in citations
+            response_with_doc = self.mock_rag_response.copy()
+            response_with_doc["citations"] = [
+                {
+                    "document_id": str(doc1.id),
+                    "chunk_index": 0,
+                    "content": "Content from doc",
+                    "score": 0.95
+                }
+            ]
+            mock_chat.return_value = response_with_doc
+            
+            response = self.client.post(
+                self.url,
+                data=self.message_data,
+                format="json"
+            )
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertIn("sources", response.data)
+            self.assertIn("Test Doc 1", response.data["sources"])
+            
+            # Verify document filter was passed
+            call_args = mock_chat.call_args
+            filters = call_args[1]["payload"].get("filters")
+            self.assertIsNotNone(filters)
+            self.assertIn("document_ids", filters)
