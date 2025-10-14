@@ -2,15 +2,18 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from common.security.permissions import IsOwnerOrAdmin
-from .models import Chatbot
-from .serializers import (
-    ChatbotSerializer, 
+from apps.chatbot.models import Chatbot
+from apps.chatbot.serializers import (
     ChatbotUpdateSerializer, 
     ChatbotConfigSerializer,
     TestKeySerializer
 )
-from .services import ProviderTestService
+from apps.chatbot.services import ProviderTestService
+from apps.chat.services import chat_completion
 from drf_spectacular.utils import extend_schema
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ChatbotView(APIView):
@@ -161,23 +164,10 @@ class ChatbotMessageView(APIView):
         description="Send a message to the chatbot and get a response using RAG"
     )
     def post(self, request):
-        # Get the organization's chatbot
+        # Get the organization
         org = request.user.organization
-        try:
-            chatbot = Chatbot.objects.get(organization=org)
-        except Chatbot.DoesNotExist:
-            return Response(
-                {"error": "Chatbot not configured for this organization"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
         
-        # Check if LLM is configured
-        if not chatbot.llm_provider or not chatbot.llm_api_key:
-            return Response(
-                {"error": "LLM provider not configured"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+        # Validate input
         message = request.data.get('message', '')
         history = request.data.get('history', [])
         
@@ -188,17 +178,89 @@ class ChatbotMessageView(APIView):
             )
         
         try:
-            # TODO: Implement RAG logic here using the connected documents
-            # For now, returning a mock response
-            response_text = "Based on our company handbook, employees are entitled to 15 days of paid vacation per year. You can request time off through our HR portal or by contacting your manager directly."
-            sources = list(chatbot.documents_connected.values_list('name', flat=True))
+            # Check if chatbot exists and is configured
+            try:
+                chatbot = Chatbot.objects.get(organization=org)
+            except Chatbot.DoesNotExist:
+                return Response(
+                    {"error": "Chatbot not configured for this organization"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
-            return Response({
-                "reply": response_text,
-                "sources": sources
+            # Check if LLM is configured
+            if not chatbot.llm_provider or not chatbot.llm_api_key:
+                return Response(
+                    {"error": "LLM provider not configured"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Convert history to message format expected by chat_completion
+            messages = []
+            if history:
+                for msg in history:
+                    role = "user" if msg.get("type") == "user" else "assistant"
+                    messages.append({
+                        "role": role,
+                        "content": msg.get("content", "")
+                    })
+            
+            # Add current message
+            messages.append({
+                "role": "user",
+                "content": message
             })
             
+            # Get connected document IDs for filtering
+            document_ids = list(chatbot.documents_connected.values_list('id', flat=True))
+            
+            # If no documents connected, don't allow RAG (require at least one document)
+            if not document_ids:
+                return Response(
+                    {"error": "No documents connected. Please connect at least one document to use the chatbot."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Build payload for RAG (always with document filter)
+            payload = {
+                "messages": messages,
+                "max_tokens": 512,
+                "temperature": 0.2,
+                "top_k": 6,
+                "filters": {
+                    "document_ids": document_ids
+                }
+            }
+            
+            # Call RAG completion
+            result = chat_completion(org=org, payload=payload)
+            
+            # Extract sources from citations
+            sources = []
+            seen_docs = set()
+            for citation in result.get("citations", []):
+                doc_id = citation.get("document_id")
+                if doc_id and doc_id not in seen_docs:
+                    seen_docs.add(doc_id)
+                    # Get document name
+                    doc_name = chatbot.documents_connected.filter(id=doc_id).values_list('name', flat=True).first()
+                    if doc_name:
+                        sources.append(doc_name)
+            
+            return Response({
+                "reply": result.get("answer", ""),
+                "sources": sources,
+                "usage": result.get("usage", {}),
+                "latency_ms": result.get("latency_ms", 0)
+            })
+            
+        except RuntimeError as e:
+            logger.error(f"RAG error: {str(e)}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
+            logger.error(f"Failed to generate response: {str(e)}", exc_info=True)
             return Response(
                 {"error": f"Failed to generate response: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

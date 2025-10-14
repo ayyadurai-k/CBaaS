@@ -4,14 +4,14 @@ import { Home, FileText, Settings, Key, Users, BarChart, List, CreditCard } from
 import { useLocation, Link } from 'react-router-dom';
 
 const menuItems = [
-  { icon: Home, label: 'Dashboard', path: '/dashboard' },
+  // { icon: Home, label: 'Dashboard', path: '/dashboard' },
   { icon: FileText, label: 'Documents', path: '/documents' },
   { icon: Settings, label: 'Your Chatbot', path: '/chatbot' },
-  { icon: BarChart, label: 'Analytics', path: '/analytics' },
-  { icon: List, label: 'Documentation', path: '/documentation' },
+  // { icon: BarChart, label: 'Analytics', path: '/analytics' },
+  // { icon: List, label: 'Documentation', path: '/documentation' },
   { icon: Key, label: 'API Keys', path: '/api-keys' },
-  { icon: Users, label: 'Team', path: '/team' },
-  { icon: CreditCard, label: 'Billing', path: '/billing' },
+  // { icon: Users, label: 'Team', path: '/team' },
+  // { icon: CreditCard, label: 'Billing', path: '/billing' },
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 

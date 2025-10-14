@@ -7,6 +7,7 @@ import { ReduxProvider } from "@/store/ReduxProvider";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import { PublicRoute } from "@/components/common/PublicRoute";
 import { AuthInitializer } from "@/components/common/AuthInitializer";
+import { ScrollToTop } from "@/components/common/ScrollToTop";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { LoginPage } from "./components/auth/LoginPage";
 import { SignupPage } from "./components/auth/SignupPage";
@@ -32,7 +33,8 @@ const App = () => (
         <Sonner />
         <AuthInitializer>
           <BrowserRouter>
-        <Routes>
+            <ScrollToTop />
+            <Routes>
           {/* Public Routes - redirect to dashboard if already authenticated */}
           <Route path="/login" element={
             <PublicRoute>

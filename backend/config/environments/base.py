@@ -29,12 +29,14 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "pgvector",
     "corsheaders",  # Added for CORS
+    "storages",  # AWS S3 storage backend
     # Domain apps
     "apps.users",
     "apps.ops",  # Added for health/readiness endpoints
     "apps.organizations",
     "apps.documents",
     "apps.chatbot",
+    "apps.llm_providers",  # LLM provider management
     "apps.api_keys",
     "apps.chat",
     "apps.search",
@@ -93,14 +95,16 @@ DATABASES = {
     }
 }
 
-# Static/Media
+# Static/Media (Development defaults)
 STATIC_URL = "/static/"
-DEFAULT_FILE_STORAGE = os.environ.get(
-    "DEFAULT_FILE_STORAGE",
-    "django.core.files.storage.FileSystemStorage",
-)
-MEDIA_ROOT = BASE_DIR / "media"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
 MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# Custom environment variable to control static file serving
+# Use this instead of DEBUG to avoid coupling with Django's debug mode
+SERVE_STATIC_FILES = os.environ.get("SERVE_STATIC_FILES", "true").lower() == "true"
 
 # DRF
 REST_FRAMEWORK = {
@@ -245,25 +249,20 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "standard",
         },
-        "file": {
-            "class": "logging.FileHandler",
-            "filename": os.path.join(BASE_DIR, "logs", "django.log"),
-            "formatter": "standard",
-        },
     },
     "loggers": {
         "django": {
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": True,
         },
         "django.request": {  # capture 5xx errors
-            "handlers": ["file"],
+            "handlers": ["console"],
             "level": "ERROR",
             "propagate": False,
         },
         "apps": {  # replace with your app name
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "level": "DEBUG",
             "propagate": False,
         },

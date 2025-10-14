@@ -64,59 +64,51 @@ export const LoginPage: React.FC = () => {
     setErrors(prev => ({ ...prev, [name]: error }));
   };
 
+  // Updated error handling logic in handleSubmit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Mark all fields as touched
     setTouchedFields({ email: true, password: true });
-    
+
     // Validate all fields
-    const newErrors: {[key: string]: string} = {};
+    const newErrors: { [key: string]: string } = {};
     Object.entries(formData).forEach(([key, value]) => {
-      const error = validateField(key, value as string);
-      if (error) newErrors[key] = error;
+        const error = validateField(key, value as string);
+        if (error) newErrors[key] = error;
     });
 
     if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
+        setErrors(newErrors);
+        return;
     }
 
     // Clear any previous errors
     setErrors({});
 
     try {
-      // Use Redux login
-      const success = await login(formData.email, formData.password);
-      
-      if (success) {
-        // Save remember me preference if selected
-        if (rememberMe) {
-          localStorage.setItem('rememberedEmail', formData.email);
-        } else {
-          localStorage.removeItem('rememberedEmail');
+        // Use Redux login
+        const success = await login(formData.email, formData.password);
+
+        if (success) {
+            // Save remember me preference if selected
+            if (rememberMe) {
+                localStorage.setItem('rememberedEmail', formData.email);
+            } else {
+                localStorage.removeItem('rememberedEmail');
+            }
+
+            // Show success state briefly before redirecting
+            setLoginSuccess(true);
+
+            // Redirect after a short delay for better UX
+            setTimeout(() => {
+                navigate(from);
+            }, 800);
         }
-        
-        // Show success state briefly before redirecting
-        setLoginSuccess(true);
-        
-        // Redirect after a short delay for better UX
-        setTimeout(() => {
-          navigate(from);
-        }, 800);
-      } else {
-        // Handle login failure - error is managed by Redux
-        const errorMessage = error || 'Login failed. Please try again.';
-        if (errorMessage.toLowerCase().includes('credentials')) {
-          setErrors({ general: 'Invalid email or password. Please try again.' });
-        } else if (errorMessage.toLowerCase().includes('many')) {
-          setErrors({ general: 'Too many login attempts. Please try again later.' });
-        } else {
-          setErrors({ general: errorMessage });
-        }
-      }
+        // Note: Login failure errors are handled by the useEffect that watches Redux error state
     } catch (err) {
-      setErrors({ general: 'Network error. Please check your connection and try again.' });
+        setErrors({ general: 'Network error. Please check your connection and try again.' });
     }
   };
   
@@ -128,6 +120,20 @@ export const LoginPage: React.FC = () => {
       setRememberMe(true);
     }
   }, []);
+
+  // Handle Redux auth errors
+  useEffect(() => {
+    if (error && !isLoading) {
+      const errorMessage = error;
+      if (errorMessage.toLowerCase().includes('credentials') || errorMessage.toLowerCase().includes('invalid')) {
+        setErrors({ general: 'Invalid email or password. Please try again.' });
+      } else if (errorMessage.toLowerCase().includes('many') || errorMessage.toLowerCase().includes('throttle')) {
+        setErrors({ general: 'Too many login attempts. Please try again later.' });
+      } else {
+        setErrors({ general: errorMessage });
+      }
+    }
+  }, [error, isLoading]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 md:p-8">

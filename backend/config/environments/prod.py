@@ -9,20 +9,35 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # ---------------------------------------------------------------------
 # 🔧 Debug and Security
 # ---------------------------------------------------------------------
-DEBUG = False  # Disable in production
+DEBUG = True  # Keep True for error tracking, but use SERVE_STATIC_FILES for file serving
 
 # Use wildcard since ALB restricts access anyway
 ALLOWED_HOSTS = ["*"]
 
-# ---------------------------------------------------------------------
-# ⚙️ Static / Media Configuration
-# ---------------------------------------------------------------------
-STATIC_URL = "/static/"
-STATIC_ROOT = "/app/staticfiles"
-STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+# Production: S3 serves static files, not Django
+SERVE_STATIC_FILES = False
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = "/app/media"
+# ---------------------------------------------------------------------
+# ⚙️ AWS S3 Configuration for Static & Media Files
+# ---------------------------------------------------------------------
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "ap-south-1")
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": "max-age=86400",
+}
+AWS_DEFAULT_ACL = None
+AWS_S3_FILE_OVERWRITE = False
+
+# Static files on S3 (using custom backend)
+STATICFILES_STORAGE = "common.storage_backends.StaticStorage"
+STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
+
+# Media files on S3 (using custom backend)
+DEFAULT_FILE_STORAGE = "common.storage_backends.MediaStorage"
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 
 # ---------------------------------------------------------------------
 # 🗄️ Database Configuration
@@ -119,16 +134,11 @@ LOGGING = {
     },
     "handlers": {
         "console": {"class": "logging.StreamHandler", "formatter": "standard"},
-        "file": {
-            "class": "logging.FileHandler",
-            "filename": os.path.join(BASE_DIR, "logs", "django.log"),
-            "formatter": "standard",
-        },
     },
     "loggers": {
-        "django": {"handlers": ["console", "file"], "level": "INFO"},
-        "django.request": {"handlers": ["file"], "level": "ERROR", "propagate": False},
-        "apps": {"handlers": ["console", "file"], "level": "DEBUG", "propagate": False},
+        "django": {"handlers": ["console"], "level": "INFO"},
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        "apps": {"handlers": ["console"], "level": "DEBUG", "propagate": False},
     },
 }
 

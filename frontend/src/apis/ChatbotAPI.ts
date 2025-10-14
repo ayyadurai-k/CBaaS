@@ -2,40 +2,93 @@
 import { api } from "./configs/axiosConfig";
 import { AxiosResponse } from "axios";
 
-export type ChatbotTone = "Friendly" | "Technical" | "Formal";
+export type ChatbotTone = "friendly" | "technical" | "formal" | "professional";
 
-export type ChatbotDTO = {
+export type DocumentInfo = {
   id: string;
-  organization: string;
   name: string;
-  tone: ChatbotTone;
-  system_instructions: string;
-  created_at: string;
-  updated_at: string;
+  connected: boolean;
 };
 
-export type CreateChatbotPayload = {
+export type ChatbotConfigDTO = {
+  id: string;
   name: string;
   tone: ChatbotTone;
   system_instructions: string;
+  llm_provider: string | null;
+  llm_model: string | null;
+  llm_system_prompt: string;
+  llm_is_active: boolean;
+  documents_connected_ids: string[];
+  documents_available: DocumentInfo[];
+  created_at: string;
+  updated_at: string;
 };
 
 export type UpdateChatbotPayload = {
   name?: string;
   tone?: ChatbotTone;
   system_instructions?: string;
+  llm_provider?: string;
+  llm_model?: string;
+  llm_api_key?: string;
+  llm_system_prompt?: string;
+  llm_is_active?: boolean;
+  documents_connected?: string[];
+};
+
+export type TestApiKeyPayload = {
+  provider: string;
+  model_name: string;
+  api_key: string;
+};
+
+export type TestApiKeyResponse = {
+  success: boolean;
+  message: string;
+  details: {
+    model?: string;
+    usage?: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    };
+    response?: string;
+  };
+};
+
+export type ChatMessage = {
+  type: "user" | "bot";
+  content: string;
+  timestamp?: string;
+};
+
+export type SendMessagePayload = {
+  message: string;
+  history?: ChatMessage[];
+};
+
+export type SendMessageResponse = {
+  reply: string;
+  sources: string[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  latency_ms: number;
 };
 
 export const ChatbotAPI = {
-  get: (): Promise<AxiosResponse<ChatbotDTO>> => 
-    api.get<ChatbotDTO>("/chatbot/"),
+  getConfig: (): Promise<AxiosResponse<ChatbotConfigDTO>> => 
+    api.get<ChatbotConfigDTO>("/chatbot"),
   
-  create: (payload: CreateChatbotPayload): Promise<AxiosResponse<ChatbotDTO>> => 
-    api.post<ChatbotDTO>("/chatbot/", payload),
+  updateConfig: (payload: UpdateChatbotPayload): Promise<AxiosResponse<ChatbotConfigDTO>> => 
+    api.put<ChatbotConfigDTO>("/chatbot", payload),
   
-  update: (payload: UpdateChatbotPayload): Promise<AxiosResponse<ChatbotDTO>> => 
-    api.put<ChatbotDTO>("/chatbot/", payload),
+  testApiKey: (payload: TestApiKeyPayload): Promise<AxiosResponse<TestApiKeyResponse>> => 
+    api.post<TestApiKeyResponse>("/chatbot/test-api-key", payload),
   
-  remove: (): Promise<AxiosResponse<void>> => 
-    api.delete<void>("/chatbot/"),
+  sendMessage: (payload: SendMessagePayload): Promise<AxiosResponse<SendMessageResponse>> => 
+    api.post<SendMessageResponse>("/chatbot/message", payload),
 };

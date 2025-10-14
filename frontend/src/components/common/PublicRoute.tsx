@@ -1,25 +1,17 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/redux/useAuth';
-import { Loader2 } from 'lucide-react';
 
 interface PublicRouteProps {
   children: React.ReactNode;
 }
 
 export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // Don't show loading state for public routes
+  // Let the individual components (like LoginPage) handle their own loading states
+  // This prevents full-page loaders from interrupting the UX during login
 
   if (isAuthenticated) {
     // If user is already authenticated, redirect to dashboard
