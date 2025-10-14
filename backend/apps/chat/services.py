@@ -13,13 +13,13 @@ from common.llm.gemini_client import GeminiChat
 from common.llm.deepseek_client import DeepSeekChat
 
 
-def _pick_client(provider: Chatbot) -> ChatClient:
-    if provider.provider == "openai":
-        return OpenAIChat(model=provider.model_name, api_key=provider.api_key)
-    if provider.provider == "gemini":
-        return GeminiChat(model=provider.model_name, api_key=provider.api_key)
-    if provider.provider == "deepseek":
-        return DeepSeekChat(model=provider.model_name, api_key=provider.api_key)
+def _pick_client(chatbot: Chatbot) -> ChatClient:
+    if chatbot.llm_provider == "openai":
+        return OpenAIChat(model=chatbot.llm_model, api_key=chatbot.llm_api_key)
+    if chatbot.llm_provider == "gemini":
+        return GeminiChat(model=chatbot.llm_model, api_key=chatbot.llm_api_key)
+    if chatbot.llm_provider == "deepseek":
+        return DeepSeekChat(model=chatbot.llm_model, api_key=chatbot.llm_api_key)
     raise ValueError("Unsupported provider")
 
 
@@ -77,13 +77,14 @@ def chat_completion(*, org, payload: Dict, model_override: str | None = None) ->
         organization=org,
         defaults={
             "name": f"{org.name} Chatbot",
-            "tone": "Technical",
+            "tone": "technical",
             "system_instructions": "",
         },
     )[0]
-    provider = Chatbot.objects.filter(chatbot=bot).first()
-    if not provider:
-        raise RuntimeError("Chatbot provider not configured")
+    
+    # Check if LLM provider is configured
+    if not bot.llm_provider or not bot.llm_api_key:
+        raise RuntimeError("Chatbot LLM provider not configured")
 
     top_k = int(payload.get("top_k", getattr(settings, "TOP_K", 6)))
     rows, context_blocks = _retrieval(
@@ -92,7 +93,7 @@ def chat_completion(*, org, payload: Dict, model_override: str | None = None) ->
     sys_prompt = _build_system_prompt(bot)
     msgs = _build_messages(payload["messages"], sys_prompt, context_blocks)
 
-    client = _pick_client(provider)
+    client = _pick_client(bot)
     if model_override:
         client.model = model_override
 
@@ -128,13 +129,14 @@ def chat_stream(
         organization=org,
         defaults={
             "name": f"{org.name} Chatbot",
-            "tone": "Technical",
+            "tone": "technical",
             "system_instructions": "",
         },
     )[0]
-    provider = Chatbot.objects.filter(chatbot=bot).first()
-    if not provider:
-        yield ("error", {"detail": "Chatbot provider not configured"})
+    
+    # Check if LLM provider is configured
+    if not bot.llm_provider or not bot.llm_api_key:
+        yield ("error", {"detail": "Chatbot LLM provider not configured"})
         return
 
     top_k = int(payload.get("top_k", getattr(settings, "TOP_K", 6)))
@@ -144,7 +146,7 @@ def chat_stream(
     sys_prompt = _build_system_prompt(bot)
     msgs = _build_messages(payload["messages"], sys_prompt, context_blocks)
 
-    client = _pick_client(provider)
+    client = _pick_client(bot)
     if model_override:
         client.model = model_override
 

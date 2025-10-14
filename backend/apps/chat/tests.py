@@ -11,7 +11,6 @@ from unittest.mock import patch
 from apps.users.models import User
 from apps.organizations.models import Organization
 from apps.chatbot.models import Chatbot
-from apps.chatbot_provider.models import ChatbotProvider
 from apps.api_keys.models import APIKey
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -34,32 +33,19 @@ class BaseChatTestCase(APITestCase):
             is_active=True,
         )
 
-        # Chatbot (linked to org)
+        # Chatbot (linked to org) with LLM provider configured
         self.chatbot = Chatbot.objects.create(
             organization=self.organization,
             name="Org Bot",
-            tone="Technical",
+            tone="technical",
             system_instructions="You are a helpful assistant.",
+            llm_provider="openai",
+            llm_model="gpt-4",
+            llm_is_active=True,
         )
-
-        # Providers (match current ChatbotProvider model)
-        self.openai_provider = ChatbotProvider.objects.create(
-            chatbot=self.chatbot,
-            provider="openai",
-            model_name="gpt-4",
-            is_active=True,
-        )
-        self.openai_provider.api_key = "test-openai-key"
-        self.openai_provider.save()
-
-        self.gemini_provider = ChatbotProvider.objects.create(
-            chatbot=self.chatbot,
-            provider="gemini",
-            model_name="gemini-pro",
-            is_active=True,
-        )
-        self.gemini_provider.api_key = "test-gemini-key"
-        self.gemini_provider.save()
+        # Set encrypted API key
+        self.chatbot.llm_api_key = "test-openai-key"
+        self.chatbot.save()
 
         # Project-level API key
         self.api_key = APIKey.objects.create(
@@ -73,15 +59,14 @@ class BaseChatTestCase(APITestCase):
         self.access_token = str(refresh.access_token)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
 
-        # Common chat payload
+        # Common chat payload (updated for RAG)
         self.chat_data = {
             "messages": [
-                {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": "What is the meaning of life?"},
             ],
             "max_tokens": 500,
             "temperature": 0.7,
-            "provider_id": self.openai_provider.id,
+            "top_k": 6,
         }
 
 
@@ -91,14 +76,18 @@ class ChatCompletionTests(BaseChatTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.url = reverse("chat-completions")
+        # Mock response matching chat_completion return format
         self.mock_response = {
-            "choices": [
+            "id": "resp_1234567890",
+            "session_id": None,
+            "model": "gpt-4",
+            "answer": "The meaning of life is 42.",
+            "citations": [
                 {
-                    "message": {
-                        "role": "assistant",
-                        "content": "The meaning of life is 42.",
-                    },
-                    "finish_reason": "stop",
+                    "document_id": "doc-123",
+                    "chunk_index": 0,
+                    "content": "Some relevant content",
+                    "score": 0.95
                 }
             ],
             "usage": {
@@ -106,6 +95,7 @@ class ChatCompletionTests(BaseChatTestCase):
                 "completion_tokens": 10,
                 "total_tokens": 30,
             },
+            "latency_ms": 150,
         }
 
     def test_successful_chat_completion(self) -> None:
@@ -119,7 +109,8 @@ class ChatCompletionTests(BaseChatTestCase):
             )
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn("choices", response.data)
+            self.assertIn("answer", response.data)
+            self.assertIn("citations", response.data)
             self.assertIn("usage", response.data)
             mock_chat.assert_called_once()
 
@@ -134,43 +125,28 @@ class ChatCompletionTests(BaseChatTestCase):
                 HTTP_IDEMPOTENCY_KEY="test-key-2",
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn("choices", response.data)
+            self.assertIn("answer", response.data)
             self.assertIn("usage", response.data)
 
-    def test_provider_specific_validation(self) -> None:
-        # OpenAI-specific params
-        openai_data = {
+    def test_rag_with_filters(self) -> None:
+        # Test with document filters
+        filtered_data = {
             **self.chat_data,
-            "provider_id": self.openai_provider.id,
-            "presence_penalty": 0.5,
-            "frequency_penalty": 0.5,
+            "filters": {
+                "document_ids": ["doc-123"],
+                "file_types": ["pdf"]
+            }
         }
         with patch("apps.chat.services.chat_completion") as mock_chat:
             mock_chat.return_value = self.mock_response
             response = self.client.post(
                 self.url,
-                data=openai_data,
+                data=filtered_data,
                 format="json",
                 HTTP_IDEMPOTENCY_KEY="test-key-3",
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        # Gemini-specific params
-        gemini_data = {
-            **self.chat_data,
-            "provider_id": self.gemini_provider.id,
-            "candidate_count": 1,
-            "top_k": 40,
-        }
-        with patch("apps.chat.services.chat_completion") as mock_chat:
-            mock_chat.return_value = self.mock_response
-            response = self.client.post(
-                self.url,
-                data=gemini_data,
-                format="json",
-                HTTP_IDEMPOTENCY_KEY="test-key-4",
-            )
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertIn("citations", response.data)
 
     def test_invalid_message_format(self) -> None:
         invalid_data = {
@@ -188,9 +164,10 @@ class ChatCompletionTests(BaseChatTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_inactive_provider(self) -> None:
-        self.openai_provider.is_active = False
-        self.openai_provider.save()
+    def test_unconfigured_provider(self) -> None:
+        # Remove LLM configuration
+        self.chatbot.llm_provider = None
+        self.chatbot.save()
 
         response = self.client.post(
             self.url,
@@ -198,7 +175,7 @@ class ChatCompletionTests(BaseChatTestCase):
             format="json",
             HTTP_IDEMPOTENCY_KEY="test-key-6",
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @override_settings(REST_FRAMEWORK={"DEFAULT_THROTTLE_RATES": {"chat": "2/minute"}})
     def test_rate_limiting(self) -> None:
