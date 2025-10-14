@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Send, MessageSquare, FileText, Clock, Settings, Check, Key, TestTube, Loader2 } from 'lucide-react';
+import { Send, MessageSquare, FileText, Clock, Settings, Check, Key, TestTube, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { llmProvidersService } from '@/services/llm/llmProvidersService';
 import { LLMProviderConfig } from '@/apis/llm/LLMProvidersAPI';
+import { chatbotService, ChatbotConfig, ChatMessageData } from '@/services/ChatbotService';
+import { DocumentInfo } from '@/apis/ChatbotAPI';
 
 interface Message {
   id: string;
@@ -19,50 +21,52 @@ interface Message {
   sources?: string[];
 }
 
-interface Document {
-  id: string;
-  name: string;
-  connected: boolean;
-}
-
-const mockMessages: Message[] = [
-  {
-    id: '1',
-    type: 'bot',
-    content: 'Hello! I\'m your company chatbot. I can help you find information from your uploaded documents. What would you like to know?',
-    timestamp: '14:30',
-  }
-];
-
-const mockDocuments: Document[] = [
-  { id: '1', name: 'Employee Handbook.pdf', connected: true },
-  { id: '2', name: 'Company Policies.pdf', connected: true },
-  { id: '3', name: 'Technical Documentation.pdf', connected: false },
-  { id: '4', name: 'Product Manual.pdf', connected: true },
-  { id: '5', name: 'FAQ Document.pdf', connected: false },
-];
+const initialMessage: Message = {
+  id: '1',
+  type: 'bot',
+  content: 'Hello! I\'m your company chatbot. I can help you find information from your uploaded documents. What would you like to know?',
+  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+};
 
 export const ChatbotPage: React.FC = () => {
-  const [chatbotName, setChatbotName] = useState('Customer Support Bot');
-  const [tone, setTone] = useState('professional');
-  const [systemInstructions, setSystemInstructions] = useState('You are a helpful customer support assistant. Be polite, professional, and provide accurate information based on the company documents. If you don\'t know something, ask the user to contact support directly.');
-  const [documents, setDocuments] = useState<Document[]>(mockDocuments);
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
-  const [inputValue, setInputValue] = useState('');
+  // Chatbot configuration state
+  const [chatbotConfig, setChatbotConfig] = useState<ChatbotConfig | null>(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
 
+  // Form state (local edits before save)
+  const [chatbotName, setChatbotName] = useState('');
+  const [tone, setTone] = useState<'friendly' | 'technical' | 'formal' | 'professional'>('professional');
+  const [systemInstructions, setSystemInstructions] = useState('');
+  const [documents, setDocuments] = useState<DocumentInfo[]>([]);
+  
   // LLM Provider state
-  const [selectedProvider, setSelectedProvider] = useState('openai');
-  const [selectedModel, setSelectedModel] = useState('gpt-3.5-turbo');
+  const [selectedProvider, setSelectedProvider] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [llmSystemPrompt, setLlmSystemPrompt] = useState('');
+  
+  // Chat state
+  const [messages, setMessages] = useState<Message[]>([initialMessage]);
+  const [inputValue, setInputValue] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  
+  // UI state
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
 
   // Dynamic provider data
   const [llmProviders, setLlmProviders] = useState<LLMProviderConfig>({});
   const [providersLoading, setProvidersLoading] = useState(true);
   const [providersError, setProvidersError] = useState<string | null>(null);
 
-  // Load LLM providers on component mount (ONLY)
+  // Load chatbot configuration on mount
+  useEffect(() => {
+    loadChatbotConfig();
+  }, []);
+
+  // Load LLM providers on component mount
   useEffect(() => {
     const loadProviders = async () => {
       setProvidersLoading(true);
@@ -74,66 +78,77 @@ export const ChatbotPage: React.FC = () => {
         if (result.success && result.data) {
           setLlmProviders(result.data);
         } else {
-          // If API fails, fall back to hardcoded providers to prevent cascade failures
           console.warn('LLM providers API failed, using fallback configuration');
-          const fallbackProviders = {
-            openai: {
-              name: 'OpenAI',
-              models: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4o']
-            },
-            gemini: {
-              name: 'Google Gemini',
-              models: ['gemini-pro']
-            },
-            deepseek: {
-              name: 'DeepSeek',
-              models: ['deepseek-chat', 'deepseek-coder']
-            }
-          };
-          setLlmProviders(fallbackProviders);
-          setProvidersError(null); // Don't show error if we have fallback
+          setLlmProviders(getFallbackProviders());
+          setProvidersError(null);
         }
       } catch (error) {
         console.error('Critical error loading LLM providers:', error);
-        // Use fallback on any error to prevent UI breaking
-        const fallbackProviders = {
-          openai: {
-            name: 'OpenAI',
-            models: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4o']
-          },
-          gemini: {
-            name: 'Google Gemini',
-            models: ['gemini-pro']
-          },
-          deepseek: {
-            name: 'DeepSeek',
-            models: ['deepseek-chat', 'deepseek-coder']
-          }
-        };
-        setLlmProviders(fallbackProviders);
-        setProvidersError(null); // Don't show error if we have fallback
+        setLlmProviders(getFallbackProviders());
+        setProvidersError(null);
       } finally {
         setProvidersLoading(false);
       }
     };
 
-    // Only load once on mount
     loadProviders();
-  }, []); // Empty dependency array - only run once on mount
+  }, []);
 
-  // Separate effect to set default provider/model when providers are loaded
-  useEffect(() => {
-    const providerNames = Object.keys(llmProviders);
-    if (providerNames.length > 0 && !selectedProvider) {
-      const firstProvider = providerNames[0];
-      const firstProviderModels = llmProviders[firstProvider].models;
+  // Load chatbot configuration from backend
+  const loadChatbotConfig = async () => {
+    setConfigLoading(true);
+    setConfigError(null);
+    
+    try {
+      const config = await chatbotService.getConfig();
       
-      setSelectedProvider(firstProvider);
-      if (firstProviderModels.length > 0) {
-        setSelectedModel(firstProviderModels[0]);
+      if (config) {
+        setChatbotConfig(config);
+        // Populate form fields
+        setChatbotName(config.name);
+        setTone(config.tone);
+        setSystemInstructions(config.system_instructions);
+        setLlmSystemPrompt(config.llm_system_prompt);
+        setDocuments(config.documents_available);
+        
+        // Set LLM provider settings
+        if (config.llm_provider) {
+          setSelectedProvider(config.llm_provider);
+        }
+        if (config.llm_model) {
+          setSelectedModel(config.llm_model);
+        }
+      } else {
+        // No chatbot configured yet - use defaults
+        setConfigError('No chatbot configured. Please set up your chatbot.');
       }
+    } catch (error: any) {
+      console.error('Error loading chatbot config:', error);
+      setConfigError(error.message || 'Failed to load chatbot configuration');
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to load chatbot configuration',
+        variant: "destructive",
+      });
+    } finally {
+      setConfigLoading(false);
     }
-  }, [llmProviders]); // Only depend on llmProviders, not selectedProvider
+  };
+
+  const getFallbackProviders = (): LLMProviderConfig => ({
+    openai: {
+      name: 'OpenAI',
+      models: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4o']
+    },
+    gemini: {
+      name: 'Google Gemini',
+      models: ['gemini-pro', 'gemini-2.0-flash-exp']
+    },
+    deepseek: {
+      name: 'DeepSeek',
+      models: ['deepseek-chat', 'deepseek-coder']
+    }
+  });
 
   const handleDocumentToggle = (documentId: string) => {
     setDocuments(documents.map(doc => 
@@ -143,8 +158,71 @@ export const ChatbotPage: React.FC = () => {
     ));
   };
 
-  const handleSendMessage = () => {
+  const handleSaveConfiguration = async () => {
+    setIsSaving(true);
+    
+    try {
+      // Get connected document IDs
+      const connectedDocIds = documents
+        .filter(doc => doc.connected)
+        .map(doc => doc.id);
+      
+      // Build update payload
+      const payload: any = {
+        name: chatbotName,
+        tone: tone,
+        system_instructions: systemInstructions,
+        llm_system_prompt: llmSystemPrompt,
+        documents_connected: connectedDocIds,
+      };
+      
+      // Only include LLM settings if they're set
+      if (selectedProvider) {
+        payload.llm_provider = selectedProvider;
+      }
+      if (selectedModel) {
+        payload.llm_model = selectedModel;
+      }
+      if (apiKey) {
+        payload.llm_api_key = apiKey;
+        payload.llm_is_active = true;
+      }
+      
+      const updatedConfig = await chatbotService.updateConfig(payload);
+      setChatbotConfig(updatedConfig);
+      
+      toast({
+        title: "Success",
+        description: "Chatbot configuration saved successfully",
+      });
+      
+      // Clear API key field after save (security best practice)
+      setApiKey('');
+      
+    } catch (error: any) {
+      console.error('Error saving configuration:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save configuration",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
+    
+    // Check if chatbot is configured
+    if (!chatbotConfig?.is_fully_configured) {
+      toast({
+        title: "Chatbot Not Configured",
+        description: "Please configure your chatbot with an LLM provider first",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -153,20 +231,58 @@ export const ChatbotPage: React.FC = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    const botResponse: Message = {
-      id: (Date.now() + 1).toString(),
-      type: 'bot',
-      content: 'Based on our company handbook, employees are entitled to 15 days of paid vacation per year. You can request time off through our HR portal or by contacting your manager directly.',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      sources: ['Employee Handbook.pdf', 'Company Policies.pdf']
-    };
-
-    setMessages(prev => [...prev, userMessage, botResponse]);
+    setMessages(prev => [...prev, userMessage]);
     setInputValue('');
+    setIsSending(true);
+
+    try {
+      // Convert messages to API format
+      const history: ChatMessageData[] = messages.map(msg => ({
+        type: msg.type,
+        content: msg.content,
+        timestamp: msg.timestamp,
+      }));
+
+      const result = await chatbotService.sendMessage({
+        message: inputValue,
+        history: history,
+      });
+
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: result.reply,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        sources: result.sources,
+      };
+
+      setMessages(prev => [...prev, botResponse]);
+      
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: `Sorry, I encountered an error: ${error.message}. Please try again.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+      
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send message",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
       handleSendMessage();
     }
   };
@@ -188,21 +304,61 @@ export const ChatbotPage: React.FC = () => {
       return;
     }
 
-    toast({
-      title: "Testing API Key...",
-      description: "Validating your API key with the provider",
-    });
-
-    // Simulate API test
-    setTimeout(() => {
+    if (!selectedProvider || !selectedModel) {
       toast({
-        title: "Success",
-        description: "API key is valid and working",
+        title: "Error",
+        description: "Please select a provider and model first",
+        variant: "destructive",
       });
-    }, 2000);
+      return;
+    }
+
+    setIsTesting(true);
+
+    try {
+      const result = await chatbotService.testApiKey({
+        provider: selectedProvider,
+        model_name: selectedModel,
+        api_key: apiKey,
+      });
+
+      if (result.success) {
+        toast({
+          title: "Success ✓",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Test Failed",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error testing API key:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to test API key",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const connectedDocuments = documents.filter(doc => doc.connected);
+
+  // Show loading state
+  if (configLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-slate-600">Loading chatbot configuration...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -210,12 +366,44 @@ export const ChatbotPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Your Chatbot</h1>
           <p className="text-slate-600 mt-2">Configure and test your AI assistant</p>
+          {chatbotConfig?.is_fully_configured && (
+            <div className="flex items-center mt-2 text-sm text-green-600">
+              <Check className="w-4 h-4 mr-1" />
+              Configured and ready
+            </div>
+          )}
         </div>
-        <Button>
-          <Settings className="w-4 h-4 mr-2" />
-          Save Changes
+        <Button 
+          onClick={handleSaveConfiguration}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Settings className="w-4 h-4 mr-2" />
+              Save Changes
+            </>
+          )}
         </Button>
       </div>
+
+      {configError && !chatbotConfig && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-amber-900">Setup Required</h3>
+                <p className="text-sm text-amber-700 mt-1">{configError}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Combined Configuration Panel */}
@@ -251,14 +439,13 @@ export const ChatbotPage: React.FC = () => {
                   </label>
                   <select 
                     value={tone}
-                    onChange={(e) => setTone(e.target.value)}
+                    onChange={(e) => setTone(e.target.value as 'friendly' | 'technical' | 'formal' | 'professional')}
                     className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="professional">Professional</option>
                     <option value="friendly">Friendly</option>
-                    <option value="casual">Casual</option>
+                    <option value="technical">Technical</option>
                     <option value="formal">Formal</option>
-                    <option value="enthusiastic">Enthusiastic</option>
                   </select>
                 </div>
 
@@ -383,9 +570,19 @@ export const ChatbotPage: React.FC = () => {
                     onClick={handleTestApiKey}
                     variant="outline"
                     className="w-full max-w-xs"
+                    disabled={isTesting || !apiKey}
                   >
-                    <TestTube className="w-4 h-4 mr-2" />
-                    Test API Key
+                    {isTesting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Testing...
+                      </>
+                    ) : (
+                      <>
+                        <TestTube className="w-4 h-4 mr-2" />
+                        Test API Key
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -480,19 +677,32 @@ export const ChatbotPage: React.FC = () => {
 
             {/* Input */}
             <div className="p-4 border-t border-slate-200">
+              {!chatbotConfig?.is_fully_configured && (
+                <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs text-amber-700 text-center">
+                    Configure your chatbot with an LLM provider to start testing
+                  </p>
+                </div>
+              )}
               <div className="flex space-x-3">
                 <Input
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Test your chatbot..."
+                  onKeyDown={handleKeyPress}
+                  placeholder={chatbotConfig?.is_fully_configured ? "Test your chatbot..." : "Configure chatbot first..."}
                   className="flex-1 h-10 rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                  disabled={isSending || !chatbotConfig?.is_fully_configured}
                 />
                 <Button
                   onClick={handleSendMessage}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl"
+                  disabled={isSending || !inputValue.trim() || !chatbotConfig?.is_fully_configured}
                 >
-                  <Send className="w-4 h-4" />
+                  {isSending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             </div>

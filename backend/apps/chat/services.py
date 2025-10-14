@@ -28,9 +28,16 @@ def _retrieval(
 ) -> Tuple[List[Dict], List[str]]:
     """Return [(doc_id, chunk_index, content, score)], and texts for prompt context."""
     qvec = get_embedding(query)
+    
+    # Convert list to pgvector format string: '[0.1, 0.2, ...]'
+    qvec_str = '[' + ','.join(map(str, qvec)) + ']'
+    
     qs = (
         DocumentChunk.objects.filter(document__organization_id=org_id)
-        .extra(select={"score": "1 - (embedding <=> %s)"}, select_params=[qvec])
+        .extra(
+            select={"score": "1 - (embedding <=> %s::vector)"},
+            select_params=[qvec_str]
+        )
         .order_by("-score")
     )
     if filters:

@@ -64,6 +64,15 @@ class ChatbotUpdateSerializer(serializers.ModelSerializer):
             "llm_is_active",
             "documents_connected",
         ]
+        extra_kwargs = {
+            'name': {'required': False},
+            'tone': {'required': False},
+            'system_instructions': {'required': False, 'allow_blank': True},
+            'llm_provider': {'required': False},
+            'llm_model': {'required': False},
+            'llm_system_prompt': {'required': False, 'allow_blank': True},
+            'llm_is_active': {'required': False},
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
