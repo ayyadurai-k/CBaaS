@@ -113,6 +113,7 @@ class ChatbotConfigSerializer(serializers.ModelSerializer):
     llm_api_key = serializers.CharField(
         write_only=True, required=False, allow_blank=True
     )
+    llm_api_key_preview = serializers.SerializerMethodField()
     documents_connected_ids = serializers.SerializerMethodField()
     documents_available = serializers.SerializerMethodField()
 
@@ -126,6 +127,7 @@ class ChatbotConfigSerializer(serializers.ModelSerializer):
             "llm_provider",
             "llm_model",
             "llm_api_key",
+            "llm_api_key_preview",
             "llm_system_prompt",
             "llm_is_active",
             "documents_connected_ids",
@@ -137,6 +139,7 @@ class ChatbotConfigSerializer(serializers.ModelSerializer):
             "id",
             "created_at",
             "updated_at",
+            "llm_api_key_preview",
             "documents_connected_ids",
             "documents_available",
         ]
@@ -144,6 +147,24 @@ class ChatbotConfigSerializer(serializers.ModelSerializer):
     def get_documents_connected_ids(self, obj):
         """Return list of connected document IDs."""
         return list(obj.documents_connected.values_list("id", flat=True))
+
+    def get_llm_api_key_preview(self, obj):
+        """Return masked preview of API key (last 4 characters) for security."""
+        if not obj.llm_api_key_encrypted:
+            return None
+        
+        try:
+            # Decrypt to get actual key
+            decrypted_key = obj.llm_api_key
+            if not decrypted_key or len(decrypted_key) < 4:
+                return "••••"
+            
+            # Return masked preview with last 4 chars
+            last_four = decrypted_key[-4:]
+            return f"••••••••{last_four}"
+        except Exception:
+            # If decryption fails, just show dots
+            return "••••••••"
 
     def get_documents_available(self, obj):
         """Return all available documents for this organization."""

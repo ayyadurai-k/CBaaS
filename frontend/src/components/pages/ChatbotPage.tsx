@@ -45,6 +45,7 @@ export const ChatbotPage: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [isEditingApiKey, setIsEditingApiKey] = useState(false);
   const [llmSystemPrompt, setLlmSystemPrompt] = useState('');
   
   // Chat state
@@ -126,6 +127,10 @@ export const ChatbotPage: React.FC = () => {
         if (config.llm_model) {
           setSelectedModel(config.llm_model);
         }
+        
+        // Reset edit mode when loading config
+        setIsEditingApiKey(false);
+        setApiKey('');
       } else {
         // No chatbot configured yet - use defaults
         setConfigError('No chatbot configured. Please set up your chatbot.');
@@ -191,7 +196,8 @@ export const ChatbotPage: React.FC = () => {
       if (selectedModel) {
         payload.llm_model = selectedModel;
       }
-      if (apiKey) {
+      // Only include API key if user has entered a new one
+      if (apiKey && apiKey.trim()) {
         payload.llm_api_key = apiKey;
         payload.llm_is_active = true;
       }
@@ -204,8 +210,9 @@ export const ChatbotPage: React.FC = () => {
         description: "Chatbot configuration saved successfully",
       });
       
-      // Clear API key field after save (security best practice)
+      // Clear API key field and exit edit mode after save (security best practice)
       setApiKey('');
+      setIsEditingApiKey(false);
       
     } catch (error: any) {
       console.error('Error saving configuration:', error);
@@ -550,22 +557,79 @@ export const ChatbotPage: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     API Key
                   </label>
-                  <div className="relative">
-                    <Input
-                      type={showApiKey ? 'text' : 'password'}
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="Enter your API key"
-                      className="w-full pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                    >
-                      {showApiKey ? '🙈' : '👁️'}
-                    </button>
-                  </div>
+                  
+                  {!isEditingApiKey && chatbotConfig?.llm_api_key_preview ? (
+                    // Display mode: Show masked preview with status badge
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 px-3 py-2 border border-slate-300 rounded-xl bg-slate-50">
+                        <Key className="w-4 h-4 text-slate-500" />
+                        <span className="flex-1 font-mono text-sm text-slate-700">
+                          {chatbotConfig.llm_api_key_preview}
+                        </span>
+                        <div className="flex items-center space-x-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium">
+                          <Check className="w-3 h-3" />
+                          <span>Active</span>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditingApiKey(true)}
+                        className="w-full"
+                      >
+                        Change API Key
+                      </Button>
+                    </div>
+                  ) : (
+                    // Edit mode: Show editable input
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Input
+                          type={showApiKey ? 'text' : 'password'}
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          onBlur={() => {
+                            // Exit edit mode if input is empty (user didn't enter new key)
+                            if (!apiKey.trim() && chatbotConfig?.llm_api_key_preview) {
+                              setIsEditingApiKey(false);
+                            }
+                          }}
+                          placeholder={chatbotConfig?.llm_api_key_preview ? "Enter new API key (leave empty to keep existing)" : "Enter your API key"}
+                          className="w-full pr-10"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          onMouseDown={(e) => e.preventDefault()} // Prevent blur when clicking eye icon
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                        >
+                          {showApiKey ? '🙈' : '👁️'}
+                        </button>
+                      </div>
+                      {chatbotConfig?.llm_api_key_preview && (
+                        <div className="flex items-start space-x-2">
+                          <p className="text-xs text-slate-500 flex-1">
+                            Leave empty to keep your existing API key. Enter a new key to update it.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setIsEditingApiKey(false);
+                              setApiKey('');
+                            }}
+                            onMouseDown={(e) => e.preventDefault()} // Prevent blur when clicking cancel
+                            className="text-xs"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>

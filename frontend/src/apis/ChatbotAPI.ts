@@ -17,6 +17,7 @@ export type ChatbotConfigDTO = {
   system_instructions: string;
   llm_provider: string | null;
   llm_model: string | null;
+  llm_api_key_preview: string | null;
   llm_system_prompt: string;
   llm_is_active: boolean;
   documents_connected_ids: string[];
