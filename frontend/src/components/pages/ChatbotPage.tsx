@@ -680,20 +680,18 @@ export const ChatbotPage: React.FC = () => {
                 </div>
 
                 {documents.length === 0 ? (
-                  // No documents available - show upload prompt
-                  <div className="p-6 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl text-center">
-                    <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                    <h4 className="text-sm font-semibold text-slate-700 mb-2">No Documents Available</h4>
-                    <p className="text-xs text-slate-600 mb-4">
-                      Upload documents to provide knowledge for your chatbot to reference
+                  // No documents available - show simple upload link
+                  <div className="p-4 bg-slate-50 rounded-lg text-center">
+                    <p className="text-sm text-slate-600">
+                      No documents available.{' '}
+                      <Link 
+                        to="/documents?upload=true" 
+                        className="text-blue-600 hover:text-blue-700 underline font-medium"
+                      >
+                        Upload documents
+                      </Link>
+                      {' '}to get started.
                     </p>
-                    <Link 
-                      to="/documents?upload=true" 
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <FileText className="w-4 h-4 mr-2" />
-                      Upload Documents
-                    </Link>
                   </div>
                 ) : (
                   // Documents available - show list
