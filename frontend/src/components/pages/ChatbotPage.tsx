@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Send, MessageSquare, FileText, Clock, Settings, Check, Key, TestTube, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -678,34 +679,55 @@ export const ChatbotPage: React.FC = () => {
                   <p className="text-sm text-slate-600 mb-6">Select which documents your chatbot can reference</p>
                 </div>
 
-                <div className="space-y-3">
-                  {documents.map((document) => (
-                    <div key={document.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl">
-                      <Checkbox
-                        id={document.id}
-                        checked={document.connected}
-                        onCheckedChange={() => handleDocumentToggle(document.id)}
-                      />
-                      <div className="flex-1 flex items-center space-x-2">
-                        <FileText className="w-4 h-4 text-slate-500" />
-                        <label 
-                          htmlFor={document.id}
-                          className="text-sm font-medium text-slate-700 cursor-pointer"
-                        >
-                          {document.name}
-                        </label>
-                      </div>
-                      {document.connected && (
-                        <Check className="w-4 h-4 text-green-600" />
-                      )}
+                {documents.length === 0 ? (
+                  // No documents available - show upload prompt
+                  <div className="p-6 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl text-center">
+                    <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                    <h4 className="text-sm font-semibold text-slate-700 mb-2">No Documents Available</h4>
+                    <p className="text-xs text-slate-600 mb-4">
+                      Upload documents to provide knowledge for your chatbot to reference
+                    </p>
+                    <Link 
+                      to="/documents?upload=true" 
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      Upload Documents
+                    </Link>
+                  </div>
+                ) : (
+                  // Documents available - show list
+                  <>
+                    <div className="space-y-3">
+                      {documents.map((document) => (
+                        <div key={document.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl">
+                          <Checkbox
+                            id={document.id}
+                            checked={document.connected}
+                            onCheckedChange={() => handleDocumentToggle(document.id)}
+                          />
+                          <div className="flex-1 flex items-center space-x-2">
+                            <FileText className="w-4 h-4 text-slate-500" />
+                            <label 
+                              htmlFor={document.id}
+                              className="text-sm font-medium text-slate-700 cursor-pointer"
+                            >
+                              {document.name}
+                            </label>
+                          </div>
+                          {document.connected && (
+                            <Check className="w-4 h-4 text-green-600" />
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <div className="p-3 bg-blue-50 rounded-xl">
-                  <p className="text-sm text-blue-700">
-                    <strong>{connectedDocuments.length}</strong> documents connected
-                  </p>
-                </div>
+                    <div className="p-3 bg-blue-50 rounded-xl">
+                      <p className="text-sm text-blue-700">
+                        <strong>{connectedDocuments.length}</strong> documents connected
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Upload,
   FileText,
@@ -40,6 +41,7 @@ interface ConfirmModalData {
 }
 
 export const DocumentsPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -75,6 +77,17 @@ export const DocumentsPage: React.FC = () => {
   useEffect(() => {
     loadDocuments();
   }, []);
+
+  // Auto-open upload modal if coming from chatbot page
+  useEffect(() => {
+    const shouldAutoUpload = searchParams.get('upload') === 'true';
+    if (shouldAutoUpload && !showUploadModal) {
+      setShowUploadModal(true);
+      // Clean up URL parameter after opening modal
+      searchParams.delete('upload');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, showUploadModal]);
 
   // Cleanup polling interval on component unmount
   useEffect(() => {
