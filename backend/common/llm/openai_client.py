@@ -59,10 +59,10 @@ class OpenAIChat(ChatClient):
             "temperature": float(temperature),
             "stream": True,
         }
-        client, resp = stream_post_sse_resilient(
+        client, resp_ctx, resp = stream_post_sse_resilient(
             f"openai:{self.model}", url, headers, {}, payload, timeout_s
         )
-        with client, resp:
+        try:
             for line in resp.iter_lines():
                 if not line:
                     continue
@@ -80,6 +80,9 @@ class OpenAIChat(ChatClient):
                 delta = _get_choice_delta_content(chunk)
                 if delta:
                     yield delta
+        finally:
+            resp_ctx.__exit__(None, None, None)
+            client.close()
 
 
 def _get_choice_message_content(data: Dict) -> str:

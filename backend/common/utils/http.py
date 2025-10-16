@@ -42,12 +42,15 @@ def stream_post_sse_resilient(base_key: str, url: str, headers: Dict[str, str], 
     for attempt in range(1, DEFAULT_MAX_ATTEMPTS + 1):
         try:
             client = httpx.Client(timeout=timeout_s)
-            resp = client.stream("POST", url, headers=headers, params=params, json=payload)
-            resp.__enter__()  # managed ctx
+            resp_ctx = client.stream("POST", url, headers=headers, params=params, json=payload)
+            resp = resp_ctx.__enter__()  # Enter context and get response object
             if resp.status_code in RETRY_STATUSES:
+                resp_ctx.__exit__(None, None, None)  # Clean exit before retry
+                client.close()
                 raise httpx.HTTPStatusError("retryable", request=resp.request, response=resp)
             cb.record_success(base_key)
-            return client, resp
+            # Return the context manager and response - caller must handle cleanup
+            return client, resp_ctx, resp
         except Exception as e:
             last_err = e
             cb.record_failure(base_key)

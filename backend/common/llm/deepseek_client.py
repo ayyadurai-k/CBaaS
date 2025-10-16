@@ -21,8 +21,8 @@ class DeepSeekChat(ChatClient):
         url = f"{_DEEPSEEK_BASE}/chat/completions"
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         payload = {"model": self.model, "messages": messages, "max_tokens": int(max_tokens), "temperature": float(temperature), "stream": True}
-        client, resp = stream_post_sse_resilient(f"deepseek:{self.model}", url, headers, {}, payload, timeout_s)
-        with client, resp:
+        client, resp_ctx, resp = stream_post_sse_resilient(f"deepseek:{self.model}", url, headers, {}, payload, timeout_s)
+        try:
             for line in resp.iter_lines():
                 if not line: continue
                 if isinstance(line, bytes): line = line.decode("utf-8", "ignore")
@@ -33,6 +33,9 @@ class DeepSeekChat(ChatClient):
                 except Exception: continue
                 delta = _get_choice_delta_content(chunk)
                 if delta: yield delta
+        finally:
+            resp_ctx.__exit__(None, None, None)
+            client.close()
 
 def _get_choice_message_content(data: Dict) -> str:
     try:
