@@ -5,8 +5,8 @@ from django.utils.text import slugify
 
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(max_length=120, unique=True, blank=True)
+    name = models.CharField(max_length=100)  # Removed unique=True - multiple orgs can have same name
+    slug = models.SlugField(max_length=120, unique=True, blank=True)  # THIS must be unique for URLs
     logo = models.ImageField(upload_to='organization_logos/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
