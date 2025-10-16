@@ -136,6 +136,8 @@ REST_FRAMEWORK = {
         "search": os.environ.get("RATE_SEARCH", "120/min"),
         "documents": os.environ.get("RATE_DOCS", "10/min"),
     },
+    # Global exception handler - catches ALL exceptions and returns consistent JSON
+    "EXCEPTION_HANDLER": "common.exceptions.handlers.custom_exception_handler",
 }
 
 # JWT
