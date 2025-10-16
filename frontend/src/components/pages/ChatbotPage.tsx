@@ -15,6 +15,7 @@ import { llmProvidersService } from '@/services/llm/llmProvidersService';
 import { LLMProviderConfig } from '@/apis/llm/LLMProvidersAPI';
 import { chatbotService, ChatbotConfig, ChatMessageData } from '@/services/ChatbotService';
 import { DocumentInfo } from '@/apis/ChatbotAPI';
+import { getErrorMessage } from '@/apis/configs/axiosUtils';
 
 interface Message {
   id: string;
@@ -141,10 +142,11 @@ export const ChatbotPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error loading chatbot config:', error);
-      setConfigError(error.message || 'Failed to load chatbot configuration');
+      const errorMessage = getErrorMessage(error, 'Failed to load chatbot configuration');
+      setConfigError(errorMessage);
       toast({
         title: "Error",
-        description: error.message || 'Failed to load chatbot configuration',
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -220,9 +222,10 @@ export const ChatbotPage: React.FC = () => {
       
     } catch (error: any) {
       console.error('Error saving configuration:', error);
+      const errorMessage = getErrorMessage(error, 'Failed to save configuration');
       toast({
         title: "Error",
-        description: error.message || "Failed to save configuration",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -301,13 +304,14 @@ export const ChatbotPage: React.FC = () => {
       
     } catch (error: any) {
       console.error('Error sending message:', error);
+      const errorMessage = getErrorMessage(error, 'Failed to send message. Please try again.');
       
       // Replace loading message with error message
       setMessages(prev => prev.map(msg => 
         msg.id === loadingMessage.id 
           ? {
               ...msg,
-              content: `Sorry, I encountered an error: ${error.message}. Please try again.`,
+              content: `Sorry, I encountered an error: ${errorMessage}`,
               isLoading: false,
               isError: true,
             }
@@ -379,9 +383,10 @@ export const ChatbotPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error testing API key:', error);
+      const errorMessage = getErrorMessage(error, 'Failed to test API key');
       toast({
         title: "Error",
-        description: error.message || "Failed to test API key",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
