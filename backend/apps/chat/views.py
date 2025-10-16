@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.http import StreamingHttpResponse
 from apps.chat.serializers import ChatRequestSerializer, ChatResponseSerializer
 from apps.chat.services import chat_completion, chat_stream
+from apps.chatbot.models import Chatbot
 from common.security.throttles import ChatRateThrottle  # Import ChatRateThrottle
 from common.utils.idempotency import (
     reserve_idempotency_key,
@@ -65,8 +66,33 @@ class ChatCompletionsView(APIView):
 
         s = ChatRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
+        
+        # Get chatbot's connected documents for filtering
         try:
-            result = chat_completion(org=org, payload=s.validated_data)
+            chatbot = Chatbot.objects.get(organization=org)
+            document_ids = list(chatbot.documents_connected.values_list('id', flat=True))
+            
+            # Enforce: Must have connected documents
+            if not document_ids:
+                return Response(
+                    {"detail": "No documents connected to chatbot. Please connect at least one document."},
+                    status=400
+                )
+            
+            # Ensure we only search in connected documents
+            payload = s.validated_data.copy()
+            if 'filters' not in payload:
+                payload['filters'] = {}
+            payload['filters']['document_ids'] = document_ids
+            
+        except Chatbot.DoesNotExist:
+            return Response(
+                {"detail": "Chatbot not configured. Please configure your chatbot first."},
+                status=400
+            )
+        
+        try:
+            result = chat_completion(org=org, payload=payload)
             out = ChatResponseSerializer(result).data
             # usage++
             api_key = getattr(request, "auth_api_key", None)
@@ -104,10 +130,34 @@ class ChatStreamView(APIView):
 
         s = ChatRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
+        
+        # Get chatbot's connected documents for filtering
+        try:
+            chatbot = Chatbot.objects.get(organization=org)
+            document_ids = list(chatbot.documents_connected.values_list('id', flat=True))
+            
+            # Enforce: Must have connected documents
+            if not document_ids:
+                return Response(
+                    {"detail": "No documents connected to chatbot. Please connect at least one document."},
+                    status=400
+                )
+            
+            # Ensure we only search in connected documents
+            payload = s.validated_data.copy()
+            if 'filters' not in payload:
+                payload['filters'] = {}
+            payload['filters']['document_ids'] = document_ids
+            
+        except Chatbot.DoesNotExist:
+            return Response(
+                {"detail": "Chatbot not configured. Please configure your chatbot first."},
+                status=400
+            )
 
         def gen():
             try:
-                for event, data in chat_stream(org=org, payload=s.validated_data):
+                for event, data in chat_stream(org=org, payload=payload):
                     yield sse_event(data, event=event)
             except Exception as e:
                 yield sse_event({"detail": str(e)}, event="error")
