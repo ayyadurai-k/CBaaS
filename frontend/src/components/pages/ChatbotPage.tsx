@@ -324,6 +324,13 @@ export const ChatbotPage: React.FC = () => {
   };
 
   const handleProviderChange = (provider: string) => {
+    // Only clear API key if provider actually changed (not initial load)
+    if (selectedProvider && provider !== selectedProvider) {
+      setApiKey('');
+      setIsEditingApiKey(true);
+      setShowApiKey(false);
+    }
+    
     setSelectedProvider(provider);
     if (llmProviders[provider]?.models?.length > 0) {
       setSelectedModel(llmProviders[provider].models[0]);
@@ -587,6 +594,9 @@ export const ChatbotPage: React.FC = () => {
                           <span>Active</span>
                         </div>
                       </div>
+                      <p className="text-xs text-slate-500">
+                        API key for <strong>{llmProviders[chatbotConfig.llm_provider || '']?.name || chatbotConfig.llm_provider}</strong>
+                      </p>
                       <Button
                         type="button"
                         variant="outline"
@@ -611,7 +621,7 @@ export const ChatbotPage: React.FC = () => {
                               setIsEditingApiKey(false);
                             }
                           }}
-                          placeholder={chatbotConfig?.llm_api_key_preview ? "Enter new API key (leave empty to keep existing)" : "Enter your API key"}
+                          placeholder={chatbotConfig?.llm_api_key_preview ? "Enter new API key (leave empty to keep existing)" : `Enter your ${llmProviders[selectedProvider]?.name || selectedProvider} API key`}
                           className="w-full pr-10"
                           autoFocus
                         />
@@ -643,6 +653,11 @@ export const ChatbotPage: React.FC = () => {
                             Cancel
                           </Button>
                         </div>
+                      )}
+                      {!chatbotConfig?.llm_api_key_preview && (
+                        <p className="text-xs text-slate-500">
+                          Get your API key from <strong>{llmProviders[selectedProvider]?.name || selectedProvider}</strong> dashboard
+                        </p>
                       )}
                     </div>
                   )}
