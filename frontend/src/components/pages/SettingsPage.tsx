@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ImageCropper } from '@/components/ui/image-cropper';
 import { useProfile } from '@/hooks/redux/useProfile';
+import { getErrorMessage } from '@/apis/configs/axiosUtils';
 import { useOrganization } from '@/hooks/useOrganization';
 import { UpdateProfilePayload } from '@/apis/UsersAPI';
 import { toast } from '@/hooks/use-toast';
@@ -226,7 +227,13 @@ export const SettingsPage: React.FC = () => {
     } catch (error) {
       clearInterval(progressInterval);
       setProfileUploadProgress(0);
+      const errorMessage = getErrorMessage(error, 'Failed to upload profile picture');
       console.error('Error uploading profile picture:', error);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
@@ -354,7 +361,13 @@ export const SettingsPage: React.FC = () => {
     } catch (error) {
       clearInterval(progressInterval);
       setLogoUploadProgress(0);
+      const errorMessage = getErrorMessage(error, 'Failed to upload organization logo');
       console.error('Error uploading organization logo:', error);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
