@@ -25,6 +25,7 @@ import {
   DocumentUploadPayload,
   DocumentUpdatePayload,
 } from "@/apis/DocumentsAPI";
+import { getErrorMessage } from "@/apis/configs/axiosUtils";
 import {
   TablePagination,
   PaginationData,
@@ -149,6 +150,7 @@ export const DocumentsPage: React.FC = () => {
       setDocuments(newDocuments);
     } catch (error) {
       console.error("Failed to load documents:", error);
+      const errorMessage = getErrorMessage(error, 'Failed to load documents. Please try again.');
 
       // Only show error toast if it's not a silent polling request
       if (!silent) {
@@ -161,7 +163,7 @@ export const DocumentsPage: React.FC = () => {
         });
         toast({
           title: "Error",
-          description: "Failed to load documents. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -276,9 +278,10 @@ export const DocumentsPage: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to delete document:", error);
+      const errorMessage = getErrorMessage(error, 'Failed to delete document. Please try again.');
       toast({
         title: "Error",
-        description: "Failed to delete document. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -327,9 +330,10 @@ export const DocumentsPage: React.FC = () => {
       await loadDocuments(currentPage);
     } catch (error) {
       console.error("Failed to update document:", error);
+      const errorMessage = getErrorMessage(error, 'Failed to update document name. Please try again.');
       toast({
         title: "Error",
-        description: "Failed to update document name. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -402,6 +406,7 @@ export const DocumentsPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Failed to download document:", error);
+      const errorMessage = getErrorMessage(error, 'Failed to download document. Please try again later.');
 
       // Check if it's a 409 conflict (document not ready)
       if (error.response?.status === 409) {
@@ -422,7 +427,7 @@ export const DocumentsPage: React.FC = () => {
         } else {
           toast({
             title: "Download failed",
-            description: "Failed to download document. Please try again later.",
+            description: errorMessage,
             variant: "destructive",
           });
         }
@@ -451,9 +456,7 @@ export const DocumentsPage: React.FC = () => {
       
     } catch (error: any) {
       console.error("Failed to reprocess document:", error);
-      const errorMessage = error.response?.data?.detail || 
-                          error.response?.data?.message || 
-                          "Failed to reprocess document. Please try again.";
+      const errorMessage = getErrorMessage(error, 'Failed to reprocess document. Please try again.');
       
       toast({
         title: "Reprocessing failed",
@@ -571,11 +574,7 @@ export const DocumentsPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Failed to upload document:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.name?.[0] ||
-        error.response?.data?.file?.[0] ||
-        "Failed to upload document. Please try again.";
+      const errorMessage = getErrorMessage(error, 'Failed to upload document. Please try again.');
 
       toast({
         title: "Upload failed",
