@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { APIKeysAPI, CreateAPIKeyPayload, APIKeyScope } from '@/apis/ApiKeysAPI';
 import { TablePagination, PaginationData } from '@/components/ui/table-pagination';
+import { getErrorMessage } from '@/apis/configs/axiosUtils';
 
 interface ApiKey {
   id: string;
@@ -72,6 +73,7 @@ export const ApiKeysPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load API keys:', error);
+      const errorMessage = getErrorMessage(error, 'Failed to load API keys. Please try again.');
       setApiKeys([]);
       setPaginationData({
         count: 0,
@@ -81,7 +83,7 @@ export const ApiKeysPage: React.FC = () => {
       });
       toast({
         title: "Error",
-        description: "Failed to load API keys. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -142,9 +144,10 @@ export const ApiKeysPage: React.FC = () => {
       }
     } catch (error) {
       console.error(`Failed to ${type} API key:`, error);
+      const errorMessage = getErrorMessage(error, `Failed to ${type} API key. Please try again.`);
       toast({
         title: "Error",
-        description: `Failed to ${type} API key. Please try again.`,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -197,7 +200,7 @@ export const ApiKeysPage: React.FC = () => {
       });
     } catch (error: any) {
       console.error('Failed to create API key:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.name?.[0] || "Failed to create API key. Please try again.";
+      const errorMessage = getErrorMessage(error, 'Failed to create API key. Please try again.');
       toast({
         title: "Error",
         description: errorMessage,
