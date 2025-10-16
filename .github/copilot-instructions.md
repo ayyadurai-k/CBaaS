@@ -76,6 +76,39 @@ Custom middleware in `common/middleware/logging_middleware.py`:
 - Login view in `apps/auth/login/views.py` returns `access` + `refresh` tokens
 - Custom throttling via `ScopedThrottle` class per endpoint
 
+**8. Global Exception Handler (CRITICAL)**
+**All API errors are automatically handled - never return raw Django errors!**
+
+Custom exception handler in `common/exceptions/handlers.py`:
+- Catches: `IntegrityError`, `ValidationError`, `ValueError`, `TypeError`, all exceptions
+- Returns consistent JSON: `{error: string, detail: any, type: string}`
+- Configured in `REST_FRAMEWORK` settings as `EXCEPTION_HANDLER`
+
+**Error response format:**
+```python
+{
+    "error": "User-friendly message",           # Required: displayed to user
+    "detail": "Additional context or dict",     # Optional: technical details
+    "type": "IntegrityError"                    # Optional: error classification
+}
+```
+
+**Examples:**
+- IntegrityError (duplicate email) → `"This email address is already registered."`
+- ValidationError → Field-specific validation messages
+- 404/403/500 → Appropriate user-friendly messages
+
+**The handler automatically:**
+- Parses database constraint violations into readable text
+- Logs all exceptions with full tracebacks
+- Returns proper HTTP status codes (400 for client errors, 500 for server errors)
+- Never returns HTML error pages to API clients
+
+**Adding new error types:**
+Edit `common/exceptions/handlers.py` and add handling logic. Frontend will automatically display the message via `getErrorMessage()` utility.
+
+**Documentation:** See `docs/GLOBAL_ERROR_HANDLING.md`
+
 ### Frontend
 
 **1. Service Layer Pattern**
@@ -97,6 +130,56 @@ Never call APIs directly from components. Use services in `src/services/`:
 - `.env.development` and `.env.production` are committed (non-sensitive config only)
 - Vite automatically loads based on `mode` (dev/production)
 - Access via `import.meta.env.VITE_API_BASE_URL`
+
+**4. Global Error Handling (CRITICAL)**
+**Always use the global error handling system - never parse errors manually!**
+
+The project has a complete error handling infrastructure:
+
+**Backend:** Global exception handler in `common/exceptions/handlers.py`
+- Catches all exceptions (IntegrityError, ValidationError, etc.)
+- Returns consistent JSON format: `{error: string, detail: any, type: string}`
+- Configured in `config/environments/base.py` as `EXCEPTION_HANDLER`
+
+**Frontend:** Axios interceptor + error utilities
+- **Interceptor** (`apis/configs/axiosConfig.ts`): Automatically parses all API errors
+- **Utility** (`apis/configs/axiosUtils.ts`): Provides `getErrorMessage()` helper
+
+**✅ ALWAYS use this pattern:**
+```typescript
+import { getErrorMessage } from '@/apis/configs/axiosUtils';
+
+try {
+  await someAPICall();
+} catch (error) {
+  const errorMessage = getErrorMessage(error, 'Friendly fallback message');
+  toast({ title: "Error", description: errorMessage, variant: "destructive" });
+}
+```
+
+**❌ NEVER parse errors manually:**
+```typescript
+// DON'T DO THIS!
+catch (error: any) {
+  const msg = error.response?.data?.error || error.response?.data?.message || 'Error';
+  toast.error(msg);
+}
+```
+
+**Why this matters:**
+- ✅ Consistent error messages across the app
+- ✅ User-friendly text (no technical jargon)
+- ✅ Type-safe with full TypeScript support
+- ✅ Easy to maintain (update one file, affects all pages)
+- ✅ Automatic parsing via Axios interceptor
+
+**Available utilities in `axiosUtils.ts`:**
+- `getErrorMessage(error, fallback?)` - Extract user-friendly message
+- `getErrorDetails(error)` - Get detailed error info for debugging
+- `isErrorStatus(error, status)` - Check specific HTTP status
+- `isNetworkError(error)` - Detect network errors
+
+**Documentation:** See `docs/GLOBAL_ERROR_HANDLING.md` for complete guide
 
 ## Development Workflows
 
@@ -167,10 +250,14 @@ cd frontend && npm run test
 - `backend/config/settings.py` - Environment router
 - `backend/config/celery.py` - Celery app configuration
 - `backend/common/llm/embeddings.py` - LLM provider abstraction
+- `backend/common/exceptions/handlers.py` - Global exception handler
+- `frontend/src/apis/configs/axiosConfig.ts` - Axios interceptor (auto error parsing)
+- `frontend/src/apis/configs/axiosUtils.ts` - Error utilities (`getErrorMessage()`)
 - `frontend/src/services/auth/authService.ts` - Auth flow example
 - `frontend/src/store/index.ts` - Redux store config
 - `docker-compose.{dev,prod}.yml` - Service orchestration
 - `.github/workflows/{ci,cd}.yml` - CI/CD pipelines
+- `docs/GLOBAL_ERROR_HANDLING.md` - Error handling documentation
 
 ## Conventions
 - Backend apps use `services.py` for complex business logic (e.g., `ProviderTestService`)
@@ -178,3 +265,5 @@ cd frontend && npm run test
 - Django models: Use UUIDs for primary keys, `created_at`/`updated_at` timestamps
 - API responses: Consistent structure with `data`, `message`, `error` keys
 - Logging: Use structured logging with `extra` dict for request context
+- **Error Handling**: Always use `getErrorMessage()` in frontend, never parse errors manually
+- **Backend Errors**: Let global exception handler format errors, return `{error, detail, type}` format
