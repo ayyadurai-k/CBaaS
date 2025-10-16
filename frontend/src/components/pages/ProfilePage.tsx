@@ -10,6 +10,7 @@ import { ImageCropper } from "@/components/ui/image-cropper";
 import { toast } from "@/hooks/use-toast";
 import { useProfile } from "@/hooks/redux/useProfile";
 import { UpdateProfilePayload } from "@/apis/UsersAPI";
+import { getErrorMessage } from "@/apis/configs/axiosUtils";
 import {
   User,
   Mail,
@@ -217,7 +218,13 @@ export const ProfilePage: React.FC = () => {
     } catch (error) {
       clearInterval(progressInterval);
       setUploadProgress(0);
+      const errorMessage = getErrorMessage(error, 'Failed to upload profile picture');
       console.error("Error uploading profile picture:", error);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
