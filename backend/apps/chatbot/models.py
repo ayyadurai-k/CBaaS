@@ -32,7 +32,7 @@ class Chatbot(models.Model):
         blank=True
     )
     llm_model = models.CharField(max_length=50, null=True, blank=True)
-    llm_api_key_encrypted = models.CharField(max_length=255, null=True, blank=True)
+    llm_api_key_encrypted = models.CharField(max_length=512, null=True, blank=True)
     llm_system_prompt = models.TextField(blank=True, default="")
     llm_is_active = models.BooleanField(default=True, db_index=True)
     
