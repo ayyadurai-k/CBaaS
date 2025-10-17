@@ -27,9 +27,9 @@ class IsAuthenticatedOrHasAPIKey(BasePermission):
     """
     
     def has_permission(self, request, view):
-        # Check if user is authenticated (JWT/session)
-        if hasattr(request, 'user') and request.user and request.user.is_authenticated:
-            return True
+        # # Check if user is authenticated (JWT/session)
+        # if hasattr(request, 'user') and request.user and request.user.is_authenticated:
+        #     return True
         
         # Check if API key authentication was successful
         if hasattr(request, 'auth_api_key') and request.auth_api_key:
