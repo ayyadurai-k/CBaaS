@@ -6,7 +6,7 @@ from apps.chat.serializers import ChatRequestSerializer, ChatResponseSerializer
 from apps.chat.services import chat_completion, chat_stream
 from apps.chatbot.models import Chatbot
 from common.security.throttles import ChatRateThrottle, APIKeyRateThrottle
-from common.security.api_key_permissions import ChatAPIKeyPermission
+from common.security.api_key_permissions import ChatAPIKeyPermission, IsAuthenticatedOrHasAPIKey
 from common.utils.idempotency import (
     reserve_idempotency_key,
     save_idempotent_result,
@@ -85,7 +85,7 @@ class ChatCompletionsView(APIView):
     - Idempotency
     """
 
-    permission_classes = [IsAuthenticated, ChatAPIKeyPermission]
+    permission_classes = [IsAuthenticatedOrHasAPIKey, ChatAPIKeyPermission]
     throttle_classes = [ChatRateThrottle, APIKeyRateThrottle]
 
     def post(self, request):
@@ -200,7 +200,7 @@ class ChatStreamView(APIView):
     Streaming version of chat with same security as completions endpoint.
     """
 
-    permission_classes = [IsAuthenticated, ChatAPIKeyPermission]
+    permission_classes = [IsAuthenticatedOrHasAPIKey, ChatAPIKeyPermission]
     throttle_classes = [ChatRateThrottle, APIKeyRateThrottle]
 
     def post(self, request):

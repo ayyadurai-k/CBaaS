@@ -17,6 +17,27 @@ from apps.api_keys.models import APIKey
 logger = logging.getLogger(__name__)
 
 
+class IsAuthenticatedOrHasAPIKey(BasePermission):
+    """
+    Permission class that allows access if the user is authenticated via JWT/session
+    OR if they have a valid API key.
+    
+    This should be used instead of IsAuthenticated when you want to allow both
+    traditional authentication and API key authentication.
+    """
+    
+    def has_permission(self, request, view):
+        # Check if user is authenticated (JWT/session)
+        if hasattr(request, 'user') and request.user and request.user.is_authenticated:
+            return True
+        
+        # Check if API key authentication was successful
+        if hasattr(request, 'auth_api_key') and request.auth_api_key:
+            return True
+        
+        return False
+
+
 class HasAPIKeyScope(BasePermission):
     """
     Permission class that checks if the API key has the required scope.

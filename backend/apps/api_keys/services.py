@@ -353,6 +353,8 @@ class APIKeyAnalyticsService:
         Returns:
             List of detected anomalies
         """
+        from django.db.models.functions import TruncHour
+        
         anomalies = []
         cutoff = timezone.now() - timedelta(hours=hours)
         
@@ -364,7 +366,7 @@ class APIKeyAnalyticsService:
         
         # 1. Spike in requests
         hourly_counts = list(
-            recent_logs.extra({'hour': "date_trunc('hour', timestamp)"})
+            recent_logs.annotate(hour=TruncHour('timestamp'))
             .values('hour')
             .annotate(count=Count('id'))
             .order_by('hour')

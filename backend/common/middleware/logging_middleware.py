@@ -123,7 +123,7 @@ class RequestLoggingMiddleware(MiddlewareMixin):
                 "content_type": response.get('Content-Type', ''),
                 "headers": sanitize_headers(dict(response.items())),
                 "body": response_data.get('body') if self.log_response_body else None,
-                "user_id": getattr(request.user, 'id', None) if hasattr(request, 'user') and request.user.is_authenticated else None,
+                "user_id": getattr(request.user, 'id', None) if hasattr(request, 'user') and request.user and hasattr(request.user, 'is_authenticated') and request.user.is_authenticated else None,
                 "ip_address": get_client_ip(request),
             }
         )
@@ -147,7 +147,7 @@ class RequestLoggingMiddleware(MiddlewareMixin):
                 "duration_ms": round(duration * 1000, 2),
                 "exception_type": type(exception).__name__,
                 "exception_message": str(exception),
-                "user_id": getattr(request.user, 'id', None) if hasattr(request, 'user') and request.user.is_authenticated else None,
+                "user_id": getattr(request.user, 'id', None) if hasattr(request, 'user') and request.user and hasattr(request.user, 'is_authenticated') and request.user.is_authenticated else None,
                 "ip_address": get_client_ip(request),
             },
             exc_info=True
