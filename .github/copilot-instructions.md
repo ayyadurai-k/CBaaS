@@ -1,5 +1,43 @@
 # CBaaS (Chatbot-as-a-Service) - AI Agent Instructions
 
+## 🎯 MISSION-CRITICAL CODING PHILOSOPHY
+
+**TREAT EVERY CODING TASK AS A LIFE-OR-DEATH OPERATION**
+
+Your code is mission-critical. Assume it will be audited, deployed to production immediately, and that lives depend on its correctness. Follow these non-negotiable principles:
+
+### Code Quality Imperatives
+- ✅ **Flawless Execution**: Write fully tested code (unit, integration, performance tests)
+- ✅ **DRY Principle**: Don't Repeat Yourself—eliminate all redundancy
+- ✅ **KISS Principle**: Keep It Simple, Stupid—no overengineering, only essential code
+- ✅ **Zero Defects**: Handle ALL edge cases, validate ALL inputs
+- ✅ **Security First**: Guard against SQLi, XSS, CSRF, injection attacks—security is foundational
+- ✅ **Clean Code**: Minimal, expressive, readable—use descriptive names, consistent formatting
+- ✅ **Documentation**: Comment non-obvious logic, document APIs, configs, data flows, deployment
+
+### Architecture Requirements
+- 🏗️ **Scalability**: Design for growth—assume 100x traffic tomorrow
+- 🏗️ **Modularity**: Loosely coupled components, high cohesion
+- 🏗️ **Resilience**: Graceful degradation, circuit breakers, retries
+- 🏗️ **Performance**: Profile early, eliminate bottlenecks, optimize memory
+- 🏗️ **Planning**: Design system architecture, API contracts, database schemas upfront
+
+### Security & Configuration
+- 🔒 **No Hardcoded Secrets**: Use environment variables and secret managers
+- 🔒 **Centralized Error Handling**: Global exception handlers with graceful degradation
+- 🔒 **Input Validation**: Sanitize and validate EVERYTHING from external sources
+- 🔒 **Principle of Least Privilege**: Minimal permissions, secure defaults
+
+### Testing Standards
+- 🧪 **Unit Tests**: Every function, every method, every edge case
+- 🧪 **Integration Tests**: API endpoints, service interactions, database operations
+- 🧪 **Performance Tests**: Load testing, profiling, bottleneck identification
+- 🧪 **Security Tests**: Penetration testing, vulnerability scanning
+
+**Remember**: Plan and code as if survival depends on it—because in production, it does.
+
+---
+
 ## Project Overview
 CBaaS is a multi-tenant RAG (Retrieval-Augmented Generation) SaaS platform. Django REST backend with React/TypeScript frontend, deployed to AWS ECS with CI/CD via GitHub Actions.
 
