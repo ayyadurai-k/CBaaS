@@ -12,10 +12,17 @@ interface ApiKey {
   id: string;
   name: string;
   created_at: string;
+  updated_at: string;
+  last_used_at?: string;
+  expires_at?: string;
   usage_count: number;
   quota?: number;
-  status: 'active' | 'revoked';
+  status: 'active' | 'revoked' | 'expired';
   scope: APIKeyScope;
+  allowed_ips: string[];
+  rate_limit_per_minute?: number;
+  metadata: Record<string, any>;
+  revoked_reason: string;
 }
 
 interface NewApiKeyModalData {
@@ -43,6 +50,10 @@ export const ApiKeysPage: React.FC = () => {
   const [keyName, setKeyName] = useState('');
   const [usageQuota, setUsageQuota] = useState('');
   const [scope, setScope] = useState<APIKeyScope>('full-access');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [allowedIps, setAllowedIps] = useState<string>('');
+  const [rateLimit, setRateLimit] = useState('');
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   // Load API keys from backend
   useEffect(() => {
@@ -174,7 +185,10 @@ export const ApiKeysPage: React.FC = () => {
       const payload: CreateAPIKeyPayload = {
         name: keyName.trim(),
         scope,
-        ...(usageQuota && { quota: parseInt(usageQuota) })
+        ...(usageQuota && { quota: parseInt(usageQuota) }),
+        ...(expiresAt && { expires_at: new Date(expiresAt).toISOString() }),
+        ...(allowedIps && { allowed_ips: allowedIps.split(',').map(ip => ip.trim()).filter(Boolean) }),
+        ...(rateLimit && { rate_limit_per_minute: parseInt(rateLimit) })
       };
       
       const response = await APIKeysAPI.create(payload);
@@ -215,6 +229,10 @@ export const ApiKeysPage: React.FC = () => {
     setKeyName('');
     setUsageQuota('');
     setScope('full-access');
+    setExpiresAt('');
+    setAllowedIps('');
+    setRateLimit('');
+    setShowAdvancedOptions(false);
     setShowGenerateModal(false);
   };
 
@@ -227,8 +245,38 @@ export const ApiKeysPage: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string): string => {
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return 'Never';
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatDateTime = (dateString: string | null): string => {
+    if (!dateString) return 'Never';
+    return new Date(dateString).toLocaleString();
+  };
+
+  const getRelativeTime = (dateString: string | null): string => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 30) return `${diffDays}d ago`;
+    return formatDate(dateString);
+  };
+
+  const isExpiringSoon = (expiresAt: string | null): boolean => {
+    if (!expiresAt) return false;
+    const expiry = new Date(expiresAt);
+    const now = new Date();
+    const daysUntilExpiry = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return daysUntilExpiry > 0 && daysUntilExpiry <= 7; // Expires within 7 days
   };
 
   const formatUsage = (usageCount: number, quota?: number): string => {
@@ -265,10 +313,11 @@ export const ApiKeysPage: React.FC = () => {
             <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
               <tr>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Name</th>
-                <th className="text-left py-4 px-6 font-semibold text-slate-900">Created</th>
+                <th className="text-left py-4 px-6 font-semibold text-slate-900">Last Used</th>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Usage</th>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Scope</th>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Status</th>
+                <th className="text-left py-4 px-6 font-semibold text-slate-900">Expires</th>
                 <th className="text-left py-4 px-6 font-semibold text-slate-900">Actions</th>
               </tr>
             </thead>
@@ -284,7 +333,7 @@ export const ApiKeysPage: React.FC = () => {
                 </tr>
               ) : apiKeys.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">
+                  <td colSpan={7} className="py-8 text-center text-slate-500">
                     <div className="flex flex-col items-center space-y-2">
                       <Key className="w-8 h-8 text-slate-300" />
                       <p>No API keys found</p>
@@ -296,15 +345,48 @@ export const ApiKeysPage: React.FC = () => {
                 apiKeys.map((apiKey) => (
                   <tr key={apiKey.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-4 px-6">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                          <Key className="w-5 h-5 text-blue-600" />
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                            <Key className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <span className="font-medium text-slate-900">{apiKey.name}</span>
                         </div>
-                        <span className="font-medium text-slate-900">{apiKey.name}</span>
+                        {apiKey.allowed_ips && apiKey.allowed_ips.length > 0 && (
+                          <div className="ml-13 text-xs text-slate-500">
+                            🔒 IP Restricted ({apiKey.allowed_ips.length} {apiKey.allowed_ips.length === 1 ? 'IP' : 'IPs'})
+                          </div>
+                        )}
+                        {apiKey.rate_limit_per_minute && (
+                          <div className="ml-13 text-xs text-slate-500">
+                            ⚡ {apiKey.rate_limit_per_minute} req/min
+                          </div>
+                        )}
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-slate-600">{formatDate(apiKey.created_at)}</td>
-                    <td className="py-4 px-6 text-slate-600">{formatUsage(apiKey.usage_count, apiKey.quota)}</td>
+                    <td className="py-4 px-6">
+                      <div className="text-slate-600">{getRelativeTime(apiKey.last_used_at)}</div>
+                      {apiKey.last_used_at && (
+                        <div className="text-xs text-slate-400">{formatDateTime(apiKey.last_used_at)}</div>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="text-slate-600">{formatUsage(apiKey.usage_count, apiKey.quota)}</div>
+                      {apiKey.quota && (
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1">
+                          <div 
+                            className={`h-1.5 rounded-full ${
+                              (apiKey.usage_count / apiKey.quota) > 0.9 
+                                ? 'bg-red-500' 
+                                : (apiKey.usage_count / apiKey.quota) > 0.7 
+                                  ? 'bg-yellow-500' 
+                                  : 'bg-green-500'
+                            }`}
+                            style={{ width: `${Math.min((apiKey.usage_count / apiKey.quota) * 100, 100)}%` }}
+                          />
+                        </div>
+                      )}
+                    </td>
                     <td className="py-4 px-6">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
                         {getScopeDisplay(apiKey.scope)}
@@ -314,10 +396,35 @@ export const ApiKeysPage: React.FC = () => {
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         apiKey.status === 'active' 
                           ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
+                          : apiKey.status === 'expired'
+                            ? 'bg-orange-100 text-orange-800'
+                            : 'bg-red-100 text-red-800'
                       }`}>
                         {apiKey.status}
                       </span>
+                      {apiKey.status === 'revoked' && apiKey.revoked_reason && (
+                        <div className="text-xs text-slate-500 mt-1">
+                          {apiKey.revoked_reason}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      {apiKey.expires_at ? (
+                        <div className="flex flex-col">
+                          <span className={`text-sm ${
+                            isExpiringSoon(apiKey.expires_at) 
+                              ? 'text-orange-600 font-medium' 
+                              : 'text-slate-600'
+                          }`}>
+                            {formatDate(apiKey.expires_at)}
+                          </span>
+                          {isExpiringSoon(apiKey.expires_at) && (
+                            <span className="text-xs text-orange-600">⚠️ Expiring soon</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-sm">Never</span>
+                      )}
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center space-x-2">
@@ -326,6 +433,7 @@ export const ApiKeysPage: React.FC = () => {
                             onClick={() => setShowConfirmModal({ type: 'revoke', keyId: apiKey.id, keyName: apiKey.name })}
                             className="p-2 text-slate-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
                             disabled={isSubmitting}
+                            title="Revoke API key"
                           >
                             <AlertTriangle className="w-4 h-4" />
                           </button>
@@ -334,6 +442,7 @@ export const ApiKeysPage: React.FC = () => {
                           onClick={() => setShowConfirmModal({ type: 'delete', keyId: apiKey.id, keyName: apiKey.name })}
                           className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           disabled={isSubmitting}
+                          title="Delete API key"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -453,6 +562,68 @@ export const ApiKeysPage: React.FC = () => {
                   <option value="upload-only">Upload-only</option>
                 </select>
               </div>
+
+              {/* Advanced Options Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                <span>{showAdvancedOptions ? '− Hide' : '+ Show'} Advanced Options</span>
+              </button>
+
+              {/* Advanced Options */}
+              {showAdvancedOptions && (
+                <div className="space-y-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <Label htmlFor="expires-at" className="text-sm font-medium text-slate-700">
+                      Expiration Date (Optional)
+                    </Label>
+                    <Input
+                      id="expires-at"
+                      type="datetime-local"
+                      value={expiresAt}
+                      onChange={(e) => setExpiresAt(e.target.value)}
+                      min={new Date().toISOString().slice(0, 16)}
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Key will automatically expire after this date</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="allowed-ips" className="text-sm font-medium text-slate-700">
+                      Allowed IP Addresses (Optional)
+                    </Label>
+                    <Input
+                      id="allowed-ips"
+                      value={allowedIps}
+                      onChange={(e) => setAllowedIps(e.target.value)}
+                      placeholder="e.g., 203.0.113.0, 198.51.100.0"
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Comma-separated list of IPs. Leave empty to allow all IPs
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="rate-limit" className="text-sm font-medium text-slate-700">
+                      Rate Limit (Optional)
+                    </Label>
+                    <Input
+                      id="rate-limit"
+                      type="number"
+                      value={rateLimit}
+                      onChange={(e) => setRateLimit(e.target.value)}
+                      placeholder="e.g., 60"
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Requests per minute. Leave empty to use default rate limit
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex space-x-3 pt-4">
                 <Button
