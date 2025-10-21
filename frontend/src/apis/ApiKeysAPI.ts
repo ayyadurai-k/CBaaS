@@ -33,6 +33,16 @@ export type CreateAPIKeyPayload = {
   metadata?: Record<string, any>;
 };
 
+export type UpdateAPIKeyPayload = {
+  name?: string;
+  quota?: number;
+  scope?: APIKeyScope;
+  expires_at?: string | null;
+  allowed_ips?: string[];
+  rate_limit_per_minute?: number | null;
+  metadata?: Record<string, any>;
+};
+
 export type APIKeysPaginatedResponse = {
   count: number;
   next: string | null;
@@ -47,9 +57,12 @@ export const APIKeysAPI = {
   create: (payload: CreateAPIKeyPayload): Promise<AxiosResponse<APIKeyDTO>> => 
     api.post<APIKeyDTO>("/keys/", payload),
   
+  update: (id: string, payload: UpdateAPIKeyPayload): Promise<AxiosResponse<APIKeyDTO>> =>
+    api.patch<APIKeyDTO>(`/keys/${id}/`, payload),
+  
   revoke: (id: string): Promise<AxiosResponse<void>> => 
     api.patch<void>(`/keys/${id}/revoke/`, {}),
   
   remove: (id: string): Promise<AxiosResponse<void>> => 
-    api.delete<void>(`/keys/${id}/`),
+    api.delete<void>(`/keys/${id}/delete/`, {}),
 };

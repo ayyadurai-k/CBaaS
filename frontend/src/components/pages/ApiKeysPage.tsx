@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Plus, Copy, Trash2, X, AlertTriangle, Check, Loader2 } from 'lucide-react';
+import { Key, Plus, Copy, Trash2, X, AlertTriangle, Check, Loader2, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { APIKeysAPI, CreateAPIKeyPayload, APIKeyScope } from '@/apis/ApiKeysAPI';
+import { APIKeysAPI, CreateAPIKeyPayload, UpdateAPIKeyPayload, APIKeyScope } from '@/apis/ApiKeysAPI';
 import { TablePagination, PaginationData } from '@/components/ui/table-pagination';
 import { getErrorMessage } from '@/apis/configs/axiosUtils';
 
@@ -45,6 +45,10 @@ export const ApiKeysPage: React.FC = () => {
     previous: null,
     results: [],
   });
+  
+  // Edit state
+  const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   
   // Form state for new API key
   const [keyName, setKeyName] = useState('');
@@ -234,6 +238,73 @@ export const ApiKeysPage: React.FC = () => {
     setRateLimit('');
     setShowAdvancedOptions(false);
     setShowGenerateModal(false);
+  };
+
+  const handleEditStart = (key: ApiKey) => {
+    setEditingKey(key);
+    setKeyName(key.name);
+    setUsageQuota(key.quota?.toString() || '');
+    setScope(key.scope);
+    setExpiresAt(key.expires_at ? key.expires_at.split('T')[0] : '');
+    setAllowedIps(key.allowed_ips.join(', '));
+    setRateLimit(key.rate_limit_per_minute?.toString() || '');
+    setShowAdvancedOptions(true);
+    setShowEditModal(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingKey) return;
+    
+    if (!keyName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a key name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      const payload: UpdateAPIKeyPayload = {
+        name: keyName.trim(),
+        scope,
+        ...(usageQuota && { quota: parseInt(usageQuota) }),
+        ...(expiresAt && { expires_at: new Date(expiresAt).toISOString() }),
+        allowed_ips: allowedIps ? allowedIps.split(',').map(ip => ip.trim()).filter(Boolean) : [],
+        ...(rateLimit && { rate_limit_per_minute: parseInt(rateLimit) })
+      };
+      
+      await APIKeysAPI.update(editingKey.id, payload);
+      
+      // Reset form and close modal
+      handleEditCancel();
+      
+      // Reload to see updated data
+      await loadApiKeys(currentPage);
+      
+      toast({
+        title: "API key updated",
+        description: "The API key has been updated successfully",
+      });
+    } catch (error: any) {
+      console.error('Failed to update API key:', error);
+      const errorMessage = getErrorMessage(error, 'Failed to update API key. Please try again.');
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditingKey(null);
+    setShowEditModal(false);
+    resetModal();
   };
 
   const getScopeDisplay = (scope: APIKeyScope): string => {
@@ -429,14 +500,24 @@ export const ApiKeysPage: React.FC = () => {
                     <td className="py-4 px-6">
                       <div className="flex items-center space-x-2">
                         {apiKey.status === 'active' && (
-                          <button 
-                            onClick={() => setShowConfirmModal({ type: 'revoke', keyId: apiKey.id, keyName: apiKey.name })}
-                            className="p-2 text-slate-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-                            disabled={isSubmitting}
-                            title="Revoke API key"
-                          >
-                            <AlertTriangle className="w-4 h-4" />
-                          </button>
+                          <>
+                            <button 
+                              onClick={() => handleEditStart(apiKey)}
+                              className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              disabled={isSubmitting}
+                              title="Edit API key"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => setShowConfirmModal({ type: 'revoke', keyId: apiKey.id, keyName: apiKey.name })}
+                              className="p-2 text-slate-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                              disabled={isSubmitting}
+                              title="Revoke API key"
+                            >
+                              <AlertTriangle className="w-4 h-4" />
+                            </button>
+                          </>
                         )}
                         <button 
                           onClick={() => setShowConfirmModal({ type: 'delete', keyId: apiKey.id, keyName: apiKey.name })}
@@ -769,6 +850,158 @@ export const ApiKeysPage: React.FC = () => {
             >
               I've Copied My Key
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit API Key Modal */}
+      {showEditModal && editingKey && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 my-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-slate-900">Edit API Key</h3>
+              <button 
+                onClick={handleEditCancel}
+                className="text-slate-500 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-key-name" className="text-sm font-medium text-slate-700">
+                  Key Name *
+                </Label>
+                <Input
+                  id="edit-key-name"
+                  value={keyName}
+                  onChange={(e) => setKeyName(e.target.value)}
+                  placeholder="e.g., Production API, Development Key"
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-usage-quota" className="text-sm font-medium text-slate-700">
+                  Usage Quota
+                </Label>
+                <Input
+                  id="edit-usage-quota"
+                  type="number"
+                  value={usageQuota}
+                  onChange={(e) => setUsageQuota(e.target.value)}
+                  placeholder="e.g., 10000"
+                  className="mt-1"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Current usage: {editingKey.usage_count}. Cannot set below current usage.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-scope" className="text-sm font-medium text-slate-700">
+                  Scope
+                </Label>
+                <select
+                  id="edit-scope"
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value as APIKeyScope)}
+                  className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="full-access">Full Access</option>
+                  <option value="read-only">Read-only</option>
+                  <option value="upload-only">Upload-only</option>
+                </select>
+                <p className="text-xs text-orange-600 mt-1">
+                  ⚠️ Security: Can only downgrade scope (e.g., Full → Read-only)
+                </p>
+              </div>
+
+              {/* Advanced Options */}
+              <div className="border-t border-slate-200 pt-4">
+                <button
+                  onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                  className="flex items-center justify-between w-full text-sm font-medium text-slate-700 hover:text-blue-600"
+                >
+                  <span>Advanced Options</span>
+                  <span className="text-slate-400">{showAdvancedOptions ? '▼' : '▶'}</span>
+                </button>
+
+                {showAdvancedOptions && (
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <Label htmlFor="edit-expires-at" className="text-sm font-medium text-slate-700">
+                        Expiration Date
+                      </Label>
+                      <Input
+                        id="edit-expires-at"
+                        type="date"
+                        value={expiresAt}
+                        onChange={(e) => setExpiresAt(e.target.value)}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Leave empty for no expiration</p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit-allowed-ips" className="text-sm font-medium text-slate-700">
+                        Allowed IP Addresses
+                      </Label>
+                      <Input
+                        id="edit-allowed-ips"
+                        value={allowedIps}
+                        onChange={(e) => setAllowedIps(e.target.value)}
+                        placeholder="e.g., 192.168.1.1, 10.0.0.0/24"
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">
+                        Comma-separated. Leave empty to allow all IPs.
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit-rate-limit" className="text-sm font-medium text-slate-700">
+                        Rate Limit (requests/minute)
+                      </Label>
+                      <Input
+                        id="edit-rate-limit"
+                        type="number"
+                        value={rateLimit}
+                        onChange={(e) => setRateLimit(e.target.value)}
+                        placeholder="e.g., 60"
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Custom rate limit for this key</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <Button
+                onClick={handleEditCancel}
+                variant="outline"
+                className="flex-1 rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleEditSave}
+                disabled={isSubmitting || !keyName.trim()}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

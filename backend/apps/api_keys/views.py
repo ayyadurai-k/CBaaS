@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from common.security.permissions import IsOwnerOrAdmin
 from apps.api_keys.models import APIKey
-from apps.api_keys.serializers import APIKeySerializer, APIKeyCreateSerializer
+from apps.api_keys.serializers import APIKeySerializer, APIKeyCreateSerializer, APIKeyUpdateSerializer
 
 
 class APIKeyListCreateView(generics.ListCreateAPIView):
@@ -182,3 +182,103 @@ class APIKeyDeleteView(generics.DestroyAPIView):
     )
     def delete(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
+
+
+class APIKeyUpdateView(generics.UpdateAPIView):
+    """
+    Update an existing API key's configuration.
+    
+    Security restrictions:
+    - Cannot change the actual API key value (regenerate instead)
+    - Scope can only be downgraded, not upgraded
+    - Quota cannot be set below current usage
+    - All changes are logged for audit trail
+    """
+    permission_classes = [IsOwnerOrAdmin]
+    queryset = APIKey.objects.all()  # Will be filtered by OrganizationFilterBackend
+    serializer_class = APIKeyUpdateSerializer
+    
+    @extend_schema(
+        summary="Update API key",
+        description=(
+            "Update an API key's configuration. "
+            "Security note: Scope can only be downgraded (e.g., FULL → READ_ONLY), "
+            "not upgraded. To upgrade permissions, create a new key."
+        ),
+        request=APIKeyUpdateSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="API key successfully updated",
+                response=APIKeySerializer,
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "id": "123e4567-e89b-12d3-a456-426614174000",
+                            "name": "Updated API Key Name",
+                            "status": "active",
+                            "usage_count": 150,
+                            "quota": 5000,
+                            "scope": "read-only",
+                            "created_at": "2024-01-15T10:30:00Z",
+                            "updated_at": "2024-01-21T15:45:00Z",
+                            "last_used_at": "2024-01-20T14:22:00Z",
+                            "expires_at": "2025-12-31T23:59:59Z",
+                            "allowed_ips": ["203.0.113.1", "203.0.113.2", "203.0.113.3"],
+                            "rate_limit_per_minute": 30,
+                            "metadata": {"environment": "staging", "updated": True},
+                            "revoked_reason": ""
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(
+                description="Validation error",
+                examples=[
+                    OpenApiExample(
+                        "Scope upgrade not allowed",
+                        value={
+                            "error": "Cannot upgrade scope from 'read-only' to 'full-access'. "
+                                   "Generate a new API key with higher permissions instead."
+                        }
+                    ),
+                    OpenApiExample(
+                        "Quota below usage",
+                        value={
+                            "error": "Quota (100) cannot be less than current usage (150)."
+                        }
+                    ),
+                    OpenApiExample(
+                        "Invalid IP",
+                        value={
+                            "error": "Invalid IP address or CIDR: '999.999.999.999'. "
+                                   "Use format like '192.168.1.1' or '10.0.0.0/24'"
+                        }
+                    ),
+                    OpenApiExample(
+                        "Past expiration",
+                        value={"error": "Expiration date must be in the future."}
+                    )
+                ]
+            ),
+            404: OpenApiResponse(
+                description="API key not found",
+                examples=[
+                    OpenApiExample(
+                        "Not found",
+                        value={"error": "Not found."}
+                    )
+                ]
+            )
+        },
+        tags=["API Keys"]
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs, partial=True)
+    
+    @extend_schema(exclude=True)  # Hide PUT method from docs (only support PATCH)
+    def put(self, request, *args, **kwargs):
+        return Response(
+            {"error": "Full updates not supported. Use PATCH for partial updates."},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
