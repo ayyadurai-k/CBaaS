@@ -13,7 +13,7 @@ Logs detailed information including:
 import time
 import logging
 from django.utils.deprecation import MiddlewareMixin
-from apps.api_keys.models import APIKeyUsageLog
+from apps.api_keys.models import APIKeyUsageLog, APIKey
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,13 @@ class APIKeyUsageMiddleware(MiddlewareMixin):
         
         Only logs if request was authenticated with an API key.
         """
-        api_key = getattr(request, 'auth_api_key', None)
+        # Check both request.auth_api_key and request.auth for API key
+        api_key = getattr(request, 'auth_api_key', None) or getattr(request, 'auth', None)
+        
+        # Verify it's actually an APIKey instance (not a JWT token or other auth)
+        if api_key and not isinstance(api_key, APIKey):
+            api_key = None
+        
         if not api_key:
             # No API key used, skip logging
             return response
@@ -159,7 +165,13 @@ class APIKeyQuotaMiddleware(MiddlewareMixin):
     
     def process_response(self, request, response):
         """Increment usage count if request was successful"""
-        api_key = getattr(request, 'auth_api_key', None)
+        # Check both request.auth_api_key and request.auth for API key
+        api_key = getattr(request, 'auth_api_key', None) or getattr(request, 'auth', None)
+        
+        # Verify it's actually an APIKey instance (not a JWT token or other auth)
+        if api_key and not isinstance(api_key, APIKey):
+            api_key = None
+        
         if not api_key:
             return response
         
