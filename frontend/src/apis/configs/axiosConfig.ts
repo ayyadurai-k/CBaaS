@@ -154,6 +154,28 @@ api.interceptors.response.use(
       }
     }
     
+    // Parse backend error format and attach user-friendly message
+    // Backend returns: {error: string, detail: string|object, type: string}
+    if (error.response?.data) {
+      const backendError = error.response.data as { 
+        error?: string; 
+        message?: string; 
+        detail?: any; 
+        type?: string;
+      };
+      
+      // Create user-friendly message with fallback chain
+      (error as any).userMessage = backendError.error || backendError.message || 'An unexpected error occurred';
+      (error as any).errorType = backendError.type;
+      (error as any).errorDetail = backendError.detail;
+      
+      console.log('📋 [Error Parsed]', {
+        userMessage: (error as any).userMessage,
+        type: (error as any).errorType,
+        status
+      });
+    }
+    
     return Promise.reject(error);
   }
 );
@@ -162,5 +184,12 @@ api.interceptors.response.use(
 declare module 'axios' {
   export interface InternalAxiosRequestConfig {
     _retry?: boolean;
+  }
+  
+  // Extend AxiosError to include parsed error properties
+  export interface AxiosError {
+    userMessage?: string;
+    errorType?: string;
+    errorDetail?: any;
   }
 }

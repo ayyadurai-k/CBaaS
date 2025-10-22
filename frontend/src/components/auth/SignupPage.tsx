@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '@/services/auth/AuthService';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/apis/configs/axiosUtils';
 
 interface FormData {
   fullName: string;
@@ -144,7 +145,8 @@ export const SignupPage: React.FC = () => {
       }
     } catch (error: unknown) {
       console.error('Signup error:', error);
-      const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'An unexpected error occurred. Please try again.';
+      // Use global error handler utility - automatically parses backend {error, detail, type} format
+      const errorMessage = getErrorMessage(error, 'An unexpected error occurred. Please try again.');
       setErrors({ general: errorMessage });
       toast.error(errorMessage);
     } finally {

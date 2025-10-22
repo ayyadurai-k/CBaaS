@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '@/services/auth/AuthService';
+import { getErrorMessage } from '@/apis/configs/axiosUtils';
 
 export const ResetPasswordPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -42,7 +43,8 @@ export const ResetPasswordPage: React.FC = () => {
           setErrors({ general: result.message || 'This reset link has expired or is invalid. Please request a new one.' });
         }
       } catch (error) {
-        setErrors({ general: 'Unable to verify reset link. Please try again.' });
+        const errorMessage = getErrorMessage(error, 'Unable to verify reset link. Please try again.');
+        setErrors({ general: errorMessage });
       } finally {
         setIsValidating(false);
       }
@@ -138,7 +140,8 @@ export const ResetPasswordPage: React.FC = () => {
         }
       }
     } catch (error) {
-      setErrors({ general: 'Network error. Please check your connection and try again.' });
+      const errorMessage = getErrorMessage(error, 'Network error. Please check your connection and try again.');
+      setErrors({ general: errorMessage });
     } finally {
       setIsLoading(false);
     }

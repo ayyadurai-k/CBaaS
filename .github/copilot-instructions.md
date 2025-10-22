@@ -1,5 +1,43 @@
 # CBaaS (Chatbot-as-a-Service) - AI Agent Instructions
 
+## 🎯 MISSION-CRITICAL CODING PHILOSOPHY
+
+**TREAT EVERY CODING TASK AS A LIFE-OR-DEATH OPERATION**
+
+Your code is mission-critical. Assume it will be audited, deployed to production immediately, and that lives depend on its correctness. Follow these non-negotiable principles:
+
+### Code Quality Imperatives
+- ✅ **Flawless Execution**: Write fully tested code (unit, integration, performance tests)
+- ✅ **DRY Principle**: Don't Repeat Yourself—eliminate all redundancy
+- ✅ **KISS Principle**: Keep It Simple, Stupid—no overengineering, only essential code
+- ✅ **Zero Defects**: Handle ALL edge cases, validate ALL inputs
+- ✅ **Security First**: Guard against SQLi, XSS, CSRF, injection attacks—security is foundational
+- ✅ **Clean Code**: Minimal, expressive, readable—use descriptive names, consistent formatting
+- ✅ **Documentation**: Comment non-obvious logic, document APIs, configs, data flows, deployment
+
+### Architecture Requirements
+- 🏗️ **Scalability**: Design for growth—assume 100x traffic tomorrow
+- 🏗️ **Modularity**: Loosely coupled components, high cohesion
+- 🏗️ **Resilience**: Graceful degradation, circuit breakers, retries
+- 🏗️ **Performance**: Profile early, eliminate bottlenecks, optimize memory
+- 🏗️ **Planning**: Design system architecture, API contracts, database schemas upfront
+
+### Security & Configuration
+- 🔒 **No Hardcoded Secrets**: Use environment variables and secret managers
+- 🔒 **Centralized Error Handling**: Global exception handlers with graceful degradation
+- 🔒 **Input Validation**: Sanitize and validate EVERYTHING from external sources
+- 🔒 **Principle of Least Privilege**: Minimal permissions, secure defaults
+
+### Testing Standards
+- 🧪 **Unit Tests**: Every function, every method, every edge case
+- 🧪 **Integration Tests**: API endpoints, service interactions, database operations
+- 🧪 **Performance Tests**: Load testing, profiling, bottleneck identification
+- 🧪 **Security Tests**: Penetration testing, vulnerability scanning
+
+**Remember**: Plan and code as if survival depends on it—because in production, it does.
+
+---
+
 ## Project Overview
 CBaaS is a multi-tenant RAG (Retrieval-Augmented Generation) SaaS platform. Django REST backend with React/TypeScript frontend, deployed to AWS ECS with CI/CD via GitHub Actions.
 
@@ -76,6 +114,244 @@ Custom middleware in `common/middleware/logging_middleware.py`:
 - Login view in `apps/auth/login/views.py` returns `access` + `refresh` tokens
 - Custom throttling via `ScopedThrottle` class per endpoint
 
+**8. API Documentation (drf-spectacular)**
+**All API endpoints must be documented with `@extend_schema` decorator:**
+
+```python
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
+
+class SignupView(APIView):
+    @extend_schema(
+        request=SignupSerializer,
+        responses={
+            201: OpenApiResponse(
+                description="User successfully registered",
+                response={"type": "object", "properties": {...}},
+                examples=[OpenApiExample("Success", value={...})]
+            ),
+            400: OpenApiResponse(description="Validation error")
+        },
+        tags=["Authentication"],
+        summary="Register a new user"
+    )
+    def post(self, request):
+        ...
+```
+
+**Key points:**
+- Use `@extend_schema` on all API methods (post, get, put, patch, delete)
+- Specify `request` serializer for request body documentation
+- Define all possible `responses` with status codes
+- Add examples for success and error cases
+- Group endpoints with `tags`
+- Add descriptive `summary` and `description`
+
+**9. Django Model Patterns**
+**Follow these conventions for all Django models:**
+
+```python
+import uuid
+from django.db import models
+
+class Organization(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["name"]),
+        ]
+        
+    def __str__(self):
+        return self.name
+```
+
+**Conventions:**
+- **Primary Keys**: Always use `UUIDField` (not auto-incrementing integers)
+- **Timestamps**: Include `created_at` (auto_now_add) and `updated_at` (auto_now) on all models
+- **Indexes**: Add explicit indexes for frequently queried fields
+- **Choices**: Use `models.TextChoices` or `models.IntegerChoices` enums
+- **Foreign Keys**: Always specify `on_delete` behavior (CASCADE, PROTECT, SET_NULL)
+- **Related Names**: Use descriptive `related_name` for reverse relations
+- **Meta**: Define ordering, unique_together, indexes in Meta class
+- **String Representation**: Always implement `__str__()` method
+
+**10. DRF Serializer Patterns**
+**Use appropriate serializer types for different operations:**
+
+```python
+from rest_framework import serializers
+
+# For reading/listing (includes all fields, nested serializers)
+class ChatbotSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    
+    class Meta:
+        model = Chatbot
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+# For creating/updating (specific fields only)
+class ChatbotUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Chatbot
+        fields = ['name', 'description', 'temperature']
+        
+    def validate_temperature(self, value):
+        if not 0 <= value <= 2:
+            raise serializers.ValidationError("Temperature must be between 0 and 2")
+        return value
+
+# For simple operations (no model)
+class TestKeySerializer(serializers.Serializer):
+    provider = serializers.CharField()
+    api_key = serializers.CharField()
+```
+
+**Naming conventions:**
+- `<Model>Serializer`: Full serializer for GET requests
+- `<Model>UpdateSerializer`: Partial serializer for PUT/PATCH
+- `<Model>CreateSerializer`: Serializer for POST (if different from update)
+- `<Action>Serializer`: For non-model operations (e.g., `TestKeySerializer`)
+
+**11. Service Layer Pattern**
+**Complex business logic belongs in service classes, not views:**
+
+```python
+# apps/chatbot/services.py
+class ProviderTestService:
+    """Service to test different LLM providers with their API keys."""
+    
+    @classmethod
+    def test_provider(cls, provider: str, model_name: str, api_key: str) -> Tuple[bool, str, Dict]:
+        """Test if the provider API key and model work correctly."""
+        try:
+            if provider == "openai":
+                return cls._test_openai(model_name, api_key)
+            # ... more logic
+        except Exception as e:
+            logger.error(f"Error testing {provider}: {str(e)}")
+            return False, f"Provider test failed: {str(e)}", {"error": str(e)}
+```
+
+**When to use services:**
+- Multi-step operations (e.g., create chatbot + configure models)
+- External API calls (LLM providers, S3 operations)
+- Complex validation logic
+- Reusable business logic across multiple views
+- Operations that span multiple models
+
+**Views should be thin - delegate to services:**
+```python
+class TestApiKeyView(APIView):
+    def post(self, request):
+        serializer = TestKeySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Delegate to service
+        success, message, details = ProviderTestService.test_provider(
+            serializer.validated_data['provider'],
+            serializer.validated_data['model'],
+            serializer.validated_data['api_key']
+        )
+        
+        return Response({"success": success, "message": message, "details": details})
+```
+
+**12. Celery Task Patterns**
+**Async tasks for long-running operations:**
+
+```python
+from celery import shared_task
+import logging
+
+logger = logging.getLogger(__name__)
+
+@shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def process_document(self, document_id: str):
+    """
+    Process uploaded document: extract text, chunk, generate embeddings.
+    
+    Args:
+        self: Celery task instance (bind=True)
+        document_id: UUID of document to process
+    """
+    try:
+        document = Document.objects.get(id=document_id)
+        document.status = Document.Status.PROCESSING
+        document.save()
+        
+        # Extract text
+        content = extract_text_from_bytes(document_bytes)
+        
+        # Chunk text
+        chunks = chunk_text(content)
+        
+        # Generate embeddings
+        for i, chunk in enumerate(chunks):
+            embedding = get_embedding(chunk)
+            DocumentChunk.objects.create(
+                document=document,
+                chunk_index=i,
+                content=chunk,
+                embedding=embedding
+            )
+        
+        document.status = Document.Status.READY
+        document.save()
+        
+    except Exception as e:
+        logger.error(f"Error processing document {document_id}: {str(e)}")
+        document.status = Document.Status.FAILED
+        document.save()
+        raise  # Re-raise for Celery retry mechanism
+```
+
+**Task conventions:**
+- Use `@shared_task` decorator (not `@app.task`)
+- Set `bind=True` to access task instance (`self`)
+- Configure retry: `autoretry_for`, `retry_backoff`, `max_retries`
+- Add detailed docstrings with parameter descriptions
+- Log errors before re-raising
+- Update model status (PROCESSING → READY/FAILED)
+- Tasks must be in `tasks.py` within Django apps for autodiscovery
+
+**13. Global Exception Handler (CRITICAL)**
+**All API errors are automatically handled - never return raw Django errors!**
+
+Custom exception handler in `common/exceptions/handlers.py`:
+- Catches: `IntegrityError`, `ValidationError`, `ValueError`, `TypeError`, all exceptions
+- Returns consistent JSON: `{error: string, detail: any, type: string}`
+- Configured in `REST_FRAMEWORK` settings as `EXCEPTION_HANDLER`
+
+**Error response format:**
+```python
+{
+    "error": "User-friendly message",           # Required: displayed to user
+    "detail": "Additional context or dict",     # Optional: technical details
+    "type": "IntegrityError"                    # Optional: error classification
+}
+```
+
+**Examples:**
+- IntegrityError (duplicate email) → `"This email address is already registered."`
+- ValidationError → Field-specific validation messages
+- 404/403/500 → Appropriate user-friendly messages
+
+**The handler automatically:**
+- Parses database constraint violations into readable text
+- Logs all exceptions with full tracebacks
+- Returns proper HTTP status codes (400 for client errors, 500 for server errors)
+- Never returns HTML error pages to API clients
+
+**Adding new error types:**
+Edit `common/exceptions/handlers.py` and add handling logic. Frontend will automatically display the message via `getErrorMessage()` utility.
+
+**Documentation:** See `docs/GLOBAL_ERROR_HANDLING.md`
+
 ### Frontend
 
 **1. Service Layer Pattern**
@@ -97,6 +373,140 @@ Never call APIs directly from components. Use services in `src/services/`:
 - `.env.development` and `.env.production` are committed (non-sensitive config only)
 - Vite automatically loads based on `mode` (dev/production)
 - Access via `import.meta.env.VITE_API_BASE_URL`
+
+**4. Global Error Handling (CRITICAL)**
+**Always use the global error handling system - never parse errors manually!**
+
+The project has a complete error handling infrastructure:
+
+**Backend:** Global exception handler in `common/exceptions/handlers.py`
+- Catches all exceptions (IntegrityError, ValidationError, etc.)
+- Returns consistent JSON format: `{error: string, detail: any, type: string}`
+- Configured in `config/environments/base.py` as `EXCEPTION_HANDLER`
+
+**Frontend:** Axios interceptor + error utilities
+- **Interceptor** (`apis/configs/axiosConfig.ts`): Automatically parses all API errors
+- **Utility** (`apis/configs/axiosUtils.ts`): Provides `getErrorMessage()` helper
+
+**✅ ALWAYS use this pattern:**
+```typescript
+import { getErrorMessage } from '@/apis/configs/axiosUtils';
+
+try {
+  await someAPICall();
+} catch (error) {
+  const errorMessage = getErrorMessage(error, 'Friendly fallback message');
+  toast({ title: "Error", description: errorMessage, variant: "destructive" });
+}
+```
+
+**❌ NEVER parse errors manually:**
+```typescript
+// DON'T DO THIS!
+catch (error: any) {
+  const msg = error.response?.data?.error || error.response?.data?.message || 'Error';
+  toast.error(msg);
+}
+```
+
+**Why this matters:**
+- ✅ Consistent error messages across the app
+- ✅ User-friendly text (no technical jargon)
+- ✅ Type-safe with full TypeScript support
+- ✅ Easy to maintain (update one file, affects all pages)
+- ✅ Automatic parsing via Axios interceptor
+
+**Available utilities in `axiosUtils.ts`:**
+- `getErrorMessage(error, fallback?)` - Extract user-friendly message
+- `getErrorDetails(error)` - Get detailed error info for debugging
+- `isErrorStatus(error, status)` - Check specific HTTP status
+- `isNetworkError(error)` - Detect network errors
+
+**Documentation:** See `docs/GLOBAL_ERROR_HANDLING.md` for complete guide
+
+**5. Toast Notifications**
+**Use the correct toast library based on context:**
+
+The project uses **TWO different toast systems**:
+
+**shadcn/ui Toast (`@/hooks/use-toast`)** - For application pages:
+```typescript
+import { toast } from '@/hooks/use-toast';
+
+toast({
+  title: "Success",
+  description: "Operation completed successfully",
+  variant: "default" // or "destructive" for errors
+});
+```
+
+**Sonner (`sonner`)** - For auth pages only:
+```typescript
+import { toast } from 'sonner';
+
+toast.success('Account created successfully!');
+toast.error('Login failed');
+```
+
+**⚠️ IMPORTANT:** 
+- Use `@/hooks/use-toast` for ALL application pages (Dashboard, Documents, Settings, etc.)
+- Use `sonner` ONLY for auth pages (Login, Signup, ForgotPassword, ResetPassword)
+- Never mix toast libraries in the same component
+
+**6. Redux Patterns**
+**Always use typed hooks for Redux:**
+
+```typescript
+// ❌ DON'T use raw hooks
+import { useDispatch, useSelector } from 'react-redux';
+
+// ✅ DO use typed hooks
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+
+const dispatch = useAppDispatch();
+const user = useAppSelector((state) => state.user.profile);
+```
+
+**Custom Hooks for Common Operations:**
+- **`useAuth()`** from `@/hooks/redux/useAuth` - Authentication state and actions
+- **`useProfile()`** from `@/hooks/redux/useProfile` - User profile management
+- **`useOrganization()`** from `@/hooks/useOrganization` - Organization management
+
+**Example:**
+```typescript
+import { useAuth } from '@/hooks/redux/useAuth';
+import { useProfile } from '@/hooks/redux/useProfile';
+
+const { isAuthenticated, login, logout } = useAuth();
+const { profile, updateProfile, uploadProfilePicture } = useProfile();
+```
+
+**7. UI Components (shadcn/ui)**
+**Always use shadcn/ui components from `@/components/ui`:**
+
+```typescript
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+```
+
+**Component Styling:**
+- Use Tailwind CSS classes for styling
+- Use `cn()` utility from `@/lib/utils` for conditional classes
+- Follow shadcn/ui variant patterns (e.g., `variant="destructive"`)
+
+**Example:**
+```typescript
+import { cn } from '@/lib/utils';
+
+<Button 
+  variant="destructive" 
+  className={cn("w-full", isLoading && "opacity-50")}
+>
+  Delete
+</Button>
+```
 
 ## Development Workflows
 
@@ -167,14 +577,30 @@ cd frontend && npm run test
 - `backend/config/settings.py` - Environment router
 - `backend/config/celery.py` - Celery app configuration
 - `backend/common/llm/embeddings.py` - LLM provider abstraction
+- `backend/common/exceptions/handlers.py` - Global exception handler
+- `backend/common/middleware/logging_middleware.py` - Request logging middleware
+- `backend/apps/chatbot/services.py` - Service layer example (ProviderTestService)
+- `backend/apps/documents/tasks.py` - Celery task example (process_document)
+- `frontend/src/apis/configs/axiosConfig.ts` - Axios interceptor (auto error parsing)
+- `frontend/src/apis/configs/axiosUtils.ts` - Error utilities (`getErrorMessage()`)
 - `frontend/src/services/auth/authService.ts` - Auth flow example
 - `frontend/src/store/index.ts` - Redux store config
+- `frontend/src/hooks/redux/useAuth.ts` - Custom Redux hook example
 - `docker-compose.{dev,prod}.yml` - Service orchestration
 - `.github/workflows/{ci,cd}.yml` - CI/CD pipelines
+- `docs/GLOBAL_ERROR_HANDLING.md` - Error handling documentation
 
 ## Conventions
-- Backend apps use `services.py` for complex business logic (e.g., `ProviderTestService`)
-- Frontend uses PascalCase for service classes, camelCase for methods
-- Django models: Use UUIDs for primary keys, `created_at`/`updated_at` timestamps
-- API responses: Consistent structure with `data`, `message`, `error` keys
-- Logging: Use structured logging with `extra` dict for request context
+- **Backend Services**: Use `services.py` for complex business logic (e.g., `ProviderTestService`)
+- **Frontend Services**: PascalCase for service classes, camelCase for methods
+- **Django Models**: Use UUIDs for primary keys, `created_at`/`updated_at` timestamps, `TextChoices` for enums
+- **DRF Serializers**: `<Model>Serializer` for GET, `<Model>UpdateSerializer` for PUT/PATCH, `<Action>Serializer` for operations
+- **API Documentation**: All endpoints must have `@extend_schema` decorator with examples
+- **Celery Tasks**: Use `@shared_task(bind=True, autoretry_for=...)` in `tasks.py` files
+- **API Responses**: Consistent structure with `data`, `message`, `error` keys
+- **Logging**: Use structured logging with `extra` dict for request context
+- **Error Handling (Frontend)**: Always use `getErrorMessage()`, never parse errors manually
+- **Error Handling (Backend)**: Let global exception handler format errors, return `{error, detail, type}` format
+- **Toast Notifications**: Use shadcn/ui toast for app pages, Sonner for auth pages only
+- **Redux Hooks**: Always use `useAppDispatch()`/`useAppSelector()`, never raw Redux hooks
+- **UI Components**: Use shadcn/ui components from `@/components/ui`, style with Tailwind CSS

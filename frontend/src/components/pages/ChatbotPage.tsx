@@ -1,5 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Send, MessageSquare, FileText, Clock, Settings, Check, Key, TestTube, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +15,7 @@ import { llmProvidersService } from '@/services/llm/llmProvidersService';
 import { LLMProviderConfig } from '@/apis/llm/LLMProvidersAPI';
 import { chatbotService, ChatbotConfig, ChatMessageData } from '@/services/ChatbotService';
 import { DocumentInfo } from '@/apis/ChatbotAPI';
+import { getErrorMessage } from '@/apis/configs/axiosUtils';
 
 interface Message {
   id: string;
@@ -19,6 +23,8 @@ interface Message {
   content: string;
   timestamp: string;
   sources?: string[];
+  isLoading?: boolean;
+  isError?: boolean;
 }
 
 const initialMessage: Message = {
@@ -45,12 +51,12 @@ export const ChatbotPage: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [isEditingApiKey, setIsEditingApiKey] = useState(false);
   const [llmSystemPrompt, setLlmSystemPrompt] = useState('');
   
   // Chat state
   const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [inputValue, setInputValue] = useState('');
-  const [isSending, setIsSending] = useState(false);
   
   // UI state
   const [isSaving, setIsSaving] = useState(false);
@@ -126,16 +132,21 @@ export const ChatbotPage: React.FC = () => {
         if (config.llm_model) {
           setSelectedModel(config.llm_model);
         }
+        
+        // Reset edit mode when loading config
+        setIsEditingApiKey(false);
+        setApiKey('');
       } else {
         // No chatbot configured yet - use defaults
         setConfigError('No chatbot configured. Please set up your chatbot.');
       }
     } catch (error: any) {
       console.error('Error loading chatbot config:', error);
-      setConfigError(error.message || 'Failed to load chatbot configuration');
+      const errorMessage = getErrorMessage(error, 'Failed to load chatbot configuration');
+      setConfigError(errorMessage);
       toast({
         title: "Error",
-        description: error.message || 'Failed to load chatbot configuration',
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -191,7 +202,8 @@ export const ChatbotPage: React.FC = () => {
       if (selectedModel) {
         payload.llm_model = selectedModel;
       }
-      if (apiKey) {
+      // Only include API key if user has entered a new one
+      if (apiKey && apiKey.trim()) {
         payload.llm_api_key = apiKey;
         payload.llm_is_active = true;
       }
@@ -204,14 +216,16 @@ export const ChatbotPage: React.FC = () => {
         description: "Chatbot configuration saved successfully",
       });
       
-      // Clear API key field after save (security best practice)
+      // Clear API key field and exit edit mode after save (security best practice)
       setApiKey('');
+      setIsEditingApiKey(false);
       
     } catch (error: any) {
       console.error('Error saving configuration:', error);
+      const errorMessage = getErrorMessage(error, 'Failed to save configuration');
       toast({
         title: "Error",
-        description: error.message || "Failed to save configuration",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -242,19 +256,29 @@ export const ChatbotPage: React.FC = () => {
       return;
     }
 
+    const currentMessage = inputValue;
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
-      content: inputValue,
+      content: currentMessage,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    // Add loading placeholder message
+    const loadingMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: 'bot',
+      content: '',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isLoading: true,
+    };
+
+    // Add both messages immediately
+    setMessages(prev => [...prev, userMessage, loadingMessage]);
     setInputValue('');
-    setIsSending(true);
 
     try {
-      // Convert messages to API format
+      // Convert messages to API format (excluding loading message)
       const history: ChatMessageData[] = messages.map(msg => ({
         type: msg.type,
         content: msg.content,
@@ -262,39 +286,37 @@ export const ChatbotPage: React.FC = () => {
       }));
 
       const result = await chatbotService.sendMessage({
-        message: inputValue,
+        message: currentMessage,
         history: history,
       });
 
-      const botResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'bot',
-        content: result.reply,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        sources: result.sources,
-      };
-
-      setMessages(prev => [...prev, botResponse]);
+      // Replace loading message with actual response
+      setMessages(prev => prev.map(msg => 
+        msg.id === loadingMessage.id 
+          ? {
+              ...msg,
+              content: result.reply,
+              sources: result.sources,
+              isLoading: false,
+            }
+          : msg
+      ));
       
     } catch (error: any) {
       console.error('Error sending message:', error);
+      const errorMessage = getErrorMessage(error, 'Failed to send message. Please try again.');
       
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'bot',
-        content: `Sorry, I encountered an error: ${error.message}. Please try again.`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
-      
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send message",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSending(false);
+      // Replace loading message with error message
+      setMessages(prev => prev.map(msg => 
+        msg.id === loadingMessage.id 
+          ? {
+              ...msg,
+              content: `Sorry, I encountered an error: ${errorMessage}`,
+              isLoading: false,
+              isError: true,
+            }
+          : msg
+      ));
     }
   };
 
@@ -306,6 +328,13 @@ export const ChatbotPage: React.FC = () => {
   };
 
   const handleProviderChange = (provider: string) => {
+    // Only clear API key if provider actually changed (not initial load)
+    if (selectedProvider && provider !== selectedProvider) {
+      setApiKey('');
+      setIsEditingApiKey(true);
+      setShowApiKey(false);
+    }
+    
     setSelectedProvider(provider);
     if (llmProviders[provider]?.models?.length > 0) {
       setSelectedModel(llmProviders[provider].models[0]);
@@ -354,9 +383,10 @@ export const ChatbotPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error testing API key:', error);
+      const errorMessage = getErrorMessage(error, 'Failed to test API key');
       toast({
         title: "Error",
-        description: error.message || "Failed to test API key",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -379,53 +409,58 @@ export const ChatbotPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Your Chatbot</h1>
-          <p className="text-slate-600 mt-2">Configure and test your AI assistant</p>
-          {chatbotConfig?.is_fully_configured && (
-            <div className="flex items-center mt-2 text-sm text-green-600">
-              <Check className="w-4 h-4 mr-1" />
-              Configured and ready
-            </div>
-          )}
+    <div className="space-y-0">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-20 bg-white border-b border-slate-200 py-6 px-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Your Chatbot</h1>
+            <p className="text-slate-600 mt-2">Configure and test your AI assistant</p>
+            {chatbotConfig?.is_fully_configured && (
+              <div className="flex items-center mt-2 text-sm text-green-600">
+                <Check className="w-4 h-4 mr-1" />
+                Configured and ready
+              </div>
+            )}
+          </div>
+          <Button 
+            onClick={handleSaveConfiguration}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Settings className="w-4 h-4 mr-2" />
+                Save Changes
+              </>
+            )}
+          </Button>
         </div>
-        <Button 
-          onClick={handleSaveConfiguration}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Settings className="w-4 h-4 mr-2" />
-              Save Changes
-            </>
-          )}
-        </Button>
       </div>
 
       {configError && !chatbotConfig && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="pt-6">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-amber-900">Setup Required</h3>
-                <p className="text-sm text-amber-700 mt-1">{configError}</p>
+        <div className="px-8 py-4">
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="pt-6">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-amber-900">Setup Required</h3>
+                  <p className="text-sm text-amber-700 mt-1">{configError}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Combined Configuration Panel */}
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-8 py-6">
+        {/* Combined Configuration Panel - Scrollable */}
+        <div className="space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
           <Card className="border-slate-200">
             <CardHeader>
               <CardTitle className="text-slate-900">Configuration</CardTitle>
@@ -550,22 +585,87 @@ export const ChatbotPage: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     API Key
                   </label>
-                  <div className="relative">
-                    <Input
-                      type={showApiKey ? 'text' : 'password'}
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="Enter your API key"
-                      className="w-full pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                    >
-                      {showApiKey ? '🙈' : '👁️'}
-                    </button>
-                  </div>
+                  
+                  {!isEditingApiKey && chatbotConfig?.llm_api_key_preview ? (
+                    // Display mode: Show masked preview with status badge
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 px-3 py-2 border border-slate-300 rounded-xl bg-slate-50">
+                        <Key className="w-4 h-4 text-slate-500" />
+                        <span className="flex-1 font-mono text-sm text-slate-700">
+                          {chatbotConfig.llm_api_key_preview}
+                        </span>
+                        <div className="flex items-center space-x-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium">
+                          <Check className="w-3 h-3" />
+                          <span>Active</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        API key for <strong>{llmProviders[chatbotConfig.llm_provider || '']?.name || chatbotConfig.llm_provider}</strong>
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditingApiKey(true)}
+                        className="w-full"
+                      >
+                        Change API Key
+                      </Button>
+                    </div>
+                  ) : (
+                    // Edit mode: Show editable input
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Input
+                          type={showApiKey ? 'text' : 'password'}
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          onBlur={() => {
+                            // Exit edit mode if input is empty (user didn't enter new key)
+                            if (!apiKey.trim() && chatbotConfig?.llm_api_key_preview) {
+                              setIsEditingApiKey(false);
+                            }
+                          }}
+                          placeholder={chatbotConfig?.llm_api_key_preview ? "Enter new API key (leave empty to keep existing)" : `Enter your ${llmProviders[selectedProvider]?.name || selectedProvider} API key`}
+                          className="w-full pr-10"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          onMouseDown={(e) => e.preventDefault()} // Prevent blur when clicking eye icon
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                        >
+                          {showApiKey ? '🙈' : '👁️'}
+                        </button>
+                      </div>
+                      {chatbotConfig?.llm_api_key_preview && (
+                        <div className="flex items-start space-x-2">
+                          <p className="text-xs text-slate-500 flex-1">
+                            Leave empty to keep your existing API key. Enter a new key to update it.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setIsEditingApiKey(false);
+                              setApiKey('');
+                            }}
+                            onMouseDown={(e) => e.preventDefault()} // Prevent blur when clicking cancel
+                            className="text-xs"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                      {!chatbotConfig?.llm_api_key_preview && (
+                        <p className="text-xs text-slate-500">
+                          Get your API key from <strong>{llmProviders[selectedProvider]?.name || selectedProvider}</strong> dashboard
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -614,132 +714,181 @@ export const ChatbotPage: React.FC = () => {
                   <p className="text-sm text-slate-600 mb-6">Select which documents your chatbot can reference</p>
                 </div>
 
-                <div className="space-y-3">
-                  {documents.map((document) => (
-                    <div key={document.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl">
-                      <Checkbox
-                        id={document.id}
-                        checked={document.connected}
-                        onCheckedChange={() => handleDocumentToggle(document.id)}
-                      />
-                      <div className="flex-1 flex items-center space-x-2">
-                        <FileText className="w-4 h-4 text-slate-500" />
-                        <label 
-                          htmlFor={document.id}
-                          className="text-sm font-medium text-slate-700 cursor-pointer"
-                        >
-                          {document.name}
-                        </label>
-                      </div>
-                      {document.connected && (
-                        <Check className="w-4 h-4 text-green-600" />
-                      )}
+                {documents.length === 0 ? (
+                  // No documents available - show simple upload link
+                  <div className="p-4 bg-slate-50 rounded-lg text-center">
+                    <p className="text-sm text-slate-600">
+                      No documents available.{' '}
+                      <Link 
+                        to="/documents?upload=true" 
+                        className="text-blue-600 hover:text-blue-700 underline font-medium"
+                      >
+                        Upload documents
+                      </Link>
+                      {' '}to get started.
+                    </p>
+                  </div>
+                ) : (
+                  // Documents available - show list
+                  <>
+                    <div className="space-y-3">
+                      {documents.map((document) => (
+                        <div key={document.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl">
+                          <Checkbox
+                            id={document.id}
+                            checked={document.connected}
+                            onCheckedChange={() => handleDocumentToggle(document.id)}
+                          />
+                          <div className="flex-1 flex items-center space-x-2">
+                            <FileText className="w-4 h-4 text-slate-500" />
+                            <label 
+                              htmlFor={document.id}
+                              className="text-sm font-medium text-slate-700 cursor-pointer"
+                            >
+                              {document.name}
+                            </label>
+                          </div>
+                          {document.connected && (
+                            <Check className="w-4 h-4 text-green-600" />
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <div className="p-3 bg-blue-50 rounded-xl">
-                  <p className="text-sm text-blue-700">
-                    <strong>{connectedDocuments.length}</strong> documents connected
-                  </p>
-                </div>
+                    <div className="p-3 bg-blue-50 rounded-xl">
+                      <p className="text-sm text-blue-700">
+                        <strong>{connectedDocuments.length}</strong> documents connected
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Test Chat Panel */}
+        {/* Test Chat Panel - Sticky */}
         <div className="lg:col-span-1">
-          <Card className="border-slate-200 h-[600px] flex flex-col">
-            <CardHeader className="border-b border-slate-200 pb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                  <MessageSquare className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-slate-900">{chatbotName}</CardTitle>
-                  <p className="text-sm text-slate-600">Test your chatbot configuration</p>
-                </div>
-              </div>
-            </CardHeader>
-
-            {/* Messages */}
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
-                    message.type === 'user' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-slate-100 text-slate-900'
-                  }`}>
-                    <p className="text-sm">{message.content}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className={`text-xs ${message.type === 'user' ? 'text-blue-100' : 'text-slate-500'}`}>
-                        {message.timestamp}
-                      </span>
-                    </div>
-                    {message.sources && (
-                      <div className="mt-2 pt-2 border-t border-slate-200">
-                        <p className="text-xs text-slate-600 mb-1">Sources:</p>
-                        {message.sources.map((source, index) => (
-                          <div key={index} className="flex items-center text-xs text-slate-600 mb-1">
-                            <FileText className="w-3 h-3 mr-1" />
-                            {source}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+          <div className="sticky top-24">
+            <Card className="border-slate-200 flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
+              <CardHeader className="border-b border-slate-200 pb-4 flex-shrink-0">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-slate-900">{chatbotName}</CardTitle>
+                    <p className="text-sm text-slate-600">Test your chatbot configuration</p>
                   </div>
                 </div>
-              ))}
-              {/* Auto-scroll anchor */}
-              <div ref={messagesEndRef} />
-            </CardContent>
+              </CardHeader>
 
-            {/* Input */}
-            <div className="p-4 border-t border-slate-200">
-              {!chatbotConfig?.is_fully_configured && (
-                <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-xs text-amber-700 text-center">
-                    Configure your chatbot with an LLM provider to start testing
-                  </p>
-                </div>
-              )}
-              {chatbotConfig?.is_fully_configured && connectedDocuments.length === 0 && (
-                <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-xs text-amber-700 text-center">
-                    Connect at least one document for the chatbot to reference
-                  </p>
-                </div>
-              )}
-              <div className="flex space-x-3">
-                <Input
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder={
-                    !chatbotConfig?.is_fully_configured 
-                      ? "Configure chatbot first..." 
-                      : connectedDocuments.length === 0
-                      ? "Connect documents first..."
-                      : "Test your chatbot..."
-                  }
-                  className="flex-1 h-10 rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500"
-                  disabled={isSending || !chatbotConfig?.is_fully_configured || connectedDocuments.length === 0}
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl"
-                  disabled={isSending || !inputValue.trim() || !chatbotConfig?.is_fully_configured || connectedDocuments.length === 0}
-                >
-                  {isSending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
+              {/* Messages - Scrollable */}
+              <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.map((message) => (
+                  <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
+                      message.type === 'user' 
+                        ? 'bg-blue-600 text-white' 
+                        : message.isError
+                        ? 'bg-red-50 border border-red-200 text-red-900'
+                        : 'bg-slate-100 text-slate-900'
+                    }`}>
+                      {message.isLoading ? (
+                        <div className="flex items-center space-x-2">
+                          <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+                          <span className="text-sm text-slate-600">Thinking...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-sm prose prose-sm max-w-none">
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                                ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2" {...props} />,
+                                ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2" {...props} />,
+                                li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                                code: ({node, inline, ...props}: any) => 
+                                  inline ? (
+                                    <code className="bg-slate-200 px-1 py-0.5 rounded text-xs font-mono" {...props} />
+                                  ) : (
+                                    <code className="block bg-slate-800 text-slate-100 p-2 rounded my-2 text-xs font-mono overflow-x-auto" {...props} />
+                                  ),
+                                a: ({node, ...props}) => <a className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
+                                em: ({node, ...props}) => <em className="italic" {...props} />,
+                              }}
+                            >
+                              {message.content}
+                            </ReactMarkdown>
+                          </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className={`text-xs ${message.type === 'user' ? 'text-blue-100' : 'text-slate-500'}`}>
+                              {message.timestamp}
+                            </span>
+                          </div>
+                          {message.sources && message.sources.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-slate-200">
+                              <p className="text-xs text-slate-600 mb-1">Sources:</p>
+                              {message.sources.map((source, index) => (
+                                <div key={index} className="flex items-center text-xs text-slate-600 mb-1">
+                                  <FileText className="w-3 h-3 mr-1" />
+                                  {source}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {/* Auto-scroll anchor */}
+                <div ref={messagesEndRef} />
+              </CardContent>
+
+              {/* Input - Fixed at bottom */}
+              <div className="p-4 border-t border-slate-200 flex-shrink-0">
+                {!chatbotConfig?.is_fully_configured && (
+                  <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-700 text-center">
+                      Configure your chatbot with an LLM provider to start testing
+                    </p>
+                  </div>
+                )}
+                {chatbotConfig?.is_fully_configured && connectedDocuments.length === 0 && (
+                  <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-700 text-center">
+                      Connect at least one document for the chatbot to reference
+                    </p>
+                  </div>
+                )}
+                <div className="flex space-x-3">
+                  <Input
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder={
+                      !chatbotConfig?.is_fully_configured 
+                        ? "Configure chatbot first..." 
+                        : connectedDocuments.length === 0
+                        ? "Connect documents first..."
+                        : "Test your chatbot..."
+                    }
+                    className="flex-1 h-10 rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!chatbotConfig?.is_fully_configured || connectedDocuments.length === 0}
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl"
+                    disabled={!inputValue.trim() || !chatbotConfig?.is_fully_configured || connectedDocuments.length === 0}
+                  >
                     <Send className="w-4 h-4" />
-                  )}
-                </Button>
+                  </Button>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

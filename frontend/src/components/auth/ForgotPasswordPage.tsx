@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from 'react-router-dom';
 import { authService } from '@/services/auth/AuthService';
+import { getErrorMessage } from '@/apis/configs/axiosUtils';
 
 export const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -81,7 +82,8 @@ export const ForgotPasswordPage: React.FC = () => {
         }
       }
     } catch (error) {
-      setErrors({ general: 'Network error. Please check your connection and try again.' });
+      const errorMessage = getErrorMessage(error, 'Network error. Please check your connection and try again.');
+      setErrors({ general: errorMessage });
     } finally {
       setIsLoading(false);
     }

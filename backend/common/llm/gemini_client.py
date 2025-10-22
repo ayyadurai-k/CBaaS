@@ -36,12 +36,12 @@ class GeminiChat(ChatClient):
         headers = {"x-goog-api-key": self.api_key, "Content-Type": "application/json"}
         params = {"alt": "sse"}
         payload = self._build_payload(messages, max_tokens, temperature)
-        client, resp = stream_post_sse_resilient(
+        client, resp_ctx, resp = stream_post_sse_resilient(
             f"gemini:{self.model}", url, headers, params, payload, timeout_s
         )
         import json as _json
 
-        with client, resp:
+        try:
             for raw in resp.iter_lines():
                 if not raw:
                     continue
@@ -59,6 +59,10 @@ class GeminiChat(ChatClient):
                 delta = _extract_text_from_response(obj)
                 if delta:
                     yield delta
+        finally:
+            # Proper cleanup
+            resp_ctx.__exit__(None, None, None)
+            client.close()
 
     def _build_payload(
         self, messages: List[Dict], max_tokens: int, temperature: float

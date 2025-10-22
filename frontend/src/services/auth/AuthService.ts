@@ -3,6 +3,7 @@ import { LoginAPI, LoginPayload, LoginResponse } from "../../apis/auth/LoginAPI"
 import { SignupAPI, SignupPayload, SignupResponse } from "../../apis/auth/SignupAPI";
 import { LogoutAPI } from "../../apis/auth/LogoutAPI";
 import { ResetAPI, ForgotPasswordPayload, VerifyResetTokenPayload, ResetPasswordPayload } from "../../apis/auth/ResetAPI";
+import { getErrorMessage } from "../../apis/configs/axiosUtils";
 
 export type AuthUser = {
   id: string;
@@ -42,9 +43,10 @@ export class AuthService {
       
       return { success: true, user };
     } catch (error: any) {
+      // Use global error handler utility - parses backend {error, detail, type} format
       return {
         success: false,
-        message: error.response?.data?.message || 'Login failed',
+        message: getErrorMessage(error, 'Login failed'),
       };
     }
   }
@@ -67,9 +69,10 @@ export class AuthService {
       
       return { success: true, user, message: 'Account created successfully!' };
     } catch (error: any) {
+      // Use global error handler utility - parses backend {error, detail, type} format
       return {
         success: false,
-        message: error.response?.data?.message || 'Signup failed',
+        message: getErrorMessage(error, 'Signup failed'),
       };
     }
   }

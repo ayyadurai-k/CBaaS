@@ -59,6 +59,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "common.middleware.logging_middleware.RequestLoggingMiddleware",  # Add request logging
+    "common.middleware.api_key_usage_middleware.APIKeyUsageMiddleware",  # Track API key usage
+    "common.middleware.api_key_usage_middleware.APIKeyQuotaMiddleware",  # Enforce API key quotas
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -136,6 +138,8 @@ REST_FRAMEWORK = {
         "search": os.environ.get("RATE_SEARCH", "120/min"),
         "documents": os.environ.get("RATE_DOCS", "10/min"),
     },
+    # Global exception handler - catches ALL exceptions and returns consistent JSON
+    "EXCEPTION_HANDLER": "common.exceptions.handlers.custom_exception_handler",
 }
 
 # JWT
