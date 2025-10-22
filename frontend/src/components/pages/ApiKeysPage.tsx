@@ -599,7 +599,7 @@ export const ApiKeysPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-4 overflow-y-auto flex-1 pr-2 -mr-2">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-2 -mr-2 p-2">
               <div>
                 <Label htmlFor="key-name" className="text-sm font-medium text-slate-700">
                   Key Name *
