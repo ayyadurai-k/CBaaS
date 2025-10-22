@@ -587,9 +587,9 @@ export const ApiKeysPage: React.FC = () => {
 
       {/* Generate API Key Modal */}
       {showGenerateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
               <h3 className="text-xl font-semibold text-slate-900">Generate New API Key</h3>
               <button 
                 onClick={resetModal}
@@ -599,7 +599,7 @@ export const ApiKeysPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-2 -mr-2">
               <div>
                 <Label htmlFor="key-name" className="text-sm font-medium text-slate-700">
                   Key Name *
@@ -706,7 +706,7 @@ export const ApiKeysPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex space-x-3 pt-4">
+              <div className="flex space-x-3 pt-4 flex-shrink-0">
                 <Button
                   onClick={resetModal}
                   variant="outline"
@@ -793,8 +793,8 @@ export const ApiKeysPage: React.FC = () => {
       {/* New API Key Display Modal - Shows the key only once */}
       {newKeyModal.show && newKeyModal.createdKey && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4">
-            <div className="flex items-center space-x-3 mb-6">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center space-x-3 mb-6 flex-shrink-0">
               <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
                 <Check className="w-6 h-6 text-green-600" />
               </div>
@@ -804,7 +804,7 @@ export const ApiKeysPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="mb-6">
+            <div className="overflow-y-auto flex-1">
               <Label className="text-sm font-medium text-slate-700 mb-2 block">
                 Your API Key
               </Label>
@@ -832,7 +832,7 @@ export const ApiKeysPage: React.FC = () => {
                   )}
                 </div>
               </div>
-            </div>
+            
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
               <div className="flex items-start space-x-2">
@@ -843,10 +843,11 @@ export const ApiKeysPage: React.FC = () => {
                 </div>
               </div>
             </div>
+            </div>
 
             <Button
               onClick={() => setNewKeyModal({ show: false })}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-shrink-0"
             >
               I've Copied My Key
             </Button>
@@ -857,8 +858,8 @@ export const ApiKeysPage: React.FC = () => {
       {/* Edit API Key Modal */}
       {showEditModal && editingKey && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 my-8">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
               <h3 className="text-xl font-semibold text-slate-900">Edit API Key</h3>
               <button 
                 onClick={handleEditCancel}
@@ -868,7 +869,7 @@ export const ApiKeysPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-2 -mr-2">
               <div>
                 <Label htmlFor="edit-key-name" className="text-sm font-medium text-slate-700">
                   Key Name *
@@ -979,7 +980,7 @@ export const ApiKeysPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex space-x-3 mt-6">
+            <div className="flex space-x-3 mt-6 flex-shrink-0">
               <Button
                 onClick={handleEditCancel}
                 variant="outline"
