@@ -22,6 +22,7 @@ import {
   selectUserDisplayName,
   selectUserAvatarUrl,
 } from '@/store/slices/userSlice';
+import { selectIsAuthenticated } from '@/store/slices/authSlice';
 import {
   fetchUserProfile,
   updateUserProfile,
@@ -40,18 +41,19 @@ export const useProfile = () => {
   const isUploadingPicture = useAppSelector(selectUserUploadingPicture);
   const error = useAppSelector(selectUserError);
   const profilePictureVersion = useAppSelector(selectProfilePictureVersion);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
   
   // Computed selectors
   const initials = useAppSelector(selectUserInitials);
   const displayName = useAppSelector(selectUserDisplayName);
   const avatarUrl = useAppSelector(selectUserAvatarUrl);
 
-  // Load profile on mount if not loaded
+  // Load profile on mount if authenticated and not loaded
   useEffect(() => {
-    if (!profile && !isLoading) {
+    if (isAuthenticated && !profile && !isLoading) {
       dispatch(fetchUserProfile());
     }
-  }, [profile, isLoading, dispatch]);
+  }, [isAuthenticated, profile, isLoading, dispatch]);
 
   // Action handlers
   const updateProfile = async (payload: UpdateProfilePayload): Promise<boolean> => {
