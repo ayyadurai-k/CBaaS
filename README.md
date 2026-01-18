@@ -2,8 +2,6 @@
 
 <div align="center">
 
-![CBaaS Logo](./frontend/public/favicon.ico)
-
 **A Multi-Tenant RAG-Powered SaaS Platform for Building Intelligent Chatbots**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
