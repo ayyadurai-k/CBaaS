@@ -579,6 +579,9 @@ cd frontend && npm run test
 - `backend/common/llm/embeddings.py` - LLM provider abstraction
 - `backend/common/exceptions/handlers.py` - Global exception handler
 - `backend/common/middleware/logging_middleware.py` - Request logging middleware
+- `backend/common/grpc/` - gRPC services, serializers, clients, authentication
+- `backend/common/services/` - Service layer interfaces (Identity, Chat, Knowledge)
+- `backend/config/grpc_handlers.py` - gRPC service registration
 - `backend/apps/chatbot/services.py` - Service layer example (ProviderTestService)
 - `backend/apps/documents/tasks.py` - Celery task example (process_document)
 - `frontend/src/apis/configs/axiosConfig.ts` - Axios interceptor (auto error parsing)
@@ -589,6 +592,7 @@ cd frontend && npm run test
 - `docker-compose.{dev,prod}.yml` - Service orchestration
 - `.github/workflows/{ci,cd}.yml` - CI/CD pipelines
 - `docs/GLOBAL_ERROR_HANDLING.md` - Error handling documentation
+- `docs/GRPC_IMPLEMENTATION.md` - gRPC implementation guide
 
 ## Conventions
 - **Backend Services**: Use `services.py` for complex business logic (e.g., `ProviderTestService`)
@@ -604,3 +608,6 @@ cd frontend && npm run test
 - **Toast Notifications**: Use shadcn/ui toast for app pages, Sonner for auth pages only
 - **Redux Hooks**: Always use `useAppDispatch()`/`useAppSelector()`, never raw Redux hooks
 - **UI Components**: Use shadcn/ui components from `@/components/ui`, style with Tailwind CSS
+- **gRPC Services**: Use `AsyncModelService` mixins, `ModelProtoSerializer` for models
+- **gRPC Clients**: Use client singletons from `common/grpc/clients.py`
+- **Cross-Service Refs**: Use UUIDField with service interfaces, not ForeignKey
