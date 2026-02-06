@@ -24,3 +24,14 @@ python-magic>=0.4.27
 Pillow>=10.0.0
 pytest
 pytest-django
+pydantic>=2.0
+PyJWT>=2.8.0
+
+# gRPC for inter-service communication
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+grpcio-reflection>=1.60.0
+django-socio-grpc>=0.17.0
+
+# Local packages (editable install)
+-e ../packages/cbaas_common

@@ -16,12 +16,19 @@ class ChatbotSerializer(serializers.ModelSerializer):
     llm_api_key = serializers.CharField(
         write_only=True, required=False, allow_blank=True
     )
-    documents_connected = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    # Use JSONField for document IDs instead of M2M
+    connected_document_ids = serializers.ListField(
+        child=serializers.UUIDField(), read_only=True
+    )
+    # Convenience field to show organization info (fetched via service)
+    organization_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Chatbot
         fields = [
             "id",
+            "organization_id",
+            "organization_name",
             "name",
             "tone",
             "system_instructions",
@@ -30,15 +37,16 @@ class ChatbotSerializer(serializers.ModelSerializer):
             "llm_api_key",
             "llm_system_prompt",
             "llm_is_active",
-            "documents_connected",
+            "connected_document_ids",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "organization_id", "created_at", "updated_at"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # For write operations, we'll handle documents_connected in the view
+    def get_organization_name(self, obj):
+        """Fetch organization name via Identity Service."""
+        org = obj.get_organization()
+        return org.name if org else None
 
 
 class ChatbotUpdateSerializer(serializers.ModelSerializer):
@@ -47,8 +55,8 @@ class ChatbotUpdateSerializer(serializers.ModelSerializer):
     llm_api_key = serializers.CharField(
         write_only=True, required=False, allow_blank=True
     )
-    documents_connected = serializers.ListField(
-        child=serializers.CharField(), write_only=True, required=False
+    connected_document_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False
     )
 
     class Meta:
@@ -62,7 +70,7 @@ class ChatbotUpdateSerializer(serializers.ModelSerializer):
             "llm_api_key",
             "llm_system_prompt",
             "llm_is_active",
-            "documents_connected",
+            "connected_document_ids",
         ]
         extra_kwargs = {
             'name': {'required': False},
@@ -74,9 +82,13 @@ class ChatbotUpdateSerializer(serializers.ModelSerializer):
             'llm_is_active': {'required': False},
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Documents will be handled in the update method
+    def update(self, instance, validated_data):
+        """Handle document ID list update."""
+        document_ids = validated_data.pop('connected_document_ids', None)
+        if document_ids is not None:
+            # Store as list of UUID strings
+            instance.connected_document_ids = [str(doc_id) for doc_id in document_ids]
+        return super().update(instance, validated_data)
 
     def update(self, instance, validated_data):
         # Handle API key encryption

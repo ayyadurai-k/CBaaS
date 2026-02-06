@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "pgvector",
     "corsheaders",  # Added for CORS
     "storages",  # AWS S3 storage backend
+    "django_socio_grpc",  # gRPC framework for microservices
     # Domain apps
     "apps.users",
     "apps.ops",  # Added for health/readiness endpoints
@@ -292,3 +293,35 @@ LOG_EXCLUDED_CONTENT_TYPES = [
     "application/octet-stream",
     "application/pdf",
 ]
+
+# ---- gRPC Framework Configuration ----
+# Django Socio gRPC settings for microservices communication
+GRPC_FRAMEWORK = {
+    # Root handlers hook - registers all gRPC services
+    "ROOT_HANDLERS_HOOK": "config.grpc_handlers.grpc_handlers",
+    # gRPC server port (default: 50051)
+    "GRPC_CHANNEL_PORT": int(os.environ.get("GRPC_PORT", 50051)),
+    # Enable async gRPC for better performance
+    "GRPC_ASYNC": True,
+    # Root folder for generated proto files
+    "ROOT_GRPC_FOLDER": "grpc_generated",
+    # Authentication classes for gRPC requests
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "common.grpc.authentication.JWTGRPCAuthentication",
+    ],
+    # Filter backends for gRPC services
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
+    # Pagination class for list operations
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    # gRPC middleware for request processing
+    "GRPC_MIDDLEWARE": [
+        "django_socio_grpc.middlewares.log_requests_middleware",
+        "django_socio_grpc.middlewares.close_old_connections_middleware",
+    ],
+    # Log OK responses (useful for debugging)
+    "LOG_OK_RESPONSE": DEBUG,
+    # Separate read/write models for serializers
+    "SEPARATE_READ_WRITE_MODEL": True,
+    # Enable health check endpoint
+    "ENABLE_HEALTH_CHECK": True,
+}

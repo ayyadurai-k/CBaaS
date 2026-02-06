@@ -24,8 +24,9 @@ class DocumentListCreateView(generics.ListCreateAPIView):
     ordering_fields = ["upload_date", "name", "size_bytes"]
 
     def get_queryset(self):
-        # Filter documents by user's organization
-        return Document.objects.filter(organization=self.request.user.organization)
+        # Filter documents by user's organization (using organization_id)
+        org_id = self.request.user.organization_id
+        return Document.objects.filter(organization_id=org_id)
 
     def get_serializer_class(self):
         return (
@@ -40,8 +41,9 @@ class DocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = DocumentSerializer
 
     def get_queryset(self):
-        # Filter documents by user's organization
-        return Document.objects.filter(organization=self.request.user.organization)
+        # Filter documents by user's organization (using organization_id)
+        org_id = self.request.user.organization_id
+        return Document.objects.filter(organization_id=org_id)
 
 
 class DocumentReprocessView(APIView):
@@ -49,8 +51,9 @@ class DocumentReprocessView(APIView):
     throttle_classes = [DocumentsRateThrottle]  # Apply throttle
 
     def post(self, request, pk):
+        org_id = request.user.organization_id
         try:
-            doc = Document.objects.get(id=pk, organization=request.user.organization)
+            doc = Document.objects.get(id=pk, organization_id=org_id)
         except Document.DoesNotExist:
             return Response(
                 {"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND
@@ -58,7 +61,11 @@ class DocumentReprocessView(APIView):
 
         doc.status = Document.Status.PROCESSING
         doc.save(update_fields=["status"])
-        process_document.delay(str(doc.id))
+        
+        # Use Knowledge Service to trigger reprocessing
+        from common.services import get_knowledge_service
+        get_knowledge_service().trigger_document_processing(str(doc.id))
+        
         return Response(status=status.HTTP_202_ACCEPTED)
 
 
@@ -71,9 +78,10 @@ class DocumentDownloadView(APIView):
     def get(self, request, pk):
         try:
             # Verify document exists and user has access
+            org_id = request.user.organization_id
             document = Document.objects.get(
                 id=pk, 
-                organization=request.user.organization
+                organization_id=org_id
             )
         except Document.DoesNotExist:
             raise Http404("Document not found")

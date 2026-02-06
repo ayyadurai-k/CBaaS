@@ -19,7 +19,14 @@ class Chatbot(models.Model):
 
     # Basic chatbot configuration
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE)
+    
+    # Cross-service reference (Phase 1: soft reference to Identity Service)
+    # In Phase 2+, this will be validated via Identity Service API
+    organization_id = models.UUIDField(
+        db_index=True,
+        help_text="Reference to Organization in Identity Service"
+    )
+    
     name = models.CharField(max_length=100)
     tone = models.CharField(max_length=20, choices=TONE_CHOICES, default="technical")
     system_instructions = models.TextField()
@@ -36,12 +43,13 @@ class Chatbot(models.Model):
     llm_system_prompt = models.TextField(blank=True, default="")
     llm_is_active = models.BooleanField(default=True, db_index=True)
     
-    # Document connections
-    documents_connected = models.ManyToManyField(
-        'documents.Document',
+    # Cross-service document references
+    # Stores list of document UUIDs from Knowledge Service
+    # In Phase 2+, document existence is validated via Knowledge Service API
+    connected_document_ids = models.JSONField(
+        default=list,
         blank=True,
-        related_name='connected_chatbots',
-        help_text="Documents that this chatbot can access for RAG"
+        help_text="List of Document UUIDs from Knowledge Service"
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -61,12 +69,28 @@ class Chatbot(models.Model):
             self.llm_api_key_encrypted = Encryptor.encrypt(value)
         else:
             self.llm_api_key_encrypted = None
+    
+    # Helper methods for cross-service data access
+    def get_organization(self):
+        """Fetch organization data via Identity Service."""
+        from common.services import get_identity_service
+        return get_identity_service().get_organization(str(self.organization_id))
+    
+    def get_connected_documents(self):
+        """Fetch connected documents via Knowledge Service."""
+        from common.services import get_knowledge_service
+        knowledge_service = get_knowledge_service()
+        return [
+            knowledge_service.get_document(doc_id) 
+            for doc_id in self.connected_document_ids
+        ]
 
     def __str__(self) -> str:
-        return f"{self.name} ({self.organization.name})"
+        org = self.get_organization()
+        org_name = org.name if org else "Unknown"
+        return f"{self.name} ({org_name})"
 
     class Meta:
-        unique_together = [('organization',)]  # One chatbot per organization
         indexes = [
-            models.Index(fields=['organization', 'created_at']),
+            models.Index(fields=['organization_id', 'created_at']),
         ]

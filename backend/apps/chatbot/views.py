@@ -26,10 +26,11 @@ class ChatbotView(APIView):
 
     def get_object(self, request):
         org = request.user.organization
+        org_id = org.id if org else request.user.organization_id
         bot, _ = Chatbot.objects.get_or_create(
-            organization=org,
+            organization_id=org_id,
             defaults={
-                "name": f"{org.name} Chatbot",
+                "name": f"{org.name if org else 'My'} Chatbot",
                 "tone": "technical",
                 "system_instructions": "",
             },
@@ -179,8 +180,9 @@ class ChatbotMessageView(APIView):
         
         try:
             # Check if chatbot exists and is configured
+            org_id = org.id if org else request.user.organization_id
             try:
-                chatbot = Chatbot.objects.get(organization=org)
+                chatbot = Chatbot.objects.get(organization_id=org_id)
             except Chatbot.DoesNotExist:
                 return Response(
                     {"error": "Chatbot not configured for this organization"},

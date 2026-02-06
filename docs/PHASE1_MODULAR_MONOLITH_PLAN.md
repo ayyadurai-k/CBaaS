@@ -169,50 +169,50 @@ Define the API surface each service will expose:
 
 | Task | Owner | Priority | Done |
 |------|-------|----------|------|
-| Complete FK dependency audit table | - | P0 | ☐ |
-| Document all Python import dependencies | - | P0 | ☐ |
-| Identify high-risk coupling points | - | P0 | ☐ |
-| Finalize service boundary definitions | - | P0 | ☐ |
+| Complete FK dependency audit table | AI | P0 | ✅ |
+| Document all Python import dependencies | AI | P0 | ✅ |
+| Identify high-risk coupling points | AI | P0 | ✅ |
+| Finalize service boundary definitions | AI | P0 | ✅ |
 
 ### Sprint 2: Shared Library Setup (1 week)
 
 | Task | Owner | Priority | Done |
 |------|-------|----------|------|
-| Create `cbaas-common` package structure | - | P0 | ☐ |
-| Extract JWT utilities | - | P0 | ☐ |
-| Extract logging setup | - | P1 | ☐ |
-| Extract exception handlers | - | P1 | ☐ |
-| Extract model mixins | - | P1 | ☐ |
-| Setup package versioning | - | P2 | ☐ |
+| Create `cbaas-common` package structure | AI | P0 | ✅ |
+| Extract JWT utilities | AI | P0 | ✅ |
+| Extract logging setup | AI | P1 | ✅ |
+| Extract exception handlers | AI | P1 | ✅ |
+| Extract model mixins | AI | P1 | ✅ |
+| Setup package versioning | AI | P2 | ✅ |
 
 ### Sprint 3: Service Layer Implementation (2 weeks)
 
 | Task | Owner | Priority | Done |
 |------|-------|----------|------|
-| Create `IdentityServiceInterface` | - | P0 | ☐ |
-| Create `ChatServiceInterface` | - | P0 | ☐ |
-| Create `KnowledgeServiceInterface` | - | P0 | ☐ |
-| Replace direct ORM calls with service calls | - | P0 | ☐ |
+| Create `IdentityServiceInterface` | AI | P0 | ✅ |
+| Create `ChatServiceInterface` | AI | P0 | ✅ |
+| Create `KnowledgeServiceInterface` | AI | P0 | ✅ |
+| Replace direct ORM calls with service calls | AI | P0 | ✅ |
 | Add feature flags for service layer | - | P1 | ☐ |
 
 ### Sprint 4: Database Decoupling (2 weeks)
 
 | Task | Owner | Priority | Done |
 |------|-------|----------|------|
-| Create migration: Add UUID columns | - | P0 | ☐ |
-| Create data backfill script | - | P0 | ☐ |
-| Create migration: Drop FK constraints | - | P0 | ☐ |
-| Update serializers for UUID fields | - | P0 | ☐ |
+| Create migration: Add UUID columns | AI | P0 | ✅ |
+| Create data backfill script | N/A | P0 | ✅ (No data) |
+| Create migration: Drop FK constraints | AI | P0 | ✅ |
+| Update serializers for UUID fields | AI | P0 | ✅ |
 | Update tests for new schema | - | P0 | ☐ |
 
 ### Sprint 5: Event System Foundation (1 week)
 
 | Task | Owner | Priority | Done |
 |------|-------|----------|------|
-| Define event schemas | - | P1 | ☐ |
-| Implement local event bus | - | P1 | ☐ |
-| Add event emission points | - | P1 | ☐ |
-| Create event handler registry | - | P1 | ☐ |
+| Define event schemas | AI | P1 | ✅ |
+| Implement local event bus | AI | P1 | ✅ |
+| Add event emission points | AI | P1 | ✅ |
+| Create event handler registry | AI | P1 | ✅ |
 
 ### Sprint 6: Validation & Hardening (1 week)
 
